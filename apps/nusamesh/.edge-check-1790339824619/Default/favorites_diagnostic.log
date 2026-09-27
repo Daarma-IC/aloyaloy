@@ -1,0 +1,39 @@
+2026-09-25 12:37:06.147: [INFO] CurrentProfilePath: C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\.edge-check-1790339824619\Default
+2026-09-25 12:37:06.147: [INFO] Profiles total count: 1
+2026-09-25 12:37:06.147: [INFO] Profile: name=Profile 1 path=C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\.edge-check-1790339824619\Default lastActive=2026-09-25T12:37:06.082Z
+2026-09-25 12:37:06.147: [INFO] LastUsedProfileDir: C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\.edge-check-1790339824619\Default
+2026-09-25 12:37:06.147: [INFO] MostRecentlyActiveProfile: name=Profile 1 path=C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\.edge-check-1790339824619\Default lastActive=2026-09-25T12:37:06.082Z
+2026-09-25 12:37:06.147: [INFO] OnDoneLoading sync enabled: 0
+2026-09-25 12:37:06.147: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-09-25 12:37:06.147: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-09-25 12:37:06.147: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-25 12:37:06.167: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-09-25 12:37:06.590: [INFO] VisibilityChanged: 0
+2026-09-25 12:37:14.933: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-09-25 12:37:14.942: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-09-25 12:37:14.950: [INFO] Primary account changed.
+2026-09-25 12:37:14.950: [INFO] OnPrimaryAccountChanged PrimaryAccountChangeEvent::Type::kSet
+2026-09-25 12:37:14.980: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-09-25 12:37:41.263: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.264: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.265: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.265: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.266: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.267: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.267: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.268: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.269: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.270: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.270: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.271: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.271: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.272: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.273: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.274: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.275: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.276: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.276: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.277: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.277: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.278: [INFO] BookmarkNodeAdded, ABU: 0
+2026-09-25 12:37:41.625: [INFO] Sync initialization duration: 26393ms

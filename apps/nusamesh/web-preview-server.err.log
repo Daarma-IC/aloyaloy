@@ -1,0 +1,29 @@
+asset 401f58202a6ae0b9d01e.wasm 19.8 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] (auxiliary name: main)
+asset bccfa839aa4b38489c76.wasm 8.02 MiB [emitted] [immutable] [from: kotlin/skiko.wasm] (auxiliary name: main)
+asset composeApp.js 4.03 MiB [emitted] (name: main)
+runtime modules 29.5 KiB 13 modules
+javascript modules 1.53 MiB
+  modules by path ../../../../../../../../../.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b...(truncated) 109 KiB
+    modules by path ../../../../../../../../../.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b...(truncated) 84.8 KiB 8 modules
+    modules by path ../../../../../../../../../.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b...(truncated) 5.17 KiB 4 modules
+    + 2 modules
+  modules by path ./kotlin/ 1.04 MiB
+    ./kotlin/NusaMesh-composeApp.mjs 395 bytes [built] [code generated]
+    ./kotlin/skiko.mjs 613 KiB [built] [code generated]
+    ./kotlin/NusaMesh-composeApp.uninstantiated.mjs 443 KiB [built] [code generated] [3 warnings]
+    ./kotlin/custom-formatters.js 5.15 KiB [built] [code generated]
+  ../../node_modules/@js-joda/core/dist/js-joda.esm.js 392 KiB [built] [code generated]
+asset modules 27.8 MiB (asset) 84 bytes (javascript)
+  ./kotlin/skiko.wasm 8.02 MiB (asset) 42 bytes (javascript) [built] [code generated]
+  ./kotlin/NusaMesh-composeApp.wasm 19.8 MiB (asset) 42 bytes (javascript) [built] [code generated]
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Gradle build daemon has been stopped: stop command received
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.

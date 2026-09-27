@@ -1,0 +1,5 @@
+2026/09/25-19:37:08.806 3f34 Creating DB C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\.edge-check-1790339824619\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/09/25-19:37:08.830 3f34 Reusing MANIFEST C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\.edge-check-1790339824619\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/09/25-19:37:13.042 77cc Level-0 table #5: started
+2026/09/25-19:37:13.053 77cc Level-0 table #5: 683273 bytes OK
+2026/09/25-19:37:13.055 77cc Delete type=0 #3

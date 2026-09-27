@@ -1,0 +1,356 @@
+{
+   "checksum": "f7b299ac1048a121b0928ba9d08b218e",
+   "roots": {
+      "bookmark_bar": {
+         "children": [ {
+            "date_added": "13354301261748698",
+            "date_last_used": "0",
+            "guid": "e0a60c27-bb1c-4581-97ad-2c57b6168c01",
+            "id": "7",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Rangkaian Sismin Atmega8 / Atmega328 Skematik dan Board - Mikrokontroler dan Cloud",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.anakkendali.com/2020/04/14/sismin-atmga8-atmega328-skematik-dan-board/",
+            "visit_count": 0
+         }, {
+            "date_added": "13356601851653961",
+            "date_last_used": "0",
+            "guid": "a8609ef7-dc82-4d84-9981-cf3b25ac8328",
+            "id": "8",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "GUIDEBOOK LOMBA",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://drive.google.com/drive/folders/1qVuw3pn-0T_rQdxBsOH0nwrBp9eJLspf",
+            "visit_count": 0
+         }, {
+            "date_added": "13357573729368720",
+            "date_last_used": "0",
+            "guid": "ddbd151d-515f-439d-bf7c-cbe0be0bb090",
+            "id": "9",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Selamat Datang, DARMA AL GANI - Silakan melanjutkan proses pendaftaran dengan mengisi data diri Anda secara lengkap dan melakukan upload berkas administrasi.",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://sdmpks.sevima.com/spmbfront/biodata/datawali#",
+            "visit_count": 0
+         }, {
+            "date_added": "13358183965172553",
+            "date_last_used": "0",
+            "guid": "112cefb5-34cd-4774-97b6-3f1af3c5e35b",
+            "id": "10",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Register peserta - Pertamina Goes To Campus ( PGTC )",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://pgtc.pertamuda.id/register",
+            "visit_count": 0
+         }, {
+            "date_added": "13358437997442410",
+            "date_last_used": "0",
+            "guid": "f2f6b40d-824c-4ec9-9336-ec4178bff8bc",
+            "id": "11",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "UTS Alpro merged - kumpulan uts algoritma pemograman - ####### 2/22/22, 4:52 PM Kuis 1: Attempt - Studocu",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.studocu.com/id/document/universitas-telkom/algorithm-and-programming/uts-alpro-merged-kumpulan-uts-algoritma-pemograman/45815762",
+            "visit_count": 0
+         }, {
+            "date_added": "13358438367204895",
+            "date_last_used": "0",
+            "guid": "4107ce8e-8af5-449c-81b0-f7bafc24271c",
+            "id": "12",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Universitas%20telkom Notes, Summaries and Exam prep - Studocu",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.studocu.com/id/search/universitas-telkom-rangkaian-dc",
+            "visit_count": 0
+         }, {
+            "date_added": "13358440397798920",
+            "date_last_used": "0",
+            "guid": "b535e39b-f2c9-47ac-ab91-59abb6ba1569",
+            "id": "13",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Quiz 08 Medan Magnet - FISIKA 2 TK-45-05 [RER] Dashboard/My courses/ TUI1F3-TK-45-05/ Pertemuan 08: - Studocu",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.studocu.com/id/document/universitas-telkom/basic-physics/quiz-08-medan-magnet/34983124",
+            "visit_count": 0
+         }, {
+            "date_added": "13358440533100733",
+            "date_last_used": "0",
+            "guid": "f6788ef6-ab68-43fb-ad8b-446d2e12b9b2",
+            "id": "14",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Universitas%20telkom%20uts%20fisika Notes, Summaries and Exam prep - Studocu",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.studocu.com/id/search/universitas-telkom-fisika-2",
+            "visit_count": 0
+         }, {
+            "date_added": "13358442211040738",
+            "date_last_used": "0",
+            "guid": "b389e456-9662-46f8-b4a0-7c5604ec540a",
+            "id": "15",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "UAS (Remedial) Attempt review - ALGORITMA DAN PEMROGRAMAN TT-45-09 [FYU] Dashboard / My courses / - Studocu",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.studocu.com/id/document/universitas-telkom/algorithm-and-programming/uas-remedial-attempt-review/45815835",
+            "visit_count": 0
+         }, {
+            "date_added": "13358448569106797",
+            "date_last_used": "0",
+            "guid": "9b542ed0-e65b-4c07-9ef3-75ec9da7cda6",
+            "id": "16",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Latihan UAS Fisika 2 - MEDAN MAGNET VERSI A Kawat A dan kawat B terpisah sejauh 2 meter dengan kuat - Studocu",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.studocu.com/id/document/universitas-telkom/uasuts/latihan-uas-fisika-2/44110454",
+            "visit_count": 0
+         }, {
+            "date_added": "13358930772710801",
+            "date_last_used": "0",
+            "guid": "7c8cdaf4-9b20-45ea-b24d-3a2ae5879a27",
+            "id": "17",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "@CiptaHarsaApril | Instagram | Linktree",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://linktr.ee/ciptaharsa",
+            "visit_count": 0
+         }, {
+            "date_added": "13360415550403123",
+            "date_last_used": "0",
+            "guid": "e71a4042-9821-416d-9d48-af7022835f2f",
+            "id": "18",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "3D design Copy of Curtain - Tinkercad",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.tinkercad.com/things/e6bPDgdihQk-copy-of-curtain/edit",
+            "visit_count": 0
+         }, {
+            "date_added": "13360415564888716",
+            "date_last_used": "0",
+            "guid": "26ce3bd1-d8cb-49d1-a398-f276be7bab7f",
+            "id": "19",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Circuit design Spectacular Albar - Tinkercad",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.tinkercad.com/things/4uvomUhnsi4-spectacular-albar/editel",
+            "visit_count": 0
+         }, {
+            "date_added": "13361111800698334",
+            "date_last_used": "0",
+            "guid": "e2d5711f-26df-4889-8aa5-420d2b867189",
+            "id": "20",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Circuit design Swanky Hango-Gogo - Tinkercad",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.tinkercad.com/things/1cuL9VMUYFH-swanky-hango-gogo/editel?tenant=circuits",
+            "visit_count": 0
+         }, {
+            "date_added": "13361417174805201",
+            "date_last_used": "0",
+            "guid": "a03a0d36-cd60-4e93-818b-e699176298b5",
+            "id": "21",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Pendaftaran Acara - Google Formulir",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://docs.google.com/forms/d/18bpiDNiaRE6JlKQhLa3kRDLsUCndS5wIXZeOwwSM3jQ/edit#settings",
+            "visit_count": 0
+         }, {
+            "date_added": "13361417226195349",
+            "date_last_used": "0",
+            "guid": "c40a8506-b697-498a-9c57-7e76703d7b80",
+            "id": "22",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Pendaftaran Acara (Jawaban) - Google Spreadsheet",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://docs.google.com/spreadsheets/d/1a2ji3Whj9qULn0r4zl00q6LAGLMfVaMu2nwgZ7PWjEw/edit?resourcekey#gid=224202648",
+            "visit_count": 0
+         }, {
+            "date_added": "13363208042310241",
+            "date_last_used": "0",
+            "guid": "0b7715a9-cb61-416d-8575-e4130ad8ac12",
+            "id": "23",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "ArduPilot firmware : /Tools/MissionPlanner",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://firmware.ardupilot.org/Tools/MissionPlanner/",
+            "visit_count": 0
+         }, {
+            "date_added": "13364214742072200",
+            "date_last_used": "0",
+            "guid": "88464df5-4418-483a-9ab5-3be890cfd37d",
+            "id": "24",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Jobs Talentics - Platform Rekrutmen dan Asesmen Online No. 1",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://jobs.talentics.id/applications",
+            "visit_count": 0
+         }, {
+            "date_added": "13372666012050748",
+            "date_last_used": "0",
+            "guid": "44ecc39d-541d-4a69-9f5a-b789d9f57051",
+            "id": "25",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "FC",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.instructables.com/RC-Quadrotor-Helicopter/",
+            "visit_count": 1
+         }, {
+            "date_added": "13372667085884800",
+            "date_last_used": "0",
+            "guid": "d0450276-8324-4b6a-b616-e49f1f62017a",
+            "id": "26",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "FC with Frame",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.instructables.com/PCB-Quadrotor-Brushless/",
+            "visit_count": 1
+         }, {
+            "date_added": "13374082144666201",
+            "date_last_used": "0",
+            "guid": "572531fa-453f-48aa-b301-359895ebf910",
+            "id": "27",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Design of a High Power PDB (Power Distribution Board) for a Pixhawk : 5 Steps - Instructables",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.instructables.com/Design-of-a-High-Power-PDB-Power-Distribution-Boar/",
+            "visit_count": 1
+         } ],
+         "date_added": "13434813425643619",
+         "date_last_used": "0",
+         "date_modified": "13374082144666201",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "Favourites bar",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "other": {
+         "children": [ {
+            "date_added": "13400774546045589",
+            "date_last_used": "0",
+            "guid": "09cb5937-4189-41cf-9fb4-f48c1705c163",
+            "id": "28",
+            "name": "Lk21 Nonton The Fantastic Four: First Steps (2025) Sub Indo | Streaming dan Download Film Full Movie HD",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://tv.lk21official.love/the-fantastic-four-first-steps-2025",
+            "visit_count": 0
+         } ],
+         "date_added": "13434813425643619",
+         "date_last_used": "0",
+         "date_modified": "13400774546045589",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "Other favourites",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13434813425643619",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "Mobile favourites",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "workspaces_v2": {
+         "children": [  ],
+         "date_added": "13434813425643619",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "75aa6670-344f-549d-b742-660f029506ab",
+         "id": "5",
+         "name": "Workspaces",
+         "source": "unknown",
+         "type": "folder"
+      }
+   },
+   "sync_metadata": "CkEKHgiIgQISCOS1jdigAQAAKg4QABgBIAAoBTAAOABAABIAKhh1SmFmQUIyTm5Qdk1ZRjRMQlR3VU5nPT1IA6AGDBKMAQgFEocBChx3UkJyWkwrNlBBOWF2S2dqTlA3SlhETGNmdnM9EiRlZmIyM2ZkNy02OGUzLTU3ZjgtYTRmMS1mY2NiOWJlYTM1NDAYACAAKAAwmvr0tpIzOI/89LaSM0CP/PS2kjNKHG5teDY1c1FEdnhJOFRnRWV2K0ErbnR0b1NuND1lAAAAAMI+AmAAEqwBCBwSpwEKHGZZZVk2SE9WWUtOUUZuT09ZZlVBb2VPVll1bz0SJDA5Y2I1OTM3LTQxODktNDFjZi05ZmI0LWY0OGMxNzA1YzE2MxgAIAAoADCBlYyEjzM4gpuMhI8zQIKbjISPM0ocemdZalBUZlZkQzVNV0dSL3Q0THcvTDBjMEVFPVoeIhx2TnRsUFVYeHBKSEJNTzJCaXFrcVNYdmIyZGc9ZeSlGgvCPgJgBRKMAQgCEocBChxZY1NUb252RVNQd3FDczRMMmNyVmh2NjhMOTg9EiQ1M2M4ODliZS1iYWViLTViN2MtOWE0Yy0yMGU1NDg2YzQ5ZWEYACAAKAAwiq22sYAxOMiwtrGAMUDIsLaxgDFKHG9QVmtod0JSYlY2NUtDV1IyK0lPTkhXb091OD1lAAAAAMI+AmAAEq8BCBgSqgEKHGQzdzFySmdoUy9WbGhBSzNLbnBVQmhkbGsrST0SJDg4NDY0ZGY1LTQ0MTgtNDgzYS05YWI1LTNiZTg5MGNmZDM3ZBgAIAAoADDu7sHvyDI4p6u9xIYyQKervcSGMkocWG1CYTd0KytBMEswb0Y3Y3JvMHdKLzlMazFJPVohIh///+p1QndlVU10azVxdmxiSG1JbWtFWHIwUzFHTzg9ZSkUcRzCPgJgBRKuAQgVEqkBChxML2YwUEt4V1g1dGR5V3l0RjZPeHRGYVFWZHM9EiRhMDNhMGQzNi1jZDYwLTRlOTMtODE4Yi1lNjk5MTc2Mjk4YjUYACAAKAAw6u7B78gyOJrNv478MUCazb+O/DFKHFlzbTYyd0JqaGhzTm4zcWhFeUtSd0tiWkNQTT1aICIe//9SNmZJeDZ1VXpUcGRVV0RxZlI3bzBWcjR1bm89ZaOtHF/CPgJgBRKvAQgXEqoBChxvNlJOQkxSQ1V5bHNqTHcvQWhxV044UFd3WW89EiQwYjc3MTVhOS1jYjYxLTQxNmQtODU3NS1lNDEzMGFkOGFjMTIYACAAKAAwh6q55IIyOPSsueSCMkD0rLnkgjJKHGh0ZnNJM2d2cmZSZDJ3Mll6TGx1a2cyMit4Zz1aISIf///UNEhwbUxPZFA2UElkeWhqcjNNUlkweGR1MllZPWUAAAAAwj4CYAUSjAEIARKHAQoceXhKLzZmdmtlY3I3a3A1RVF6QjR0V0xwZGJFPRIkZWE5NzAxNWQtNjBlOS01NTZiLThiOTItNTVkZWQxZTJjOGU4GAAgACgAMImttrGAMTizsLaxgDFAs7C2sYAxShxhUkNXTGdoRjliNUlucUtJRHZ1Si9qdlFrRmM9ZQAAAADCPgJgABKuAQgNEqkBChxxWEluTzFVb1BaVjdSU2hIa3U0MHpzRWdMYm89EiRiNTM1ZTM5Yi1mMmM5LTQ3YWMtYWI5MS01OWFiYjZiYTE1NjkYACAAKAAw6+7B78gyONrJh4PxMUDayYeD8TFKHGozenVzblBkNkZRN09pK0pJbTBVZ2NpemkrRT1aICIe/9tvdkpBTTZEeTlhejlWNnlVZHBTNC9PSWphRms9ZUO5whDCPgJgBRKvAQgaEqoBChxrMmNMeVo1MUEwdFlMeE1UZ3FNam9senlLTFE9EiRkMDQ1MDI3Ni04MzI0LTRiNmEtYjYxNi1lNDlmMWY2MjAxN2EYACAAKAAw8O7B78gyOPrC74KmMkD6wu+CpjJKHHptZFZwOGZZaU1PdURYbHZNb2N0VnNYQmpkND1aISIf///6TFd0VUNNc3BETTJySUlVNFg2SGdmYXByVGkwPWWSPUNfwj4CYAUSrwEIFhKqAQoceEduU2lyMnVpdlVBQllVYTYxZTlwb0U4bUdBPRIkYzQwYTg1MDYtYjY5Ny00OThhLTljNTctN2U3NjcwM2Q3YjgwGAAgACgAMPbuwe/IMjjr0sKO/DFA69LCjvwxShxMOVZyMm5aTGxpNVlWdWtGRGpMTi91SVR3aGM9WiEiH///qUk0VnNjeC9XREhoaTB1M2dRSkpjYUs5TDhSTT1lvivuR8I+AmAFEq4BCBQSqQEKHHJKSVkzRjRwOVFMdVBMYXdrcEVmTERNaVc1bz0SJGUyZDU3MTFmLTI2ZGYtNDg4OS04YWE1LTQyMGQyYjg2NzE4ORgAIAAoADDfqo+GmTM4kfbw/PoxQJH28Pz6MUocQ0RDdzNLYWMvOC9QWTFKQmVWM3dEcTZKT2xnPVogIh7//0p5ZjlNakRvRmdrazJlNGJzd2JRbVhjNkVnWT1lno7MusI+AmAFEq4BCBASqQEKHEo0VXNUUUpmWVI3V1oxbGkraEFJUEZVMk85cz0SJDliNTQyZWQwLWU2NWItNGMwNy05ZWYzLTc1ZWM5ZGE3Y2RhNhgAIAAoADD47sHvyDI497P6hvExQPez+obxMUoca2swZjNUMjd1Z09hekJKeDBMRHRadXQ5M01vPVogIh7/+0RiNHE1bDd5eHVodkVjVUJUeEIvdWFudXNDQT1lQ7nCEMI+AmAFEq8BCBkSqgEKHHhhUm05SmxtS01ENUl4cWYwa1d6K0licTlBUT0SJDQ0ZWNjMzlkLTU0MWQtNGE2OS05ZjVhLWI3ODlkOWY1NzA1MRgAIAAoADD07sHvyDI4gYKugqYyQIGCroKmMkocbU03bC9oS0JpdlYvM29UMVhRMkdzQnMrWTVnPVohIh////V1czBNaWo3bk1KME1maDI1VVFhd0p3dGM4cFE9ZZI9Q1/CPgJgBRKtAQgHEqgBChxMa3dJZXNKb3h5T2k4aDFWbFJHU3BhRkFpTVk9EiRlMGE2MGMyNy1iYjFjLTQ1ODEtOTdhZC0yYzU3YjYxNjhjMDEYACAAKAAwhJ+PhpkzOI/Urs3hMUCP1K7N4TFKHHR6OEMxWTBVczRJVjc1VVRySlB0RXJMd3dKND1aHyId+2xIR1A1NW1uSUxGL3FrTTBuaWhqL0d0RnZUWT1lQr1IRcI+AmAFEq4BCBMSqQEKHFRxL0FvU2Vya3hGODEwSUprbWJQWEN0UlVtdz0SJDI2Y2UzYmQxLWQ4Y2ItNDlkMS1hMzk4LWYyNzZiZTdiYWI3ZhgAIAAoADDeqo+GmTM4xYzysPgxQMWM8rD4MUoccVVMM3JPYTNpY0pKaEY3WTdCemVtWlgxcEc0PVogIh7//0pXMitRRGRUY04yWUlNVHF2THlaeTJIVjV3WT1lno7MusI+AmAFEq4BCBISqQEKHHNXTkppeTdwalZnUzhsRkZCN28xVzFLSlVOQT0SJGU3MWE0MDQyLTk4MjEtNDE2ZC05ZDQ4LWFmNzAyMjgzNWYyZhgAIAAoADDdqo+GmTM4sb3xsPgxQLG98bD4MUocWncwWUVrYjU5VkNyZnp6V3dEVkpKMmxIeDNrPVogIh7//lZSbGtJVzVXK3ZPSFNiWXpsL0NUNFpqSFRCbz1lno7MusI+AmAFEowBCAMShwEKHG5qZ0R1ODhlQ3J2WHA4NnBEN2ZIR2NxRnA4OD0SJGMxZmE4NzU0LWVlNjQtNTAwMC04OGY1LTNmZWY0MmYxZTZjMhgAIAAoADCPrbaxgDE4xrG2sYAxQMaxtrGAMUoceXpOQjAxY241NEE3Y1JVMHVUKy9QZ21UdFVvPWUAAAAAwj4CYAASrgEIDhKpAQocVE1aUGpZczlLSWJkUkR5RUYxR1VIcVFpdm4wPRIkZjY3ODhlZjYtYWI2OC00M2ZiLWFkOGItNDQ2ZDJlMTJiOWIyGAAgACgAMOfuwe/IMjiUlJCD8TFAlJSQg/ExShwrNGQ5bmhGNEFQaW12ZUtPSGYwN0R3UmFoSkE9WiAiHv/tSE9YWjBOeUNTQkVWVW4wM3NZSGZMTE1nazJRPWVDucIQwj4CYAUSrQEIChKoAQocdlpzNE9ZSmQ4SDdBS0QvekJpZGQ1UHpnKzI4PRIkMTEyY2VmYjUtMzRjZC00Nzc0LTk3YjYtM2YxYWYzYzVlMzViGAAgACgAMIGfj4aZMziPi+SI8DFAj4vkiPAxShxhcHp5WEN5TnUyNkNYMGxsOGMwSWhpNENhaVk9Wh8iHf9UWHcxT0VsZy9ud08vOEJYUWhqU0RQU3cxNWc9Zb55EhDCPgJgBRKuAQgPEqkBChx5R2VnZm5NN2JVS3FOT2tDWFQvK0hnNW44bUU9EiRiMzg5ZTQ1Ni05NjYyLTQ2ZjgtYjRhMC03YzU2MDRlYzU0MGEYACAAKAAw9e7B78gyOIm09oPxMUCJtPaD8TFKHEluWk5QZTBEdUo2dWxvazQvdGJOTjZITE84dz1aICIe//ZKYnYySzV4dnJiNlZ4QVE3Qk5zUCtLbTNHKzA9ZUO5whDCPgJgBRKtAQgIEqgBChxma3pGWE5xaldCbWpCVkVOUkdwdncwcERnTUU9EiRhODYwOWVmNy1kYzgyLTRkODQtOTk4MS1jZjNiMjVhYzgzMjgYACAAKAAwhZ+PhpkzOJrGr5bqMUCaxq+W6jFKHFBDVmJGQ1VyYlZyeVFscWdkL3U4aEFIZGl3dz1aHyId/S9ucjVJWittdDlBTnBXaWpGQW9oNGMyYWozVT1lamTuEsI+AmAFEq4BCAwSqQEKHGMrcHZ1TXlGUFp5SkVWVHpuOW5lZkNKOFRyMD0SJDQxMDdjZThlLThhZjUtNDQ5Yy04MWIwLWY3YmFmYzI0MjcxYxgAIAAoADDt7sHvyDI4reOLgvExQK3ji4LxMUocaldxd0w1SkFvT1J3Z1JBSlQ4R0lZNmhweUFjPVogIh7/tmhUSzF5dkVNbCtBbzRJODhZYjFxRWZTU0hhYz1lQ7nCEMI+AmAFEq8BCBsSqgEKHGQrWmMrbnh4elFOdk5iZEFUZ3lwdEdoYm5tND0SJDU3MjUzMWZhLTQ1M2YtNDhhYS1iMzAxLTM1OTg5NWViZjkxMBgAIAAoADDh7sHvyDI4qPLPpasyQKjyz6WrMkocYkhVdEU3enJmdlJ2dmhoVWNzOW4rdVBlZXk4PVohIh////1pR3lnYW5WMXh5WVdQOGF6MW9LY2pxd0k2dE09ZZI9Q1/CPgJgBRKtAQgLEqgBChx6NkVnUjc4RlNhTXY2S3VqMzU5a0hoSG9udlU9EiRmMmY2YjQwZC04MjRjLTRlYzktOTMzNi1lYzQxNzhiZmY4YmMYACAAKAAw5e7B78gyONWZ9YHxMUDVmfWB8TFKHGp6d3VFTmRwTTBvbjJ1Q1pvT3BWS2tVQTAxVT1aHyId/2xqWW55b2ZtTHBHTC9ndmlnb0ZOQ04vUTh1RT1lQ7nCEMI+AmAFEq4BCBESqQEKHE9RSExOaVpCZVp4NUtheGJ3Z2J3L29QUWdxaz0SJDdjOGNkYWY0LTliMjAtNDVlYS1iMjRkLTNhMmFlNTg3OWEyNxgAIAAoADDo7sHvyDI44eWP7fIxQOHlj+3yMUocYUFXR24zRDlhTWsxVC9zR3o3a3lPblNOSGdvPVogIh7//VgxblJGWXV3OEZpMGxqY3ExZS95Tys1MHZpQT1ltuJ7+sI+AmAFEq0BCAkSqAEKHG8vY3NzbldSaFlEeWs1LzlOaktUclQyMXpxUT0SJGRkYmQxNTFkLTUxNWYtNDM5ZC1iZjdjLWNiZTBiZTBiYjA5MBgAIAAoADCAn4+GmTM4gKTm5e0xQICk5uXtMUoccDFOY1VDamp0VUpsSkRHQnR6SFBET1Y5TnlBPVofIh3+UzRSWlVjdUxvYUxXbVczL2ZRV0hYNkw1S3dvPWUhS5hfwj4CYAUwADgA",
+   "version": 1
+}

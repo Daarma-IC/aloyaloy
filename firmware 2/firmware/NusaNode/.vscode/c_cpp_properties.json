@@ -1,0 +1,60 @@
+{
+    "configurations": [
+        {
+            "name": "TTGO LoRa32 V2.1 (ESP32)",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\cores\\esp32\\**",
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\variants\\ttgo-lora32-v21new\\**",
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\libraries\\**",
+                "C:\\Users\\darma\\OneDrive\\Dokumen\\Arduino\\libraries\\**"
+            ],
+            "forcedInclude": [
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\cores\\esp32\\Arduino.h"
+            ],
+            "defines": [
+                "F_CPU=16000000L",
+                "ARDUINO=10607",
+                "ARDUINO_TTGO_LORA32_V21NEW",
+                "ARDUINO_ARCH_ESP32",
+                "ESP32",
+                "UBRR0_0",
+                "UBRR0_1",
+                "UBRR0_2",
+                "UBRR0_3",
+                "UBRR0_4",
+                "UBRR0_5",
+                "UBRR0_6",
+                "UBRR0_7",
+                "UBRR0_8",
+                "UBRR0_9",
+                "SPIE",
+                "SPIF",
+                "USART_TX_vect_num",
+                "USART_TX_vect",
+                "SPI_STC_vect_num",
+                "USART_RX_vect",
+                "SPI2X",
+                "SPI_STC_vect",
+                "USBS0",
+                "TWIE",
+                "TWI_vect_num",
+                "USART_UDRE_vect_num",
+                "TWI_vect",
+                "UBRR0",
+                "USART_UDRE_vect",
+                "USART_RX_vect_num",
+                "TWINT",
+                "UBRR0H",
+                "UBRR0L",
+                "UBRR0_10",
+                "UBRR0_11"
+            ],
+            "compilerPath": "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\esp-x32\\2601\\bin\\xtensa-esp32-elf-g++.exe",
+            "cStandard": "c11",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}
