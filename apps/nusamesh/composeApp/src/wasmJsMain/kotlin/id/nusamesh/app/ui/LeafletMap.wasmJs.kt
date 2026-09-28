@@ -9,12 +9,12 @@ import org.w3c.dom.HTMLIFrameElement
 
 @Composable
 @OptIn(ExperimentalComposeUiApi::class)
-actual fun LeafletMap(modifier: Modifier) {
+actual fun LeafletWebView(modifier: Modifier, html: String) {
     WebElementView(
         factory = {
             (document.createElement("iframe") as HTMLIFrameElement).apply {
-                setAttribute("srcdoc", leafletHtml)
-                setAttribute("title", "Peta NusaMesh")
+                setAttribute("srcdoc", html)
+                setAttribute("title", "Peta Meshta")
                 setAttribute("style", "border:0;width:100%;height:100%")
             }
         },

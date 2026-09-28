@@ -7,12 +7,13 @@ import platform.Foundation.NSURL
 import platform.WebKit.WKWebView
 
 @Composable
-actual fun LeafletMap(modifier: Modifier) {
+actual fun LeafletWebView(modifier: Modifier, html: String) {
     UIKitView(
         modifier = modifier,
         factory = {
             WKWebView().apply {
-                loadHTMLString(leafletHtml, baseURL = NSURL.URLWithString("https://nusamesh.local/"))
+                customUserAgent = "Mozilla/5.0 (iPhone) Meshta/0.2"
+                loadHTMLString(html, baseURL = NSURL.URLWithString(MAP_BASE_URL))
             }
         },
     )

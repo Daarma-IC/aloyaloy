@@ -1,31 +1,8 @@
-﻿package id.nusamesh.app.domain
+package id.nusamesh.app.domain
+
+import id.nusamesh.app.mesh.engine.EngineSnapshot
 
 enum class AppPage { Chats, Home, Map }
-
-enum class ConnectionPhase { Idle, Scanning, Connecting, Connected, Failed }
-
-data class MeshPeripheral(
-    val id: String,
-    val name: String,
-    val rssi: Int,
-    val peerId: ByteArray? = null,
-)
-
-data class MeshConnection(
-    val phase: ConnectionPhase = ConnectionPhase.Idle,
-    val peripheral: MeshPeripheral? = null,
-    val detail: String = "Bluetooth belum aktif",
-)
-
-data class FieldUnit(
-    val id: String,
-    val name: String,
-    val subtitle: String,
-    val status: String,
-    val batteryPercent: Int? = null,
-    val distanceMeters: Int? = null,
-    val rssi: Int? = null,
-)
 
 data class ChatPreview(
     val peerId: String,
@@ -43,6 +20,9 @@ enum class ChatMessageKind { Text, Image, Voice, File }
 
 enum class DeliveryState { Sending, Sent, Failed, Received }
 
+/** Jalur yang dipakai pesan (ditampilkan sebagai ikon kecil di gelembung). */
+enum class DeliveryPath { Ble, Node, Nebeng }
+
 data class ChatMessage(
     val id: String,
     val conversationId: String,
@@ -57,6 +37,9 @@ data class ChatMessage(
     val attachmentMimeType: String? = null,
     val attachmentData: ByteArray? = null,
     val durationSeconds: Int? = null,
+    val path: DeliveryPath = DeliveryPath.Ble,
+    /** Nama HP perantara bila [path] = Nebeng. */
+    val viaName: String? = null,
 )
 
 data class ChatAttachment(
@@ -67,22 +50,22 @@ data class ChatAttachment(
     val durationSeconds: Int? = null,
 )
 
-data class MeshHealth(
-    val neighborCount: Int = 0,
-    val bestRssi: Int? = null,
-    val bestSnr: Float? = null,
+/** Status mesh untuk UI: [active] = pengguna menyalakan mesh, sisanya dari engine. */
+data class MeshStatus(
+    val active: Boolean = false,
+    val engine: EngineSnapshot = EngineSnapshot(),
 )
 
 data class AppUiState(
     val page: AppPage = AppPage.Home,
-    val connection: MeshConnection = MeshConnection(),
-    val nearby: List<MeshPeripheral> = emptyList(),
-    val health: MeshHealth = MeshHealth(),
-    val fieldUnits: List<FieldUnit> = emptyList(),
+    val nickname: String = "",
+    val myPeerId: String = "",
+    val mesh: MeshStatus = MeshStatus(),
     val chats: List<ChatPreview> = emptyList(),
     val activeConversationId: String? = null,
     val messages: List<ChatMessage> = emptyList(),
+    /** Pemberitahuan nebeng yang belum ditutup (muncul saat rute nebeng baru terbentuk). */
+    val nebengNotice: String? = null,
+    val nodeSheetOpen: Boolean = false,
     val notice: String? = null,
 )
-
-

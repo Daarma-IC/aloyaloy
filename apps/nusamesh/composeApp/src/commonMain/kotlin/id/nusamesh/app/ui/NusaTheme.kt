@@ -14,23 +14,34 @@ import nusamesh.composeapp.generated.resources.inter_regular
 import nusamesh.composeapp.generated.resources.inter_semibold
 import org.jetbrains.compose.resources.Font
 
-val Navy = Color(0xFF1E293B)
-val Cyan = Color(0xFF0284C7)
-val CyanSoft = Color(0xFFC9FAFA)
-val CyanPale = Color(0xFFE7FAFB)
+// Palet Meshta: biru-indigo sebagai merek, teal untuk jalur Nusa Node/LoRa, amber untuk nebeng.
+val Ink = Color(0xFF0F172A)
+val Brand = Color(0xFF3B5BDB)
+val BrandDeep = Color(0xFF2B44B3)
+val BrandBright = Color(0xFF5C7CFA)
+val BrandSoft = Color(0xFFDCE3FF)
+val BrandTint = Color(0xFFEEF2FF)
+val Accent = Color(0xFF0D9488)
+val AccentTint = Color(0xFFE6F6F4)
+val Warning = Color(0xFFB45309)
+val WarningTint = Color(0xFFFFF4E5)
+val Canvas = Color(0xFFF5F7FC)
 val Slate = Color(0xFF64748B)
-val Border = Color(0xFFD7E2ED)
-val Success = Color(0xFF10B981)
-val Danger = Color(0xFFEF4444)
+val Muted = Color(0xFF94A3B8)
+val Border = Color(0xFFE3E8F2)
+val Success = Color(0xFF16A34A)
+val SuccessTint = Color(0xFFE8F7EE)
+val Danger = Color(0xFFE11D48)
+val DangerTint = Color(0xFFFFEEF2)
 
 private val colors = lightColorScheme(
-    primary = Cyan,
+    primary = Brand,
     onPrimary = Color.White,
-    secondary = Color(0xFF16B8C7),
-    background = Color.White,
+    secondary = Accent,
+    background = Canvas,
     surface = Color.White,
-    onBackground = Navy,
-    onSurface = Navy,
+    onBackground = Ink,
+    onSurface = Ink,
     outline = Border,
 )
 

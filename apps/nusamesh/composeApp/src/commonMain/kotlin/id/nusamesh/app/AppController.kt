@@ -1,19 +1,23 @@
-﻿package id.nusamesh.app
+package id.nusamesh.app
 
+import id.nusamesh.app.data.KeyValueStore
 import id.nusamesh.app.data.MeshRepository
+import id.nusamesh.app.data.MobilityLogEntry
 import id.nusamesh.app.data.currentEpochMillis
+import id.nusamesh.app.data.formatClock
 import id.nusamesh.app.domain.AppPage
 import id.nusamesh.app.domain.AppUiState
 import id.nusamesh.app.domain.ChatAttachment
 import id.nusamesh.app.domain.ChatMessage
 import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.domain.ChatPreview
-import id.nusamesh.app.domain.ConnectionPhase
+import id.nusamesh.app.domain.DeliveryPath
 import id.nusamesh.app.domain.DeliveryState
-import id.nusamesh.app.protocol.NusaProtocol
-import id.nusamesh.app.protocol.MeshMediaReassembler
-import id.nusamesh.app.protocol.PacketType
-import id.nusamesh.app.protocol.toPeerId
+import id.nusamesh.app.domain.MeshStatus
+import id.nusamesh.app.mesh.engine.EngineSnapshot
+import id.nusamesh.app.mesh.engine.IncomingFile
+import id.nusamesh.app.mesh.engine.IncomingMessage
+import id.nusamesh.app.mesh.mobility.MobilityConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,120 +29,146 @@ import kotlinx.coroutines.launch
 
 class AppController(
     private val repository: MeshRepository,
+    private val store: KeyValueStore,
     initialPage: AppPage = AppPage.Home,
     initialConversationId: String? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val peerId = NusaProtocol.newPeerId()
-    private val mediaReassembler = MeshMediaReassembler()
     private val _state = MutableStateFlow(
         AppUiState(
             page = initialPage,
+            nickname = repository.nickname,
+            myPeerId = repository.myPeerId,
             activeConversationId = initialConversationId,
-            chats = if (initialConversationId == GLOBAL_CHAT_ID) listOf(
-                ChatPreview(
-                    peerId = GLOBAL_CHAT_ID,
-                    initials = "GM",
-                    name = "Global Mesh",
-                    message = "Chat bersama semua pengguna di node",
-                    time = "sekarang",
-                    accent = 0xFF0891B2,
-                    global = true,
-                ),
-            ) else emptyList(),
+            chats = listOf(globalPreview("Chat bersama semua pengguna di mesh", 0, "")),
         ),
     )
     val state: StateFlow<AppUiState> = _state.asStateFlow()
+    val mobilityLog: StateFlow<List<MobilityLogEntry>> = repository.mobilityLog
+
+    /** true bila pengguna terakhir kali menyalakan mesh: aplikasi menyalakannya lagi saat dibuka. */
+    val resumeMeshOnLaunch: Boolean get() = store.get(KEY_ACTIVE) == "1"
 
     init {
-        scope.launch { repository.connection.collect { connection ->
-            _state.update {
-                it.copy(
-                    connection = connection,
-                    notice = if (connection.phase == ConnectionPhase.Failed) connection.detail else it.notice,
-                )
-            }
-            if (connection.phase == ConnectionPhase.Connected) repository.announce("Nusa Mobile", peerId)
-        } }
-        scope.launch { repository.nearby.collect { nearby ->
-            _state.update { current ->
-                current.copy(
-                    nearby = nearby,
-                    fieldUnits = nearby.map { peripheral ->
-                        id.nusamesh.app.domain.FieldUnit(
-                            id = peripheral.id,
-                            name = peripheral.name,
-                            subtitle = "BLE · RSSI ${peripheral.rssi} dBm",
-                            status = if (current.connection.peripheral?.id == peripheral.id &&
-                                current.connection.phase == ConnectionPhase.Connected) "Terhubung" else "Terdeteksi",
-                            rssi = peripheral.rssi,
-                        )
-                    },
-                )
-            }
-        } }
-        scope.launch { repository.packets.collect { packet ->
-            repository.healthOf(packet)?.let { health -> _state.update { it.copy(health = health) } }
-            if (packet.type == PacketType.Message) {
-                val text = packet.payload.decodeToString()
-                val sender = packet.senderId.toPeerId()
-                val incoming = ChatMessage(
-                    id = "${packet.timestampMs}-$sender",
-                    conversationId = GLOBAL_CHAT_ID,
-                    senderName = "Node ${sender.takeLast(4).uppercase()}",
-                    body = text,
-                    time = "baru",
-                    outgoing = false,
-                    delivery = DeliveryState.Received,
-                )
-                _state.update { current ->
-                    current.copy(
-                        chats = upsertGlobalPreview(current.chats, text, if (current.activeConversationId == GLOBAL_CHAT_ID) 0 else 1),
-                        messages = current.messages + incoming,
-                    )
-                }
-            }
-            mediaReassembler.accept(packet)?.let { media ->
-                val sender = packet.senderId.toPeerId()
-                val label = when (media.kind) {
-                    ChatMessageKind.Image -> "Gambar"
-                    ChatMessageKind.Voice -> "Voice note"
-                    ChatMessageKind.File -> media.name
-                    ChatMessageKind.Text -> media.name
-                }
-                val incoming = ChatMessage(
-                    id = "media-${media.id}-$sender",
-                    conversationId = GLOBAL_CHAT_ID,
-                    senderName = "Node ${sender.takeLast(4).uppercase()}",
-                    body = label,
-                    time = "baru",
-                    outgoing = false,
-                    kind = media.kind,
-                    delivery = DeliveryState.Received,
-                    attachmentName = media.name,
-                    attachmentBytes = media.bytes.size,
-                    attachmentMimeType = media.mimeType,
-                    attachmentData = media.bytes,
-                )
-                _state.update { current ->
-                    current.copy(
-                        chats = upsertGlobalPreview(current.chats, label, if (current.activeConversationId == GLOBAL_CHAT_ID) 0 else 1),
-                        messages = current.messages + incoming,
-                    )
-                }
-            }
-        } }
+        scope.launch { repository.snapshot.collect(::onSnapshot) }
+        scope.launch { repository.messages.collect(::onIncomingMessage) }
+        scope.launch { repository.files.collect(::onIncomingFile) }
     }
 
-    fun navigate(page: AppPage) = _state.update { it.copy(page = page) }
+    // ------------------------------------------------------------------------------------------
+    //  Mesh
+    // ------------------------------------------------------------------------------------------
+    fun startMesh() {
+        store.put(KEY_ACTIVE, "1")
+        repository.start()
+        _state.update { it.copy(mesh = it.mesh.copy(active = true)) }
+    }
 
-    fun createGlobalChat() = _state.update { current ->
+    fun stopMesh() {
+        store.put(KEY_ACTIVE, "0")
+        repository.stop()
+        _state.update { it.copy(mesh = it.mesh.copy(active = false), nebengNotice = null) }
+    }
+
+    fun setNickname(value: String) {
+        repository.nickname = value
+        _state.update { it.copy(nickname = repository.nickname) }
+    }
+
+    fun openNodeSheet() = _state.update { it.copy(nodeSheetOpen = true) }
+    fun closeNodeSheet() = _state.update { it.copy(nodeSheetOpen = false) }
+
+    /** Kunci node pilihan pengguna; null = kembali ke pemilihan otomatis. */
+    fun lockNode(peerId: String?) = repository.lockNode(peerId)
+
+    var mobilityConfig: MobilityConfig
+        get() = repository.mobilityConfig
+        set(value) { repository.mobilityConfig = value }
+
+    fun clearMobilityLog() = repository.clearMobilityLog()
+
+    fun dismissNebengNotice() = _state.update { it.copy(nebengNotice = null) }
+
+    private var lastNebengRelay: String? = null
+    private var announcedNodes = HashSet<String>()
+
+    private fun onSnapshot(snapshot: EngineSnapshot) {
+        val nebeng = snapshot.nebeng
+        val nebengNotice = when {
+            nebeng == null -> null
+            nebeng.relayPeerId != lastNebengRelay ->
+                "Tidak ada Nusa Node dalam jangkauan. Pesan dititipkan lewat ${nebeng.relayName} ke ${nebeng.nodeName}."
+            else -> _state.value.nebengNotice
+        }
+        lastNebengRelay = nebeng?.relayPeerId
+        // Node yang baru terdengar diberitahukan sekali di chat global (tidak otomatis dipilih ulang).
+        val fresh = snapshot.nodes.filter { it.peerId !in announcedNodes }
+        announcedNodes += fresh.map { it.peerId }
+        _state.update { current ->
+            var next = current.copy(mesh = MeshStatus(current.mesh.active, snapshot), nebengNotice = nebengNotice)
+            fresh.forEach { node ->
+                next = next.copy(messages = next.messages + systemMessage("Nusa Node tersedia: ${node.name}. Atur lewat menu Nusa Node."))
+            }
+            next
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    //  Pesan masuk
+    // ------------------------------------------------------------------------------------------
+    private fun onIncomingMessage(incoming: IncomingMessage) {
+        val m = incoming.message
+        if (_state.value.messages.any { it.id == m.id }) return
+        val message = ChatMessage(
+            id = m.id,
+            conversationId = GLOBAL_CHAT_ID,
+            senderName = m.sender.ifBlank { repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId) },
+            body = m.content,
+            time = formatClock(m.timestampMs),
+            outgoing = false,
+            delivery = DeliveryState.Received,
+            path = if (incoming.viaNode) DeliveryPath.Node else DeliveryPath.Ble,
+        )
+        appendIncoming(message, m.content)
+    }
+
+    private fun onIncomingFile(incoming: IncomingFile) {
+        val file = incoming.file
+        val kind = kindOf(file.mimeType)
+        val sender = repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId)
+        val message = ChatMessage(
+            id = "file-${incoming.timestampMs}-${incoming.fromPeerId}",
+            conversationId = GLOBAL_CHAT_ID,
+            senderName = sender,
+            body = labelOf(kind, file.fileName),
+            time = formatClock(incoming.timestampMs),
+            outgoing = false,
+            kind = kind,
+            delivery = DeliveryState.Received,
+            attachmentName = file.fileName,
+            attachmentBytes = file.content.size,
+            attachmentMimeType = file.mimeType,
+            attachmentData = file.content,
+            path = if (incoming.viaNode) DeliveryPath.Node else DeliveryPath.Ble,
+        )
+        if (_state.value.messages.any { it.id == message.id }) return
+        appendIncoming(message, message.body)
+    }
+
+    private fun appendIncoming(message: ChatMessage, preview: String) = _state.update { current ->
+        val unread = if (current.activeConversationId == GLOBAL_CHAT_ID) 0 else 1
         current.copy(
-            page = AppPage.Chats,
-            activeConversationId = GLOBAL_CHAT_ID,
-            chats = upsertGlobalPreview(current.chats, "Chat bersama semua pengguna di node", 0),
+            chats = upsertGlobalPreview(current.chats, "${message.senderName}: $preview", unread, message.time),
+            messages = current.messages + message,
         )
     }
+
+    // ------------------------------------------------------------------------------------------
+    //  Navigasi & chat
+    // ------------------------------------------------------------------------------------------
+    fun navigate(page: AppPage) = _state.update { it.copy(page = page) }
+
+    fun createGlobalChat() = _state.update { it.copy(page = AppPage.Chats, activeConversationId = GLOBAL_CHAT_ID) }
 
     fun openChat(conversationId: String) = _state.update { current ->
         current.copy(
@@ -149,106 +179,136 @@ class AppController(
 
     fun closeChat() = _state.update { it.copy(activeConversationId = null) }
 
-    fun toggleConnection() {
-        if (_state.value.connection.phase == ConnectionPhase.Connected) repository.disconnect()
-        else repository.connect()
-    }
-
-    fun requestReboot() = _state.update {
-        it.copy(notice = "Firmware NusaNode belum menyediakan perintah reboot lewat BLE")
-    }
-
     fun sendMessage(text: String) {
-        if (text.isBlank()) return
-        val cleanText = text.trim()
-        val messageId = "local-${currentEpochMillis()}"
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        if (!canSend()) return
+        val sent = repository.sendText(clean)
+        val (path, via) = currentPath()
         val outgoing = ChatMessage(
-            id = messageId,
+            id = sent.id,
             conversationId = GLOBAL_CHAT_ID,
-            senderName = "Saya",
-            body = cleanText,
-            time = "sekarang",
+            senderName = repository.nickname,
+            body = clean,
+            time = formatClock(sent.timestampMs),
             outgoing = true,
+            delivery = DeliveryState.Sent,
+            path = path,
+            viaName = via,
         )
         _state.update { current ->
             current.copy(
-                chats = upsertGlobalPreview(current.chats, cleanText, 0),
+                chats = upsertGlobalPreview(current.chats, clean, 0, outgoing.time),
                 messages = current.messages + outgoing,
             )
-        }
-        scope.launch {
-            val result = repository.sendMessage(cleanText, peerId)
-            finishMessage(messageId, result)
         }
     }
 
     fun sendAttachment(attachment: ChatAttachment) {
-        val messageId = "media-${currentEpochMillis()}"
-        val description = when (attachment.kind) {
-            ChatMessageKind.Image -> "Gambar"
-            ChatMessageKind.Voice -> "Voice note"
-            ChatMessageKind.File -> attachment.name
-            ChatMessageKind.Text -> attachment.name
-        }
+        if (!canSend()) return
+        repository.sendAttachment(attachment)
+        val (path, via) = currentPath()
+        val loraSkipped = path != DeliveryPath.Ble && attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES
+        val now = currentEpochMillis()
         val outgoing = ChatMessage(
-            id = messageId,
+            id = "file-$now-${repository.myPeerId}",
             conversationId = GLOBAL_CHAT_ID,
-            senderName = "Saya",
-            body = description,
-            time = "sekarang",
+            senderName = repository.nickname,
+            body = labelOf(attachment.kind, attachment.name),
+            time = formatClock(now),
             outgoing = true,
             kind = attachment.kind,
+            delivery = DeliveryState.Sent,
             attachmentName = attachment.name,
             attachmentBytes = attachment.bytes.size,
             attachmentMimeType = attachment.mimeType,
             attachmentData = attachment.bytes,
             durationSeconds = attachment.durationSeconds,
+            path = if (loraSkipped) DeliveryPath.Ble else path,
+            viaName = if (loraSkipped) null else via,
         )
         _state.update { current ->
             current.copy(
-                chats = upsertGlobalPreview(current.chats, description, 0),
+                chats = upsertGlobalPreview(current.chats, outgoing.body, 0, outgoing.time),
                 messages = current.messages + outgoing,
+                notice = if (loraSkipped) "Lampiran di atas 2 KB hanya dikirim lewat Bluetooth, tidak lewat LoRa" else current.notice,
             )
         }
-        scope.launch { finishMessage(messageId, repository.sendAttachment(attachment, peerId)) }
+    }
+
+    private fun canSend(): Boolean {
+        val status = _state.value.mesh
+        val linked = status.engine.peers.any { it.direct } || status.engine.nodes.any { it.connected }
+        if (!status.active) {
+            showNotice("Aktifkan mesh dulu di halaman Beranda")
+            return false
+        }
+        if (!linked) {
+            showNotice("Belum ada HP atau Nusa Node yang tersambung")
+            return false
+        }
+        return true
+    }
+
+    private fun currentPath(): Pair<DeliveryPath, String?> {
+        val snapshot = _state.value.mesh.engine
+        return when {
+            snapshot.servingNode != null -> DeliveryPath.Node to snapshot.servingNode?.name
+            snapshot.nebeng != null -> DeliveryPath.Nebeng to snapshot.nebeng.relayName
+            else -> DeliveryPath.Ble to null
+        }
     }
 
     fun showNotice(message: String) = _state.update { it.copy(notice = message) }
-
-    private fun finishMessage(messageId: String, result: Result<Unit>) {
-        _state.update { current ->
-            current.copy(
-                messages = current.messages.map { message ->
-                    if (message.id == messageId) message.copy(
-                        delivery = if (result.isSuccess) DeliveryState.Sent else DeliveryState.Failed,
-                    ) else message
-                },
-                notice = result.exceptionOrNull()?.message,
-            )
-        }
-    }
-
-    private fun upsertGlobalPreview(chats: List<ChatPreview>, message: String, unreadDelta: Int): List<ChatPreview> {
-        val existing = chats.firstOrNull { it.peerId == GLOBAL_CHAT_ID }
-        val global = ChatPreview(
-            peerId = GLOBAL_CHAT_ID,
-            initials = "GM",
-            name = "Global Mesh",
-            message = message,
-            time = "sekarang",
-            unread = (existing?.unread ?: 0) + unreadDelta,
-            accent = 0xFF0891B2,
-            global = true,
-        )
-        return listOf(global) + chats.filterNot { it.peerId == GLOBAL_CHAT_ID }
-    }
-
     fun clearNotice() = _state.update { it.copy(notice = null) }
 
-    private companion object {
+    private fun systemMessage(text: String) = ChatMessage(
+        id = "sys-${currentEpochMillis()}-${text.hashCode()}",
+        conversationId = GLOBAL_CHAT_ID,
+        senderName = "Sistem",
+        body = text,
+        time = formatClock(currentEpochMillis()),
+        outgoing = false,
+        delivery = DeliveryState.Received,
+        path = DeliveryPath.Ble,
+        viaName = SYSTEM,
+    )
+
+    private fun globalPreview(message: String, unread: Int, time: String) = ChatPreview(
+        peerId = GLOBAL_CHAT_ID,
+        initials = "GM",
+        name = "Global Mesh",
+        message = message,
+        time = time,
+        unread = unread,
+        accent = 0xFF0891B2,
+        global = true,
+    )
+
+    private fun upsertGlobalPreview(chats: List<ChatPreview>, message: String, unreadDelta: Int, time: String): List<ChatPreview> {
+        val existing = chats.firstOrNull { it.peerId == GLOBAL_CHAT_ID }
+        return listOf(globalPreview(message, (existing?.unread ?: 0) + unreadDelta, time)) +
+            chats.filterNot { it.peerId == GLOBAL_CHAT_ID }
+    }
+
+    companion object {
         const val GLOBAL_CHAT_ID = "global"
+        /** Penanda [ChatMessage.viaName] untuk pesan sistem (ditampilkan sebagai kartu info, bukan gelembung). */
+        const val SYSTEM = "\u0000system"
+        private const val KEY_ACTIVE = "mesh_active"
+
+        fun kindOf(mime: String) = when {
+            mime.startsWith("image/") -> ChatMessageKind.Image
+            mime.startsWith("audio/") -> ChatMessageKind.Voice
+            else -> ChatMessageKind.File
+        }
+
+        fun labelOf(kind: ChatMessageKind, name: String) = when (kind) {
+            ChatMessageKind.Image -> "Gambar"
+            ChatMessageKind.Voice -> "Voice note"
+            else -> name
+        }
+
+        fun shortId(peerId: String) = "HP ${peerId.takeLast(4).uppercase()}"
     }
 }
-
-
-

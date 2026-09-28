@@ -1,9 +1,12 @@
-﻿package id.nusamesh.app
+package id.nusamesh.app
 
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
@@ -13,18 +16,21 @@ import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import id.nusamesh.app.ble.AndroidMeshTransport
 import id.nusamesh.app.ble.BluetoothPermissionActions
 import id.nusamesh.app.domain.ChatAttachment
 import id.nusamesh.app.domain.ChatMessageKind
+import id.nusamesh.app.data.AndroidKeyValueStore
 import id.nusamesh.app.media.ChatMediaActions
+import id.nusamesh.app.media.LoraImageCodec
+import id.nusamesh.app.mesh.engine.AndroidBleLink
 import id.nusamesh.app.protocol.MeshMediaCodec
 import java.io.ByteArrayOutputStream
 import java.io.File
 
 class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions {
-    private lateinit var transport: AndroidMeshTransport
+    private lateinit var link: AndroidBleLink
     private var imageResult: ((ChatAttachment) -> Unit)? = null
+    private var imageLoraProfile = false
     private var fileResult: ((ChatAttachment) -> Unit)? = null
     private var mediaError: ((String) -> Unit)? = null
     private var recorder: MediaRecorder? = null
@@ -61,13 +67,14 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        transport = AndroidMeshTransport(applicationContext)
-        setContent { NusaMeshApp(transport, mediaActions = this, bluetoothPermission = this) }
+        link = AndroidBleLink(applicationContext)
+        val store = AndroidKeyValueStore(applicationContext)
+        setContent { NusaMeshApp(link, store, mediaActions = this, bluetoothPermission = this) }
     }
 
     override fun runWithPermission(onGranted: () -> Unit, onDenied: (String) -> Unit) {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)
         } else {
             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -83,13 +90,12 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     override fun onDestroy() {
         runCatching { recorder?.release() }
         releasePlayer()
-        if (::transport.isInitialized) {
-            transport.disconnect()
-        }
+        if (isFinishing && ::link.isInitialized) link.stop()
         super.onDestroy()
     }
 
-    override fun pickImage(onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+    override fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+        imageLoraProfile = loraProfile
         imageResult = onPicked
         mediaError = onError
         imagePicker.launch("image/*")
@@ -134,33 +140,69 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         onRecorded(ChatAttachment("voice-${System.currentTimeMillis()}.m4a", "audio/mp4", bytes, ChatMessageKind.Voice, duration))
     }
 
-    override fun playVoiceNote(bytes: ByteArray, mimeType: String, onError: (String) -> Unit) {
+    private var playbackFinished: (() -> Unit)? = null
+
+    override fun playVoiceNote(
+        bytes: ByteArray,
+        mimeType: String,
+        onStarted: (durationMs: Long) -> Unit,
+        onFinished: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
         if (bytes.isEmpty()) return onError("Data voice note kosong")
         releasePlayer()
+        mediaError = onError
         val extension = when {
             mimeType.contains("ogg") -> "ogg"
             mimeType.contains("webm") -> "webm"
+            mimeType.contains("amr") -> "amr"
             else -> "m4a"
         }
         val file = File(cacheDir, "voice-play-${System.currentTimeMillis()}.$extension")
         runCatching {
             file.writeBytes(bytes)
             val activePlayer = MediaPlayer()
+            player = activePlayer
+            playbackFile = file
+            playbackFinished = onFinished
+            activePlayer.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build(),
+            )
+            activePlayer.setOnPreparedListener { prepared ->
+                requestAudioFocus()
+                prepared.start()
+                onStarted(prepared.duration.toLong().coerceAtLeast(1))
+            }
             activePlayer.setOnCompletionListener { releasePlayer() }
             activePlayer.setOnErrorListener { _, what, extra ->
                 releasePlayer()
-                onError("Voice note gagal diputar ($what/$extra)")
+                onError("Voice note gagal diputar (kode $what/$extra)")
                 true
             }
             activePlayer.setDataSource(file.absolutePath)
-            activePlayer.prepare()
-            player = activePlayer
-            playbackFile = file
-            activePlayer.start()
+            activePlayer.prepareAsync()
         }.onFailure { error ->
-            file.delete()
             releasePlayer()
+            file.delete()
             onError(error.message ?: "Voice note gagal diputar")
+        }
+    }
+
+    override fun stopVoicePlayback() = releasePlayer()
+
+    private fun requestAudioFocus() {
+        val audio = getSystemService(AudioManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audio.requestAudioFocus(
+                AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).build(),
+            )
+        }
+        // Volume media 0 → tidak terdengar sama sekali; beri tahu pengguna.
+        if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
+            mediaError?.invoke("Volume media 0 — naikkan volume untuk mendengar voice note")
         }
     }
 
@@ -170,7 +212,9 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         player = null
         playbackFile?.delete()
         playbackFile = null
+        playbackFinished?.let { playbackFinished = null; it() }
     }
+
     private fun beginRecording() {
         val file = File(cacheDir, "voice-${System.currentTimeMillis()}.m4a")
         val activeRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else {
@@ -181,7 +225,8 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             activeRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
             activeRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             activeRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            activeRecorder.setAudioSamplingRate(8_000)
+            activeRecorder.setAudioChannels(1)
+            activeRecorder.setAudioSamplingRate(16_000)
             activeRecorder.setAudioEncodingBitRate(16_000)
             activeRecorder.setMaxDuration(40_000)
             activeRecorder.setOutputFile(file.absolutePath)
@@ -199,6 +244,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     private fun loadImage(uri: Uri) {
+        if (imageLoraProfile) return loadLoraImage(uri)
         runCatching {
             val bitmap = contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream)
                 ?: error("Gambar tidak dapat dibaca")
@@ -222,6 +268,16 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             bitmap.recycle()
             require(bytes.size <= MeshMediaCodec.MAX_MEDIA_BYTES) { "Gambar terlalu besar untuk jaringan LoRa" }
             ChatAttachment("image-${System.currentTimeMillis()}.jpg", "image/jpeg", bytes, ChatMessageKind.Image)
+        }.onSuccess { imageResult?.invoke(it) }
+            .onFailure { mediaError?.invoke(it.message ?: "Gagal memproses gambar") }
+    }
+
+    /** Profil LoRa: 128 px WebP ≤ 1,2 KB supaya gambar ikut melintas Nusa Node. */
+    private fun loadLoraImage(uri: Uri) {
+        runCatching {
+            val source = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Gambar tidak dapat dibaca")
+            val bytes = LoraImageCodec.encode(source) ?: error("Gambar tidak dapat diproses")
+            ChatAttachment("${LoraImageCodec.FILE_PREFIX}${System.currentTimeMillis()}.webp", LoraImageCodec.MIME, bytes, ChatMessageKind.Image)
         }.onSuccess { imageResult?.invoke(it) }
             .onFailure { mediaError?.invoke(it.message ?: "Gagal memproses gambar") }
     }

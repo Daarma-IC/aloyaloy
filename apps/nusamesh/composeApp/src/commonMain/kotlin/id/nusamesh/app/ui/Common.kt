@@ -48,7 +48,7 @@ fun Modifier.pressableClick(onClick: () -> Unit) = composed {
 }
 
 @Composable
-fun StatusPill(text: String, color: Color = Success, background: Color = Color(0xFFECFDF5)) {
+fun StatusPill(text: String, color: Color = Success, background: Color = SuccessTint) {
     Row(
         modifier = Modifier.background(background, RoundedCornerShape(11.dp))
             .padding(horizontal = 9.dp, vertical = 5.dp),

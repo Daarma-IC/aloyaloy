@@ -1,32 +1,71 @@
-﻿package id.nusamesh.app.ui
+package id.nusamesh.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
+import nusamesh.composeapp.generated.resources.Res
 
-/** Peta Leaflet hidup; marker ditambahkan hanya jika data koordinat tersedia. */
+/**
+ * Peta Leaflet. Pustaka Leaflet dibundel di aplikasi (composeResources/files/leaflet) supaya peta tetap
+ * tampil tanpa internet; hanya ubin OpenStreetMap yang butuh jaringan.
+ */
 @Composable
-expect fun LeafletMap(modifier: Modifier)
+fun LeafletMap(modifier: Modifier) {
+    val html by produceState<String?>(null) {
+        value = runCatching {
+            buildLeafletHtml(
+                js = Res.readBytes("files/leaflet/leaflet.js").decodeToString(),
+                css = Res.readBytes("files/leaflet/leaflet.css").decodeToString(),
+            )
+        }.getOrNull()
+    }
+    Box(modifier.background(BrandTint), contentAlignment = Alignment.Center) {
+        val page = html
+        if (page == null) Text("Memuat peta…", color = Slate, fontSize = 11.sp)
+        else LeafletWebView(Modifier.fillMaxSize(), page)
+    }
+}
+
+/** WebView platform yang memuat [html] dengan base URL [MAP_BASE_URL] (dipakai sebagai Referer ubin OSM). */
+@Composable
+expect fun LeafletWebView(modifier: Modifier, html: String)
+
+internal const val MAP_BASE_URL = "https://meshta.app/"
+
+internal fun buildLeafletHtml(js: String, css: String): String = leafletHtml
+    .replace(LEAFLET_CSS_TAG, "<style>$css</style>")
+    .replace(LEAFLET_JS_TAG, "<script>$js</script>")
+
+private const val LEAFLET_CSS_TAG = "<!--LEAFLET_CSS-->"
+private const val LEAFLET_JS_TAG = "<!--LEAFLET_JS-->"
 
 internal val leafletHtml = """
 <!doctype html>
 <html lang="id">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <!--LEAFLET_CSS-->
   <style>
-    html, body, #map { width:100%; height:100%; margin:0; padding:0; background:#e7fafa; }
+    html, body, #map { width:100%; height:100%; margin:0; padding:0; background:#EEF2FF; }
     .leaflet-control-attribution { font:10px sans-serif !important; }
     .leaflet-top { top:94px; }
     .leaflet-control-zoom { border:1px solid #e2e8f0 !important; border-radius:8px !important; overflow:hidden; box-shadow:0 3px 12px #16203322 !important; }
     #search { position:absolute; z-index:1000; top:40px; left:16px; right:16px; height:42px; display:flex; align-items:center; gap:10px; box-sizing:border-box; padding:0 14px; background:white; border:1px solid #f1f5f9; border-radius:16px; box-shadow:0 3px 12px #16203314; font:14px system-ui,sans-serif; }
-    #query { flex:1; min-width:0; border:0; outline:0; color:#1e293b; background:transparent; font:14px system-ui,sans-serif; }
+    #query { flex:1; min-width:0; border:0; outline:0; color:#0F172A; background:transparent; font:14px system-ui,sans-serif; }
     #query::placeholder { color:#64748b; }
     #clear { width:20px; height:20px; border:0; outline:0; border-radius:10px; color:white; background:#94a3b8; padding:0; cursor:pointer; line-height:18px; transition:transform 90ms ease,background 90ms ease; }
     #clear:active { transform:scale(.88); background:#64748b; }
     .leaflet-control-zoom a { transition:transform 90ms ease,background 90ms ease; }
-    .leaflet-control-zoom a:active { transform:scale(.92); background:#e7fafa !important; }
+    .leaflet-control-zoom a:active { transform:scale(.92); background:#EEF2FF !important; }
     #error { position:absolute; z-index:1000; top:88px; left:16px; right:16px; color:#ef4444; font:11px system-ui,sans-serif; pointer-events:none; }
+    #offline { display:none; position:absolute; z-index:1000; left:16px; right:16px; top:94px; padding:10px 12px; border-radius:12px; background:#FFF4E5; color:#B45309; font:12px system-ui,sans-serif; box-shadow:0 2px 10px #16203318; pointer-events:none; }
     #coordinate { position:absolute; z-index:999; left:16px; bottom:18px; padding:7px 10px; border-radius:12px; background:#ffffffdd; color:#475569; box-shadow:0 2px 10px #16203318; font:11px system-ui,sans-serif; pointer-events:none; }
   </style>
 </head>
@@ -38,15 +77,23 @@ internal val leafletHtml = """
     <button id="clear" type="button" aria-label="Hapus pencarian">&times;</button>
   </form>
   <div id="error"></div>
+  <div id="offline">Ubin peta tidak termuat: butuh koneksi internet. Titik lokasi tetap bisa ditandai.</div>
   <div id="coordinate">Ketuk peta untuk menandai lokasi</div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!--LEAFLET_JS-->
   <script>
     const map = L.map('map', {zoomControl:true, preferCanvas:true}).setView([-2.5, 117], 5);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom:19,
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
+    const offline = document.getElementById('offline');
+    tiles.on('tileerror', function() { offline.style.display = 'block'; });
+    tiles.on('tileload', function() { offline.style.display = 'none'; });
+    // WebView sering dibuat saat ukurannya masih 0×0: tanpa ini Leaflet tidak pernah memuat ubin.
+    const fixSize = function() { map.invalidateSize(false); };
+    if (window.ResizeObserver) new ResizeObserver(fixSize).observe(document.getElementById('map'));
+    window.addEventListener('resize', fixSize);
+    [100, 400, 1200].forEach(function(ms) { setTimeout(fixSize, ms); });
     window.nusaMarkers = L.layerGroup().addTo(map);
     const searchMarkers = L.layerGroup().addTo(map);
     const form = document.getElementById('search');
@@ -72,7 +119,7 @@ internal val leafletHtml = """
         const latitude = Number(places[0].lat);
         const longitude = Number(places[0].lon);
         searchMarkers.clearLayers();
-        L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#0284C7',fillOpacity:1})
+        L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#3B5BDB',fillOpacity:1})
           .addTo(searchMarkers).bindPopup(places[0].display_name).openPopup();
         map.setView([latitude, longitude], 14);
         query.blur();
@@ -86,7 +133,7 @@ internal val leafletHtml = """
       const latitude = Number(event.latlng.lat.toFixed(6));
       const longitude = Number(event.latlng.lng.toFixed(6));
       L.circleMarker([latitude, longitude], {
-        radius:9, color:'#fff', weight:3, fillColor:'#10B981', fillOpacity:1
+        radius:9, color:'#fff', weight:3, fillColor:'#0D9488', fillOpacity:1
       }).addTo(previewMarkers)
         .bindPopup('Titik lokasi<br>' + latitude + ', ' + longitude)
         .openPopup();
@@ -98,7 +145,7 @@ internal val leafletHtml = """
       for (const unit of units) {
         if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
         L.circleMarker([unit.latitude, unit.longitude], {
-          radius:9, color:'#fff', weight:3, fillColor:'#0284C7', fillOpacity:1
+          radius:9, color:'#fff', weight:3, fillColor:'#3B5BDB', fillOpacity:1
         }).addTo(window.nusaMarkers).bindPopup(String(unit.name || 'Unit'));
         bounds.push([unit.latitude, unit.longitude]);
       }

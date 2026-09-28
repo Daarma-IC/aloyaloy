@@ -2,7 +2,8 @@ package id.nusamesh.app
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
-import id.nusamesh.app.ble.WebPreviewTransport
+import id.nusamesh.app.data.WebKeyValueStore
+import id.nusamesh.app.mesh.engine.WebBleLink
 import id.nusamesh.app.domain.AppPage
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -17,7 +18,8 @@ fun main() {
     }
     ComposeViewport(viewportContainer = document.getElementById("app")!!) {
         NusaMeshApp(
-            transport = WebPreviewTransport(),
+            link = WebBleLink(),
+            store = WebKeyValueStore(),
             initialPage = initialPage,
             initialConversationId = if (window.location.hash.lowercase() == "#global") "global" else null,
         )

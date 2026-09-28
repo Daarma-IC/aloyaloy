@@ -40,7 +40,7 @@ fun MapScreen(state: AppUiState, padding: PaddingValues) {
         val density = LocalDensity.current
         val availablePx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().weight(1f - sheetFraction).background(CyanPale)) {
+            Box(Modifier.fillMaxWidth().weight(1f - sheetFraction).background(BrandTint)) {
                 LeafletMap(Modifier.fillMaxSize())
             }
             Column(
@@ -62,7 +62,7 @@ fun MapScreen(state: AppUiState, padding: PaddingValues) {
                 Box(Modifier.width(48.dp).height(6.dp).background(Color(0xFFCBD5E1), RoundedCornerShape(3.dp)))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Unit Lapangan", color = Navy, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text("Unit Lapangan", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                 StatusPill("0 Online")
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {

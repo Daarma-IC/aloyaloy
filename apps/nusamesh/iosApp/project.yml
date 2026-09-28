@@ -17,10 +17,18 @@ targets:
       - path: iosApp
     info:
       path: iosApp/Info.plist
+      properties:
+        CFBundleDisplayName: Meshta
+        NSBluetoothAlwaysUsageDescription: Meshta memakai Bluetooth untuk membentuk jaringan mesh dengan HP sekitar dan NusaNode.
+        NSBluetoothPeripheralUsageDescription: Meshta memakai Bluetooth agar HP lain dapat menyambung dan meneruskan pesan lewat HP ini.
+        NSMicrophoneUsageDescription: Meshta memakai mikrofon untuk merekam voice note.
+        UIBackgroundModes: [bluetooth-central, bluetooth-peripheral]
+        UILaunchScreen: {}
+        CADisableMinimumFrameDurationOnPhone: true
     preBuildScripts:
       - name: Build ComposeApp framework
         script: |
           cd "$SRCROOT/.."
-          ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+          sh ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
         basedOnDependencyAnalysis: false
 
