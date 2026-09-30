@@ -174,4 +174,28 @@ class NodeQueueTest {
         assertTrue(!q.offer(pkt(0x04, 0x33, 99), noop))
         assertTrue(q.offer(pkt(0x04, 0x11, 100), noop))
     }
+
+    @Test
+    fun airtimeUsesUnpaddedSize() {
+        // Teks 180 B yang di-padding ke 256 B: node membuang padding sebelum LoRa → satu frame.
+        val padded = ByteArray(256).also { for (i in 180 until 256) it[i] = 76 }
+        assertEquals(180, NodeQueue.unpaddedLength(padded))
+        assertTrue(NodeQueue.airtimeMs(padded) in 250.0..350.0)
+        val full = NodeQueue.airtimeMs(ByteArray(243) { 1 })
+        assertTrue(full in 380.0..420.0, "frame penuh ≈ 400 ms di SF7/BW125, dapat $full")
+        assertTrue(NodeQueue.airtimeMs(ByteArray(500) { 1 }) > full * 2)
+    }
+
+    @Test
+    fun shortTextsBurstThenPaceAtNodeRateLimit() = kotlinx.coroutines.test.runTest {
+        val q = NodeQueue(me) { testScheduler.currentTime }
+        val sentAt = mutableListOf<Long>()
+        q.start(backgroundScope)
+        repeat(3) { i -> q.offer(pkt(0x04, 0x11, i)) { sentAt += testScheduler.currentTime; true } }
+        testScheduler.advanceTimeBy(300); testScheduler.runCurrent()
+        assertEquals(2, sentAt.size, "dua teks pertama keluar tanpa jeda")
+        testScheduler.advanceTimeBy(3_700); testScheduler.runCurrent()
+        assertEquals(3, sentAt.size, "teks ketiga menunggu jatah paket node (~3,5 s), bukan 20 s")
+        assertTrue(sentAt[2] >= 3_000)
+    }
 }
