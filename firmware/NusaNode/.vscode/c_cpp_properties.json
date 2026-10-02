@@ -1,23 +1,21 @@
 {
     "configurations": [
         {
-            "name": "TTGO LoRa32 V2.1 (ESP32)",
+            "name": "arduino:avr:uno",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\cores\\esp32\\**",
-                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\variants\\ttgo-lora32-v21new\\**",
-                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\libraries\\**",
-                "C:\\Users\\darma\\OneDrive\\Dokumen\\Arduino\\libraries\\**"
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.8\\cores\\arduino",
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.8\\variants\\standard",
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\avr\\include"
             ],
             "forcedInclude": [
-                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.10\\cores\\esp32\\Arduino.h"
+                "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.8\\cores\\arduino\\Arduino.h"
             ],
             "defines": [
                 "F_CPU=16000000L",
                 "ARDUINO=10607",
-                "ARDUINO_TTGO_LORA32_V21NEW",
-                "ARDUINO_ARCH_ESP32",
-                "ESP32",
+                "ARDUINO_AVR_UNO",
+                "ARDUINO_ARCH_AVR",
                 "UBRR0_0",
                 "UBRR0_1",
                 "UBRR0_2",
@@ -50,9 +48,9 @@
                 "UBRR0_10",
                 "UBRR0_11"
             ],
-            "compilerPath": "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\esp-x32\\2601\\bin\\xtensa-esp32-elf-g++.exe",
+            "compilerPath": "C:\\Users\\darma\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7/bin/avr-g++",
             "cStandard": "c11",
-            "cppStandard": "gnu++17",
+            "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64"
         }
     ],

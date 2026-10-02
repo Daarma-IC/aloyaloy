@@ -1,5 +1,6 @@
 .gradle/
 .gradle-user-home/
+**/.cxx/
 local.properties
 **/build/
 iosApp/*.xcodeproj/

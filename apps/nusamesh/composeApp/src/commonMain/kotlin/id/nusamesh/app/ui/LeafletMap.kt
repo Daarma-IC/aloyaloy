@@ -18,18 +18,20 @@ import nusamesh.composeapp.generated.resources.Res
  */
 @Composable
 fun LeafletMap(modifier: Modifier) {
-    val html by produceState<String?>(null) {
+    val htmlResult by produceState<Result<String>?>(null) {
         value = runCatching {
             buildLeafletHtml(
                 js = Res.readBytes("files/leaflet/leaflet.js").decodeToString(),
                 css = Res.readBytes("files/leaflet/leaflet.css").decodeToString(),
             )
-        }.getOrNull()
+        }
     }
     Box(modifier.background(BrandTint), contentAlignment = Alignment.Center) {
-        val page = html
-        if (page == null) Text("Memuat peta…", color = Slate, fontSize = 11.sp)
-        else LeafletWebView(Modifier.fillMaxSize(), page)
+        when {
+            htmlResult == null -> Text("Memuat peta...", color = Slate, fontSize = 11.sp)
+            htmlResult?.isFailure == true -> Text("Aset peta gagal dimuat", color = Slate, fontSize = 11.sp)
+            else -> LeafletWebView(Modifier.fillMaxSize(), htmlResult!!.getOrThrow())
+        }
     }
 }
 
@@ -81,14 +83,22 @@ internal val leafletHtml = """
   <div id="coordinate">Ketuk peta untuk menandai lokasi</div>
   <!--LEAFLET_JS-->
   <script>
-    const map = L.map('map', {zoomControl:true, preferCanvas:true}).setView([-2.5, 117], 5);
-    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
+    let loadedTileCount = 0;
+    const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom:19,
+      subdomains:['a','b','c'],
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     const offline = document.getElementById('offline');
     tiles.on('tileerror', function() { offline.style.display = 'block'; });
-    tiles.on('tileload', function() { offline.style.display = 'none'; });
+    tiles.on('tileload', function() {
+      loadedTileCount += 1;
+      offline.style.display = 'none';
+    });
+    setTimeout(function() {
+      if (loadedTileCount === 0) offline.style.display = 'block';
+    }, 8000);
     // WebView sering dibuat saat ukurannya masih 0×0: tanpa ini Leaflet tidak pernah memuat ubin.
     const fixSize = function() { map.invalidateSize(false); };
     if (window.ResizeObserver) new ResizeObserver(fixSize).observe(document.getElementById('map'));

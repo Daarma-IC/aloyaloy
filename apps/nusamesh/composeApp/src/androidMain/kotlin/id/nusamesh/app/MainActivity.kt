@@ -5,10 +5,12 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
+import android.media.AudioFormat
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaPlayer
-import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +23,7 @@ import id.nusamesh.app.domain.ChatAttachment
 import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.data.AndroidKeyValueStore
 import id.nusamesh.app.media.ChatMediaActions
+import id.nusamesh.app.media.AndroidCodec2
 import id.nusamesh.app.media.LoraImageCodec
 import id.nusamesh.app.mesh.engine.AndroidBleLink
 import id.nusamesh.app.protocol.MeshMediaCodec
@@ -33,10 +36,14 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private var imageLoraProfile = false
     private var fileResult: ((ChatAttachment) -> Unit)? = null
     private var mediaError: ((String) -> Unit)? = null
-    private var recorder: MediaRecorder? = null
+    private var recorder: AudioRecord? = null
+    private var recordingThread: Thread? = null
+    private var recordingOutput: ByteArrayOutputStream? = null
+    @Volatile private var isRecordingVoice = false
     private var player: MediaPlayer? = null
+    private var codec2Player: AudioTrack? = null
+    private var codec2PlaybackToken = 0L
     private var playbackFile: File? = null
-    private var recordingFile: File? = null
     private var recordingStartedAt = 0L
     private var pendingRecordStart: (() -> Unit)? = null
     private var pendingBluetoothAction: (() -> Unit)? = null
@@ -88,6 +95,8 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     override fun onDestroy() {
+        isRecordingVoice = false
+        runCatching { recorder?.stop() }
         runCatching { recorder?.release() }
         releasePlayer()
         if (isFinishing && ::link.isInitialized) link.stop()
@@ -120,24 +129,47 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun stopVoiceNote(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
         val activeRecorder = recorder ?: return onError("Belum ada rekaman aktif")
-        val file = recordingFile ?: return onError("File rekaman tidak tersedia")
         val duration = ((System.currentTimeMillis() - recordingStartedAt) / 1000L).toInt().coerceAtLeast(1)
-        val stopped = runCatching { activeRecorder.stop() }
-        activeRecorder.release()
+        isRecordingVoice = false
+        runCatching { activeRecorder.stop() }
+        runCatching { recordingThread?.join(1_500) }
+        runCatching { activeRecorder.release() }
         recorder = null
-        recordingFile = null
-        if (stopped.isFailure) {
-            file.delete()
+        recordingThread = null
+        val pcmBytes = synchronized(this) { recordingOutput?.toByteArray() ?: ByteArray(0) }
+        recordingOutput = null
+        if (pcmBytes.size < AndroidCodec2.SAMPLE_RATE / 2) {
             onError("Voice note terlalu pendek")
             return
         }
-        val bytes = file.readBytes()
-        file.delete()
-        if (bytes.size > MeshMediaCodec.MAX_MEDIA_BYTES) {
-            onError("Voice note terlalu besar. Rekam maksimal sekitar 40 detik")
-            return
-        }
-        onRecorded(ChatAttachment("voice-${System.currentTimeMillis()}.m4a", "audio/mp4", bytes, ChatMessageKind.Voice, duration))
+        Thread {
+            runCatching {
+                val pcm = ShortArray(pcmBytes.size / 2) { index ->
+                    val low = pcmBytes[index * 2].toInt() and 0xff
+                    val high = pcmBytes[index * 2 + 1].toInt()
+                    ((high shl 8) or low).toShort()
+                }
+                AndroidCodec2.encode(pcm)
+            }.onSuccess { bytes ->
+                runOnUiThread {
+                    if (bytes.size > MeshMediaCodec.MAX_MEDIA_BYTES) {
+                        onError("Voice note terlalu besar untuk jaringan LoRa")
+                    } else {
+                        onRecorded(
+                            ChatAttachment(
+                                "voice-${System.currentTimeMillis()}.${AndroidCodec2.EXTENSION}",
+                                AndroidCodec2.MIME,
+                                bytes,
+                                ChatMessageKind.Voice,
+                                duration,
+                            ),
+                        )
+                    }
+                }
+            }.onFailure { error ->
+                runOnUiThread { onError(error.message ?: "Voice note gagal dikompresi") }
+            }
+        }.apply { name = "Meshta-codec2-encoder"; start() }
     }
 
     private var playbackFinished: (() -> Unit)? = null
@@ -152,6 +184,10 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         if (bytes.isEmpty()) return onError("Data voice note kosong")
         releasePlayer()
         mediaError = onError
+        if (mimeType.equals(AndroidCodec2.MIME, ignoreCase = true)) {
+            playCodec2Voice(bytes, onStarted, onFinished, onError)
+            return
+        }
         val extension = when {
             mimeType.contains("ogg") -> "ogg"
             mimeType.contains("webm") -> "webm"
@@ -207,6 +243,10 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     private fun releasePlayer() {
+        codec2PlaybackToken += 1
+        runCatching { codec2Player?.stop() }
+        runCatching { codec2Player?.release() }
+        codec2Player = null
         runCatching { player?.stop() }
         runCatching { player?.release() }
         player = null
@@ -216,31 +256,112 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     private fun beginRecording() {
-        val file = File(cacheDir, "voice-${System.currentTimeMillis()}.m4a")
-        val activeRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else {
-            @Suppress("DEPRECATION")
-            MediaRecorder()
+        val channel = AudioFormat.CHANNEL_IN_MONO
+        val encoding = AudioFormat.ENCODING_PCM_16BIT
+        val minBuffer = AudioRecord.getMinBufferSize(AndroidCodec2.SAMPLE_RATE, channel, encoding)
+        if (minBuffer <= 0) {
+            mediaError?.invoke("Perangkat tidak mendukung rekaman suara 8 kHz")
+            return
         }
+        val bufferSize = maxOf(minBuffer / 2, 1_024)
+        val activeRecorder = AudioRecord.Builder()
+            .setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(encoding)
+                    .setSampleRate(AndroidCodec2.SAMPLE_RATE)
+                    .setChannelMask(channel)
+                    .build(),
+            )
+            .setBufferSizeInBytes(bufferSize * 2)
+            .build()
         runCatching {
-            activeRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-            activeRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            activeRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            activeRecorder.setAudioChannels(1)
-            activeRecorder.setAudioSamplingRate(16_000)
-            activeRecorder.setAudioEncodingBitRate(16_000)
-            activeRecorder.setMaxDuration(40_000)
-            activeRecorder.setOutputFile(file.absolutePath)
-            activeRecorder.prepare()
-            activeRecorder.start()
+            check(activeRecorder.state == AudioRecord.STATE_INITIALIZED) { "Perekam suara gagal diinisialisasi" }
+            val output = ByteArrayOutputStream()
+            recordingOutput = output
+            isRecordingVoice = true
+            activeRecorder.startRecording()
+            recordingThread = Thread {
+                val buffer = ShortArray(bufferSize)
+                while (isRecordingVoice) {
+                    val count = activeRecorder.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                    if (count <= 0) continue
+                    synchronized(this) {
+                        repeat(count) { index ->
+                            val sample = buffer[index].toInt()
+                            output.write(sample and 0xff)
+                            output.write((sample ushr 8) and 0xff)
+                        }
+                    }
+                }
+            }.apply { name = "Meshta-voice-recorder"; start() }
         }.onSuccess {
             recorder = activeRecorder
-            recordingFile = file
             recordingStartedAt = System.currentTimeMillis()
         }.onFailure { error ->
+            isRecordingVoice = false
             activeRecorder.release()
-            file.delete()
+            recordingOutput = null
             mediaError?.invoke(error.message ?: "Perekam suara gagal dimulai")
         }
+    }
+
+    private fun playCodec2Voice(
+        bytes: ByteArray,
+        onStarted: (durationMs: Long) -> Unit,
+        onFinished: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        val token = ++codec2PlaybackToken
+        playbackFinished = onFinished
+        Thread {
+            runCatching {
+                val pcm = AndroidCodec2.decode(bytes)
+                require(pcm.isNotEmpty()) { "Voice note Codec2 kosong" }
+                val track = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build(),
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(AndroidCodec2.SAMPLE_RATE)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build(),
+                    )
+                    .setBufferSizeInBytes(pcm.size * 2)
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .build()
+                track.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
+                if (token != codec2PlaybackToken) {
+                    track.release()
+                    return@runCatching
+                }
+                codec2Player = track
+                val durationMs = pcm.size * 1_000L / AndroidCodec2.SAMPLE_RATE
+                runOnUiThread {
+                    if (token == codec2PlaybackToken) {
+                        requestAudioFocus()
+                        track.play()
+                        onStarted(durationMs.coerceAtLeast(1))
+                    }
+                }
+                while (token == codec2PlaybackToken && track.playbackHeadPosition < pcm.size) {
+                    Thread.sleep(25)
+                }
+                runOnUiThread { if (token == codec2PlaybackToken) releasePlayer() }
+            }.onFailure { error ->
+                runOnUiThread {
+                    if (token == codec2PlaybackToken) {
+                        releasePlayer()
+                        onError(error.message ?: "Voice note Codec2 gagal diputar")
+                    }
+                }
+            }
+        }.apply { name = "Meshta-codec2-player"; start() }
     }
 
     private fun loadImage(uri: Uri) {
