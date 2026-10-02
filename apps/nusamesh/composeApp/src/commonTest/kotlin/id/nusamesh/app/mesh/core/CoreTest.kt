@@ -2,6 +2,7 @@ package id.nusamesh.app.mesh.core
 
 import id.nusamesh.app.mesh.protocol.MessageType
 import id.nusamesh.app.mesh.protocol.WirePacket
+import id.nusamesh.app.mesh.protocol.WireProtocol
 import id.nusamesh.app.mesh.protocol.peerIdBytes
 import kotlin.random.Random
 import kotlin.test.Test
@@ -147,6 +148,22 @@ class NodeQueueTest {
         it[24] = tag.toByte()
     }
     private val noop: suspend (ByteArray) -> Boolean = { true }
+
+    @Test
+    fun fullSizeVoiceFitsNodeQueueAtNegotiatedMtu() {
+        val fragmenter = Fragmenter(Random(9), clock::now).apply { connectionMtus = listOf(517) }
+        val packet = WirePacket(
+            type = MessageType.FILE_TRANSFER.value,
+            senderId = me,
+            timestamp = clock.t,
+            payload = ByteArray(96 * 1024),
+            ttl = 7,
+        )
+        val encoded = fragmenter.split(packet).map { WireProtocol.encode(it, random = Random(10)) }
+        assertTrue(encoded.size > 64, "regresi ini tidak menyentuh batas antrean lama")
+        assertTrue(encoded.size <= NodeQueue.MAX_PENDING)
+        assertTrue(NodeQueue(me, clock::now).offerBatch(encoded, noop))
+    }
 
     @Test
     fun ownBeforeRelayedAndClassOrder() {

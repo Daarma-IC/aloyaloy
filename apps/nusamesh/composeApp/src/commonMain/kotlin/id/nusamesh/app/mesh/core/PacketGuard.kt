@@ -7,7 +7,8 @@ import kotlin.math.abs
 
 /** Batas umur paket — sama dengan PacketAgePolicy Nusa Mesh: data boleh telat (LoRa), kontrol ketat. */
 object PacketAgePolicy {
-    const val DATA_WINDOW_MS = 15 * 60_000L
+    // Harus sepanjang timeout reassembly: fragmen akhir media besar dapat tiba berjam-jam kemudian.
+    const val DATA_WINDOW_MS = 3 * 60 * 60_000L
     const val CONTROL_WINDOW_MS = 5 * 60_000L
 
     fun accepts(type: Int, timestamp: Long, now: Long): Boolean {

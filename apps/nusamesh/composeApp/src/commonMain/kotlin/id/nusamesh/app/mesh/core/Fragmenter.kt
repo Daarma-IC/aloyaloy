@@ -21,7 +21,8 @@ class Fragmenter(
     companion object {
         const val FALLBACK_THRESHOLD = 400
         const val FALLBACK_FRAGMENT_SIZE = 380
-        const val FRAGMENT_TIMEOUT_MS = 15 * 60_000L   // fragmen voice lewat LoRa bisa datang bermenit-menit
+        // Transfer 96 KB dapat membutuhkan lebih dari satu jam karena duty-cycle LoRa.
+        const val FRAGMENT_TIMEOUT_MS = 3 * 60 * 60_000L
         private const val PACKET_HEADER_SIZE = 16 + 8 + 8 + 2
         private const val FRAGMENT_HEADER_SIZE = 13
         private const val MIN_FRAGMENT_DATA = 20

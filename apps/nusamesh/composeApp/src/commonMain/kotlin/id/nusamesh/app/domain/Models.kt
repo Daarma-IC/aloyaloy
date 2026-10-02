@@ -37,6 +37,8 @@ data class ChatMessage(
     val attachmentMimeType: String? = null,
     val attachmentData: ByteArray? = null,
     val durationSeconds: Int? = null,
+    /** 0..1 selama fragmen attachment keluar dari antrean transport. */
+    val transferProgress: Float? = null,
     val path: DeliveryPath = DeliveryPath.Ble,
     /** Nama HP perantara bila [path] = Nebeng. */
     val viaName: String? = null,

@@ -91,8 +91,16 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
         return message
     }
 
-    fun sendAttachment(attachment: ChatAttachment) {
-        engine.sendFile(FilePacket(attachment.name, attachment.mimeType, attachment.bytes))
+    fun sendAttachment(
+        attachment: ChatAttachment,
+        onProgress: (Float) -> Unit = {},
+        onComplete: (Boolean) -> Unit = {},
+    ) {
+        engine.sendFile(
+            FilePacket(attachment.name, attachment.mimeType, attachment.bytes),
+            onProgress,
+            onComplete,
+        )
     }
 
     fun nicknameOf(peerId: String): String? = snapshot.value.peers.firstOrNull { it.peerId == peerId }?.nickname

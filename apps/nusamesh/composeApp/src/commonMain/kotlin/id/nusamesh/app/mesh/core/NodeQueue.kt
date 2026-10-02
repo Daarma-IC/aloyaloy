@@ -26,8 +26,10 @@ import kotlin.math.ceil
  */
 class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
     companion object {
-        const val MAX_PENDING = 64
-        const val MAX_RELAYED = 40
+        // 96 KB pada MTU 517 menghasilkan sekitar 215 fragmen. Sisakan ruang untuk pesan teks
+        // yang masuk selama voice masih menunggu jatah airtime radio.
+        const val MAX_PENDING = 512
+        const val MAX_RELAYED = 384
         const val RELAY_AGING_MS = 30_000L
         private const val TYPE_NODE_REGISTER = 0x40
 
@@ -85,11 +87,36 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
         val enqueuedAt: Long,
         val own: Boolean,
         internal val send: suspend (ByteArray) -> Boolean,
+        internal val batch: Batch?,
     ) {
         val priority = priorityOf(bytes)
         /** NODE_REGISTER tak pernah dipancarkan ke LoRa: tak perlu jeda airtime. */
         val localOnly = bytes.getOrNull(1)?.toInt()?.and(0xFF) == TYPE_NODE_REGISTER
         fun rank(t: Long) = priority * 2 + if (own || t - enqueuedAt >= RELAY_AGING_MS) 0 else 1
+    }
+
+    internal class Batch(
+        private val total: Int,
+        private val onProgress: (Int, Int) -> Unit,
+        private val onComplete: (Boolean) -> Unit,
+    ) {
+        var sent = 0
+            private set
+        var finished = false
+            private set
+
+        fun sentOne() {
+            if (finished) return
+            sent += 1
+            onProgress(sent, total)
+            if (sent == total) finish(true)
+        }
+
+        fun finish(success: Boolean) {
+            if (finished) return
+            finished = true
+            onComplete(success)
+        }
     }
 
     private val pending = ArrayList<Item>()
@@ -112,12 +139,24 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
     fun offer(bytes: ByteArray, send: suspend (ByteArray) -> Boolean): Boolean = offerBatch(listOf(bytes), send)
 
     /** Semua-atau-tidak: fragmen satu pesan tidak boleh masuk setengah. */
-    fun offerBatch(packets: List<ByteArray>, send: suspend (ByteArray) -> Boolean): Boolean {
-        if (closed || pending.size + packets.size > MAX_PENDING) return false
+    fun offerBatch(
+        packets: List<ByteArray>,
+        send: suspend (ByteArray) -> Boolean,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+        onComplete: (Boolean) -> Unit = {},
+    ): Boolean {
+        if (closed || packets.isEmpty() || pending.size + packets.size > MAX_PENDING) {
+            onComplete(false)
+            return false
+        }
         val t = now()
-        val items = packets.map { Item(it.copyOf(), t, isOwn(it), send) }
+        val batch = Batch(packets.size, onProgress, onComplete)
+        val items = packets.map { Item(it.copyOf(), t, isOwn(it), send, batch) }
         val relayedIncoming = items.count { !it.own }
-        if (relayedIncoming > 0 && relayedCount + relayedIncoming > MAX_RELAYED) return false
+        if (relayedIncoming > 0 && relayedCount + relayedIncoming > MAX_RELAYED) {
+            batch.finish(false)
+            return false
+        }
         for (item in items) {
             // Gossip berkala boleh dilewati saat sibuk; jangan menumpuk di belakang voice.
             if (item.priority == 3 && pending.isNotEmpty()) continue
@@ -173,9 +212,18 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
                         if (wait > 0) { delay(minOf(wait, RECHECK_MS)); continue }
                     }
                     pending.remove(next)
-                    if (next.send(next.bytes) && !next.localOnly) {
-                        airCreditMs -= airtimeMs(next.bytes)
-                        rateTokens -= 1.0
+                    if (next.send(next.bytes)) {
+                        if (!next.localOnly) {
+                            airCreditMs -= airtimeMs(next.bytes)
+                            rateTokens -= 1.0
+                        }
+                        next.batch?.sentOne()
+                    } else {
+                        val batch = next.batch
+                        if (batch != null) {
+                            pending.removeAll { it.batch === batch }
+                            batch.finish(false)
+                        }
                     }
                 }
             }
@@ -184,6 +232,7 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
 
     fun close() {
         closed = true
+        pending.mapNotNull { it.batch }.distinct().forEach { it.finish(false) }
         pending.clear()
         wake.close()
         worker?.cancel()

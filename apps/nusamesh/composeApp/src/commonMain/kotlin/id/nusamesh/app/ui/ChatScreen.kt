@@ -38,6 +38,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -408,6 +409,22 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                     ChatMessageKind.Image -> ImagePreview(message)
                     ChatMessageKind.Voice -> VoicePreview(message.durationSeconds, message.outgoing, playback, onPlayVoice)
                     ChatMessageKind.File -> AttachmentPreview(IconKind.File, message.attachmentName ?: "File", message.attachmentBytes, message.outgoing)
+                }
+                if (message.outgoing && message.kind != ChatMessageKind.Text && message.delivery == DeliveryState.Sending) {
+                    val transfer = (message.transferProgress ?: 0f).coerceIn(0f, 1f)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { transfer },
+                            modifier = Modifier.weight(1f).height(4.dp),
+                            color = Color.White,
+                            trackColor = Color.White.copy(alpha = .22f),
+                        )
+                        Text("${(transfer * 100).toInt()}%", color = Color.White.copy(alpha = .85f), fontSize = 7.sp)
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PathTag(message)

@@ -206,24 +206,25 @@ class AppController(
 
     fun sendAttachment(attachment: ChatAttachment) {
         if (!canSend()) return
-        repository.sendAttachment(attachment)
         val (path, via) = currentPath()
         val loraSkipped = path != DeliveryPath.Ble && attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES
         val now = currentEpochMillis()
+        val messageId = "file-$now-${repository.myPeerId}"
         val outgoing = ChatMessage(
-            id = "file-$now-${repository.myPeerId}",
+            id = messageId,
             conversationId = GLOBAL_CHAT_ID,
             senderName = repository.nickname,
             body = labelOf(attachment.kind, attachment.name),
             time = formatClock(now),
             outgoing = true,
             kind = attachment.kind,
-            delivery = DeliveryState.Sent,
+            delivery = DeliveryState.Sending,
             attachmentName = attachment.name,
             attachmentBytes = attachment.bytes.size,
             attachmentMimeType = attachment.mimeType,
             attachmentData = attachment.bytes,
             durationSeconds = attachment.durationSeconds,
+            transferProgress = 0f,
             path = if (loraSkipped) DeliveryPath.Ble else path,
             viaName = if (loraSkipped) null else via,
         )
@@ -231,9 +232,29 @@ class AppController(
             current.copy(
                 chats = upsertGlobalPreview(current.chats, outgoing.body, 0, outgoing.time),
                 messages = current.messages + outgoing,
-                notice = if (loraSkipped) "Lampiran di atas 2 KB hanya dikirim lewat Bluetooth, tidak lewat LoRa" else current.notice,
+                notice = if (loraSkipped) "Lampiran di atas 96 KB hanya dikirim lewat Bluetooth, tidak lewat LoRa" else current.notice,
             )
         }
+        repository.sendAttachment(
+            attachment,
+            onProgress = { progress ->
+                _state.update { current ->
+                    current.copy(messages = current.messages.map { message ->
+                        if (message.id == messageId) message.copy(transferProgress = progress.coerceIn(0f, 1f)) else message
+                    })
+                }
+            },
+            onComplete = { success ->
+                _state.update { current ->
+                    current.copy(messages = current.messages.map { message ->
+                        if (message.id == messageId) message.copy(
+                            delivery = if (success) DeliveryState.Sent else DeliveryState.Failed,
+                            transferProgress = if (success) 1f else message.transferProgress,
+                        ) else message
+                    })
+                }
+            },
+        )
     }
 
     private fun canSend(): Boolean {

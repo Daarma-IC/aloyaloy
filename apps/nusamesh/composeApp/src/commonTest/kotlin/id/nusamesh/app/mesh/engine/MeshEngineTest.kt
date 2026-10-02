@@ -141,7 +141,7 @@ class MeshEngineTest {
     }
 
     @Test
-    fun fileTravelsOverBleFragmentsAndLargeFilesSkipLora() = runTest {
+    fun oversizeOnlyUsesBleAndLoraStillCarriesFiles() = runTest {
         val radio = world()
         val n1 = node(radio, "N1", 1)
         val n2 = node(radio, "N2", 2)
@@ -152,12 +152,12 @@ class MeshEngineTest {
         radio.setRssi("A", "B", -55); radio.setRssi("A", "N1", -60); radio.setRssi("Z", "N2", -60)
         advanceTimeBy(8_000); runCurrent()
 
-        val big = FilePacket("foto.jpg", "image/jpeg", ByteArray(20_000) { (it * 31).toByte() })
+        val big = FilePacket("terlalu-besar.bin", "application/octet-stream", ByteArray(97 * 1024) { (it * 31).toByte() })
         a.engine.sendFile(big)
-        advanceTimeBy(10_000); runCurrent()
+        advanceTimeBy(3 * 60_000); runCurrent()
         assertEquals(1, b.files.size, "HP tetangga menerima berkas besar lewat fragmen BLE")
         assertTrue(b.files[0].content.contentEquals(big.content))
-        assertTrue(z.files.isEmpty(), "berkas 20 KB tidak boleh masuk antrean LoRa")
+        assertTrue(z.files.isEmpty(), "payload di atas 96 KB tidak masuk antrean LoRa")
 
         val small = FilePacket("lora.webp", "image/webp", ByteArray(900) { it.toByte() })
         a.engine.sendFile(small)

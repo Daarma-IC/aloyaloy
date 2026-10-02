@@ -64,8 +64,8 @@ class MeshEngine(
         const val REGISTER_RETRY_MS = 5_000L
         const val PREV_NODE_MEMORY_MS = 600_000L
         const val FRAGMENT_GAP_MS = 60L
-        /** Batas berkas yang boleh lewat LoRa (profil gambar LoRa ≤ 1,2 KB + header TLV). */
-        const val LORA_FILE_MAX_BYTES = 2_048
+        /** Batas isi media yang boleh difragmentasi dan dikirim lewat LoRa. */
+        const val LORA_FILE_MAX_BYTES = 96 * 1024
 
         /** TTL awal pesan: sama dengan PacketRelayManager.getRecommendedTTL Nusa Mesh. */
         fun recommendedTtl(networkSize: Int) = if (networkSize > 20) 15 else 7
@@ -194,12 +194,22 @@ class MeshEngine(
     }
 
     /** Kirim berkas publik (FILE_TRANSFER, kompatibel Nusa Mesh). Dipecah fragmen sesuai MTU. */
-    fun sendFile(file: FilePacket) = scope.launch {
+    fun sendFile(
+        file: FilePacket,
+        onProgress: (Float) -> Unit = {},
+        onComplete: (Boolean) -> Unit = {},
+    ) = scope.launch {
         val packet = WirePacket(
             type = MessageType.FILE_TRANSFER.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
             timestamp = now(), payload = file.encode(), ttl = recommendedTtl(peers.size),
         )
-        broadcast(packet, except = null)
+        broadcast(
+            packet,
+            except = null,
+            allowLora = file.content.size <= LORA_FILE_MAX_BYTES,
+            onProgress = onProgress,
+            onComplete = onComplete,
+        )
     }
 
     /** Kirim paket ber-recipient (dipakai lapisan Noise/ACK). Rute terarah bila diketahui. */
@@ -489,7 +499,10 @@ class MeshEngine(
         // Langsung ke antrean node (bukan lewat launch): harus mendahului ANNOUNCE, karena setelah paket
         // ber-airtime antrean menunggu jeda puluhan detik — registrasi tertunda = delay handover membengkak.
         val q = d.queue
-        if (q != null) q.offerBatch(listOf(WireProtocol.encode(packet, random = random))) { bytes -> link.send(d.id, bytes) }
+        if (q != null) q.offerBatch(
+            listOf(WireProtocol.encode(packet, random = random)),
+            send = { bytes -> link.send(d.id, bytes) },
+        )
         else scope.launch { sendToDevice(d, packet) }
         mobilityLog.log("REGISTER_SENT", prev, nodeId, null, null, null, "")
     }
@@ -571,30 +584,67 @@ class MeshEngine(
     // ----------------------------------------------------------------------------------------------
     private fun deviceOfPeer(peerId: String) = devices.values.firstOrNull { it.connected && it.peerId == peerId }
 
-    private suspend fun broadcast(packet: WirePacket, except: String?) {
-        // Berkas besar tidak dimasukkan ke antrean LoRa: satu gambar 50 KB = puluhan menit airtime.
-        val tooBigForLora = packet.type == MessageType.FILE_TRANSFER.value && packet.payload.size > LORA_FILE_MAX_BYTES
-        val targets = devices.values.filter { it.connected && it.id != except && !(tooBigForLora && it.isNode) }
-        if (targets.isEmpty()) return
+    private suspend fun broadcast(
+        packet: WirePacket,
+        except: String?,
+        allowLora: Boolean = true,
+        onProgress: ((Float) -> Unit)? = null,
+        onComplete: ((Boolean) -> Unit)? = null,
+    ) {
+        val targets = devices.values.filter { it.connected && it.id != except && (allowLora || !it.isNode) }
+        if (targets.isEmpty()) {
+            onComplete?.invoke(false)
+            return
+        }
         val parts = fragmenter.split(packet)
-        for (d in targets) sendParts(d, parts)
+        val totalUnits = targets.size * parts.size
+        var sentUnits = 0
+        var completedTargets = 0
+        var failed = false
+        for (d in targets) {
+            var previous = 0
+            sendParts(
+                d,
+                parts,
+                onProgress = { sent, _ ->
+                    sentUnits += sent - previous
+                    previous = sent
+                    onProgress?.invoke(sentUnits.toFloat() / totalUnits)
+                },
+                onComplete = { success ->
+                    failed = failed || !success
+                    completedTargets += 1
+                    if (completedTargets == targets.size) onComplete?.invoke(!failed)
+                },
+            )
+        }
     }
 
     private suspend fun sendToDevice(d: Device, packet: WirePacket) = sendParts(d, fragmenter.split(packet))
 
-    private suspend fun sendParts(d: Device, parts: List<WirePacket>) {
+    private suspend fun sendParts(
+        d: Device,
+        parts: List<WirePacket>,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+        onComplete: (Boolean) -> Unit = {},
+    ) {
         val encoded = parts.map { WireProtocol.encode(it, random = random) }
         val q = d.queue
         if (q != null) {
             // Ke Nusa Node: lewat antrean berjeda (airtime LoRa) dengan kebijakan HCMA.
-            q.offerBatch(encoded) { bytes -> link.send(d.id, bytes) }
+            q.offerBatch(encoded, { bytes -> link.send(d.id, bytes) }, onProgress, onComplete)
             return
         }
         scope.launch {
-            encoded.forEachIndexed { i, bytes ->
-                if (!link.send(d.id, bytes)) return@launch
+            for ((i, bytes) in encoded.withIndex()) {
+                if (!link.send(d.id, bytes)) {
+                    onComplete(false)
+                    return@launch
+                }
+                onProgress(i + 1, encoded.size)
                 if (i < encoded.lastIndex) delay(FRAGMENT_GAP_MS)
             }
+            onComplete(true)
         }
     }
 
