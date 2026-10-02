@@ -7,8 +7,8 @@
 // ---------------------------------------------------------------------------
 //  1. IDENTITAS NODE  — WAJIB diubah per unit sebelum flash
 // ---------------------------------------------------------------------------
-#define NODE_ID              1         // 1..254, harus UNIK per node
-#define NODE_NAME            "NusaNode-A"   // Board A = ID 1/NusaNode-A · Board B = ID 2/NusaNode-B
+#define NODE_ID              4         // 1..254, harus UNIK per node
+#define NODE_NAME            "NusaNode-D"   // Board A = ID 1/NusaNode-A · Board B = ID 2/NusaNode-B
 
 // ---------------------------------------------------------------------------
 //  2. PINOUT LoRa (SX1276)  — [VERIFIKASI ke silkscreen board Anda]

@@ -69,6 +69,7 @@ internal val leafletHtml = """
     #error { position:absolute; z-index:1000; top:88px; left:16px; right:16px; color:#ef4444; font:11px system-ui,sans-serif; pointer-events:none; }
     #offline { display:none; position:absolute; z-index:1000; left:16px; right:16px; top:94px; padding:10px 12px; border-radius:12px; background:#FFF4E5; color:#B45309; font:12px system-ui,sans-serif; box-shadow:0 2px 10px #16203318; pointer-events:none; }
     #coordinate { position:absolute; z-index:999; left:16px; bottom:18px; padding:7px 10px; border-radius:12px; background:#ffffffdd; color:#475569; box-shadow:0 2px 10px #16203318; font:11px system-ui,sans-serif; pointer-events:none; }
+    #map-status { position:absolute; z-index:1001; left:50%; top:50%; transform:translate(-50%,-50%); padding:9px 12px; border-radius:10px; background:#ffffffdd; color:#475569; font:12px system-ui,sans-serif; }
   </style>
 </head>
 <body>
@@ -81,9 +82,11 @@ internal val leafletHtml = """
   <div id="error"></div>
   <div id="offline">Ubin peta tidak termuat: butuh koneksi internet. Titik lokasi tetap bisa ditandai.</div>
   <div id="coordinate">Ketuk peta untuk menandai lokasi</div>
+  <div id="map-status">Menyiapkan peta...</div>
   <!--LEAFLET_JS-->
   <script>
     const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
+    document.getElementById('map-status').style.display = 'none';
     let loadedTileCount = 0;
     const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom:19,
