@@ -1,0 +1,2 @@
+headers = codec2_bridge.h
+package = id.nusamesh.codec2bridge

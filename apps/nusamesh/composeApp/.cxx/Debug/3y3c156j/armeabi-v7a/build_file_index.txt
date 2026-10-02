@@ -1,0 +1,1 @@
+C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\composeApp\src\androidMain\cpp\CMakeLists.txt

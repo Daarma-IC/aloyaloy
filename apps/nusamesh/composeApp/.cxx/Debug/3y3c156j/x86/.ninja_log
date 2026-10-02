@@ -1,0 +1,25 @@
+# ninja log v5
+32	308	8126056014920491	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/dump.c.o	43038bf956cd366d
+2	354	8126056015596376	CMakeFiles/nusamesh_codec2.dir/codec2_jni.c.o	52d70f9a13f0382d
+65	383	8126056015570749	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/interp.c.o	bff861b3f5ba2ad9
+83	407	8126056015570749	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/kiss_fftr.c.o	247ac104750e9098
+47	431	8126056015360451	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/codec2_fft.c.o	5b2b9a43dd36f578
+139	456	8126056016166835	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/lsp.c.o	dfda2e9b8d0dd01
+119	482	8126056015906889	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/lpc.c.o	c053a13330620a84
+100	507	8126056016542780	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/kiss_fft.c.o	6d2468852f53297e
+179	531	8126056016718251	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/mbest.c.o	ae3d2f4deb525ac6
+253	556	8126056017450291	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/postfilter.c.o	70d2edb6c6874128
+160	594	8126056017370058	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/pack.c.o	def069d099a60be
+408	633	8126056018168258	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/nativeInterop/codec2-generated/codebook.c.o	4b220e7f9f7695d4
+483	657	8126056018490608	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/nativeInterop/codec2-generated/codebookge.c.o	f3f18bd518a4c6e2
+457	681	8126056018460797	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/nativeInterop/codec2-generated/codebookd.c.o	474934bde768830f
+17	718	8126056018987850	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/codec2.c.o	9613a6cc450051cf
+433	723	8126056019251440	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/nativeInterop/codec2-generated/codebookjmv.c.o	d00a2ac38f1a0925
+204	744	8126056019211144	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/nlp.c.o	91a427bc49617cda
+532	748	8126056019187601	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/nativeInterop/codec2-generated/codebooknewamp1_energy.c.o	339826555a2b39b4
+227	754	8126056019527203	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/newamp1.c.o	3f4042995db7e5fc
+313	773	8126056019782897	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/phase.c.o	ce000411f4a1530d
+355	804	8126056019932936	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/sine.c.o	493cccf444ca7b55
+384	836	8126056020473162	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/third_party/codec2/src/quantise.c.o	46c66f1813540888
+507	892	8126056021004167	CMakeFiles/nusamesh_codec2.dir/C_/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/nativeInterop/codec2-generated/codebooknewamp1.c.o	b1390b31ee897a5e
+893	1431	8126056026333621	C:/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/build/intermediates/cxx/Debug/3y3c156j/obj/x86/libnusamesh_codec2.so	91f037e59afcdcd3

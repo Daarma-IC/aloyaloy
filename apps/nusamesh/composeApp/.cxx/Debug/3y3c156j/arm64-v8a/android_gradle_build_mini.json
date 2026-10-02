@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "C:\\Users\\darma\\OneDrive\\Dokumen\\taa\\apps\\nusamesh\\composeApp\\src\\androidMain\\cpp\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Android\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\darma\\OneDrive\\Dokumen\\taa\\apps\\nusamesh\\composeApp\\.cxx\\Debug\\3y3c156j\\arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Android\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\darma\\OneDrive\\Dokumen\\taa\\apps\\nusamesh\\composeApp\\.cxx\\Debug\\3y3c156j\\arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "nusamesh_codec2::@6890427a1f51a3e7e1df": {
+      "artifactName": "nusamesh_codec2",
+      "abi": "arm64-v8a",
+      "output": "C:\\Users\\darma\\OneDrive\\Dokumen\\taa\\apps\\nusamesh\\composeApp\\build\\intermediates\\cxx\\Debug\\3y3c156j\\obj\\arm64-v8a\\libnusamesh_codec2.so",
+      "runtimeFiles": []
+    }
+  }
+}

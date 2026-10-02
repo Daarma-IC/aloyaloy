@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "nusamesh_codec2",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "nusamesh_codec2::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-nusamesh_codec2-Debug-c92a60776a8bf10cbdc2.json",
+					"name" : "nusamesh_codec2",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/.cxx/Debug/3y3c156j/x86",
+		"source" : "C:/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/src/androidMain/cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

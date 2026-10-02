@@ -1,0 +1,3 @@
+C:/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/.cxx/Debug/3y3c156j/armeabi-v7a/CMakeFiles/nusamesh_codec2.dir
+C:/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/.cxx/Debug/3y3c156j/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/darma/OneDrive/Dokumen/taa/apps/nusamesh/composeApp/.cxx/Debug/3y3c156j/armeabi-v7a/CMakeFiles/rebuild_cache.dir
