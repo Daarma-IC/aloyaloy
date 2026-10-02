@@ -44,11 +44,7 @@ private class LocalMapWebView(context: Context) : WebView(context) {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                view.evaluateJavascript(
-                    "window.dispatchEvent(new Event('resize'));" +
-                        "if(window.nusaMap){window.nusaMap.invalidateSize(true);}",
-                    null,
-                )
+                ensureMapStarted(view)
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -82,6 +78,49 @@ private class LocalMapWebView(context: Context) : WebView(context) {
         document = splitScripts(html)
         contentVersion = version
         loadUrl("$LOCAL_MAP_PAGE?v=$version")
+    }
+
+    private fun ensureMapStarted(view: WebView) {
+        view.evaluateJavascript(
+            "(function(){if(window.nusaMap)return 'map';if(window.L)return 'leaflet';return 'missing';})()",
+        ) { state ->
+            when {
+                state.contains("map") -> resizeMap(view)
+                state.contains("leaflet") -> runMapScript(view)
+                else -> {
+                    // Fallback untuk Android System WebView yang gagal mengambil script lokal
+                    // melalui shouldInterceptRequest.
+                    view.evaluateJavascript(document.leafletJs) { runMapScript(view) }
+                }
+            }
+        }
+    }
+
+    private fun runMapScript(view: WebView) {
+        view.evaluateJavascript(
+            "if(!window.nusaMap){${document.mapJs}}",
+        ) {
+            resizeMap(view)
+            view.postDelayed({
+                view.evaluateJavascript("Boolean(window.nusaMap)") { ready ->
+                    if (ready != "true") {
+                        view.evaluateJavascript(
+                            "(function(){var e=document.getElementById('map-status');" +
+                                "if(e){e.style.display='block';e.textContent='Peta gagal dimulai. Perbarui Android System WebView.';}})()",
+                            null,
+                        )
+                    }
+                }
+            }, 1_500)
+        }
+    }
+
+    private fun resizeMap(view: WebView) {
+        view.evaluateJavascript(
+            "window.dispatchEvent(new Event('resize'));" +
+                "if(window.nusaMap){window.nusaMap.invalidateSize(true);}",
+            null,
+        )
     }
 
     private fun localResponse(mimeType: String, content: String) = WebResourceResponse(
