@@ -7,6 +7,10 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.location.Location
 import android.location.LocationListener
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
@@ -41,7 +45,7 @@ import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions {
+class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions, SensorEventListener {
     private lateinit var link: AndroidBleLink
     private var imageResult: ((ChatAttachment) -> Unit)? = null
     private var imageLoraProfile = false
@@ -63,6 +67,8 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     override val state: StateFlow<LocationAccessState> = mutableLocationState
     private val mutableLocation = MutableStateFlow<DeviceLocation?>(null)
     override val location: StateFlow<DeviceLocation?> = mutableLocation
+    private val mutableHeading = MutableStateFlow<Float?>(null)
+    override val heading: StateFlow<Float?> = mutableHeading
     private var locationUpdatesStarted = false
     private var locationPermissionRequested = false
     private val locationListener = object : LocationListener {
@@ -118,7 +124,27 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     override fun onResume() {
         super.onResume()
         refresh()
+        val sensors = getSystemService(SensorManager::class.java)
+        sensors?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let {
+            sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+        }
     }
+
+    override fun onPause() {
+        getSystemService(SensorManager::class.java)?.unregisterListener(this)
+        super.onPause()
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
+        val rotation = FloatArray(9)
+        val orientation = FloatArray(3)
+        SensorManager.getRotationMatrixFromVector(rotation, event.values)
+        SensorManager.getOrientation(rotation, orientation)
+        mutableHeading.value = ((Math.toDegrees(orientation[0].toDouble()) + 360.0) % 360.0).toFloat()
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     override fun requestPermission() {
         if (locationPermissionRequested &&

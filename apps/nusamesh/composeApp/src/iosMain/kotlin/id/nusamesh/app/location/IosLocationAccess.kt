@@ -8,6 +8,7 @@ import platform.CoreLocation.CLAuthorizationStatus
 import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationManager
 import platform.CoreLocation.CLLocationManagerDelegateProtocol
+import platform.CoreLocation.CLHeading
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusDenied
@@ -22,8 +23,10 @@ class IosLocationAccess : NSObject(), CLLocationManagerDelegateProtocol, Locatio
     private val manager = CLLocationManager()
     private val mutableState = MutableStateFlow(LocationAccessState.Checking)
     private val mutableLocation = MutableStateFlow<DeviceLocation?>(null)
+    private val mutableHeading = MutableStateFlow<Float?>(null)
     override val state: StateFlow<LocationAccessState> = mutableState
     override val location: StateFlow<DeviceLocation?> = mutableLocation
+    override val heading: StateFlow<Float?> = mutableHeading
 
     init {
         manager.delegate = this
@@ -48,7 +51,10 @@ class IosLocationAccess : NSObject(), CLLocationManagerDelegateProtocol, Locatio
             !CLLocationManager.locationServicesEnabled() -> LocationAccessState.ServiceDisabled
             else -> LocationAccessState.Ready
         }
-        if (mutableState.value == LocationAccessState.Ready) manager.startUpdatingLocation()
+        if (mutableState.value == LocationAccessState.Ready) {
+            manager.startUpdatingLocation()
+            manager.startUpdatingHeading()
+        }
     }
 
     override fun locationManager(manager: CLLocationManager, didChangeAuthorizationStatus: CLAuthorizationStatus) = refresh()
@@ -62,5 +68,10 @@ class IosLocationAccess : NSObject(), CLLocationManagerDelegateProtocol, Locatio
             value.horizontalAccuracy.toFloat(),
             (value.timestamp.timeIntervalSince1970 * 1_000.0).toLong(),
         )
+    }
+
+    override fun locationManager(manager: CLLocationManager, didUpdateHeading: CLHeading) {
+        val value = didUpdateHeading.trueHeading.takeIf { it >= 0.0 } ?: didUpdateHeading.magneticHeading
+        mutableHeading.value = value.toFloat()
     }
 }

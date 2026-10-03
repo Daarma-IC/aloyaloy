@@ -79,6 +79,8 @@ data class AppUiState(
     val activeConversationId: String? = null,
     val messages: List<ChatMessage> = emptyList(),
     val trackedUsers: List<TrackedUser> = emptyList(),
+    val selectedTargetPeerId: String? = null,
+    val headingDegrees: Float? = null,
     /** Pemberitahuan nebeng yang belum ditutup (muncul saat rute nebeng baru terbentuk). */
     val nebengNotice: String? = null,
     val nodeSheetOpen: Boolean = false,

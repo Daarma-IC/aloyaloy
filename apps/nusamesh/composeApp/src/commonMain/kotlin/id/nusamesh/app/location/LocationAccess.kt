@@ -10,6 +10,7 @@ data class DeviceLocation(val latitude: Double, val longitude: Double, val accur
 interface LocationAccessActions {
     val state: StateFlow<LocationAccessState>
     val location: StateFlow<DeviceLocation?>
+    val heading: StateFlow<Float?>
     fun requestPermission()
     fun openLocationSettings()
     fun refresh()
@@ -18,6 +19,7 @@ interface LocationAccessActions {
 object ImmediateLocationAccess : LocationAccessActions {
     override val state = MutableStateFlow(LocationAccessState.Ready)
     override val location = MutableStateFlow<DeviceLocation?>(null)
+    override val heading = MutableStateFlow<Float?>(null)
     override fun requestPermission() = Unit
     override fun openLocationSettings() = Unit
     override fun refresh() = Unit

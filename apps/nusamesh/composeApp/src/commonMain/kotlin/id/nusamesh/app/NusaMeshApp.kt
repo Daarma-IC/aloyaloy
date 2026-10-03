@@ -59,6 +59,7 @@ fun NusaMeshApp(
 ) {
     val locationState by locationAccess.state.collectAsState()
     val currentLocation by locationAccess.location.collectAsState()
+    val currentHeading by locationAccess.heading.collectAsState()
     LaunchedEffect(locationAccess) {
         locationAccess.refresh()
         if (locationAccess.state.value == LocationAccessState.PermissionRequired) locationAccess.requestPermission()
@@ -76,6 +77,7 @@ fun NusaMeshApp(
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(currentLocation) { currentLocation?.let(controller::updateOwnLocation) }
+    LaunchedEffect(currentHeading) { controller.updateHeading(currentHeading) }
 
     LaunchedEffect(controller) {
         if (controller.resumeMeshOnLaunch) {
@@ -128,7 +130,7 @@ fun NusaMeshApp(
                         onNotice = controller::showNotice,
                         onDismissNebeng = controller::dismissNebengNotice,
                     )
-                    AppPage.Map -> MapScreen(state, padding)
+                    AppPage.Map -> MapScreen(state, padding, controller::selectNavigationTarget)
                 } }
                 if (showBar) {
                     AppBottomBar(state.page, hazeState, controller::navigate, Modifier.align(Alignment.BottomCenter))

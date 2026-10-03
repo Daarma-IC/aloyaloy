@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -31,8 +33,11 @@ import androidx.compose.ui.unit.sp
 import id.nusamesh.app.domain.AppUiState
 
 @Composable
-fun MapScreen(state: AppUiState, padding: PaddingValues) {
+fun MapScreen(state: AppUiState, padding: PaddingValues, onSelectTarget: (String?) -> Unit) {
     var sheetFraction by remember { mutableFloatStateOf(0.45f) }
+    val own = state.trackedUsers.firstOrNull { it.own }
+    val target = state.trackedUsers.firstOrNull { it.peerId == state.selectedTargetPeerId }
+    val guidance = if (own != null && target != null) guidance(own, target, state.headingDegrees) else null
     BoxWithConstraints(
         Modifier.fillMaxSize().background(Color(0xFFF8FAFC))
             .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding()),
@@ -41,7 +46,7 @@ fun MapScreen(state: AppUiState, padding: PaddingValues) {
         val availablePx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().weight(1f - sheetFraction).background(BrandTint)) {
-                LeafletMap(Modifier.fillMaxSize(), state.trackedUsers)
+                LeafletMap(Modifier.fillMaxSize(), state.trackedUsers, state.selectedTargetPeerId)
             }
             Column(
                 Modifier.fillMaxWidth()
@@ -70,12 +75,34 @@ fun MapScreen(state: AppUiState, padding: PaddingValues) {
                     Text("Belum ada unit dengan koordinat yang diterima.", color = Slate, fontSize = 12.sp)
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        state.trackedUsers.forEach { unit ->
+                        if (guidance != null && target != null) {
+                            Text("Menuju ${target.name}", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                "${if (unit.own) "Anda" else unit.name} · ${unit.rssi?.let { "$it dBm" } ?: "RSSI relay"} · ±${unit.accuracyMeters.toInt()} m",
-                                color = Slate,
-                                fontSize = 12.sp,
+                                "${guidance.distanceLabel} | bearing ${guidance.bearing.toInt()} deg ${guidance.cardinal}",
+                                color = Color(0xFF2563EB), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                             )
+                            Text(
+                                guidance.turnInstruction,
+                                color = Ink, fontSize = 13.sp,
+                            )
+                            Text(
+                                "Arah langsung offline, bukan jaminan jalur aman. Jangan menerobos tebing, sungai, longsor, atau area tertutup.",
+                                color = Color(0xFFB45309), fontSize = 10.sp,
+                            )
+                            OutlinedButton(onClick = { onSelectTarget(null) }) { Text("Hentikan arahan") }
+                        }
+                        state.trackedUsers.forEach { unit ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "${if (unit.own) "Anda" else unit.name} | ${unit.rssi?.let { "$it dBm" } ?: "RSSI relay"} | +/-${unit.accuracyMeters.toInt()} m",
+                                    color = Slate, fontSize = 12.sp, modifier = Modifier.weight(1f),
+                                )
+                                if (!unit.own) {
+                                    Button(onClick = { onSelectTarget(unit.peerId) }) {
+                                        Text(if (unit.peerId == state.selectedTargetPeerId) "Dipilih" else "Arahkan")
+                                    }
+                                }
+                            }
                         }
                     }
                 }

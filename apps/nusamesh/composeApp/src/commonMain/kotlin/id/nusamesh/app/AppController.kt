@@ -115,7 +115,12 @@ class AppController(
                 val peer = snapshot.peers.firstOrNull { it.peerId == user.peerId }
                 if (peer == null) user else user.copy(rssi = peer.rssi, direct = peer.direct)
             }
-            var next = current.copy(mesh = MeshStatus(current.mesh.active, snapshot), nebengNotice = nebengNotice, trackedUsers = telemetry)
+            var next = current.copy(
+                mesh = MeshStatus(current.mesh.active, snapshot),
+                nebengNotice = nebengNotice,
+                trackedUsers = telemetry,
+                selectedTargetPeerId = current.selectedTargetPeerId?.takeIf { id -> telemetry.any { it.peerId == id } },
+            )
             fresh.forEach { node ->
                 next = next.copy(messages = next.messages + systemMessage("Nusa Node tersedia: ${node.name}. Atur lewat menu Nusa Node."))
             }
@@ -281,6 +286,12 @@ class AppController(
             lastLocationSentAt = location.timestampMs
             repository.sendLocation(location.latitude, location.longitude, location.accuracyMeters, location.timestampMs)
         }
+    }
+
+    fun updateHeading(degrees: Float?) = _state.update { it.copy(headingDegrees = degrees) }
+
+    fun selectNavigationTarget(peerId: String?) = _state.update { current ->
+        current.copy(selectedTargetPeerId = peerId?.takeIf { id -> current.trackedUsers.any { it.peerId == id && !it.own } })
     }
 
     private fun receiveLocation(incoming: IncomingMessage) {

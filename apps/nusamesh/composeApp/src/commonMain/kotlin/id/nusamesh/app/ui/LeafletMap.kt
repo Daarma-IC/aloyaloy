@@ -18,14 +18,15 @@ import id.nusamesh.app.domain.TrackedUser
  * hanya menambah detail jalan saat jaringan tersedia.
  */
 @Composable
-fun LeafletMap(modifier: Modifier, units: List<TrackedUser> = emptyList()) {
-    val htmlResult by produceState<Result<String>?>(null, units) {
+fun LeafletMap(modifier: Modifier, units: List<TrackedUser> = emptyList(), selectedTargetPeerId: String? = null) {
+    val htmlResult by produceState<Result<String>?>(null, units, selectedTargetPeerId) {
         value = runCatching {
             buildLeafletHtml(
                 js = Res.readBytes("files/leaflet/leaflet.js").decodeToString(),
                 css = Res.readBytes("files/leaflet/leaflet.css").decodeToString(),
                 offlineRegion = Res.readBytes("files/maps/natural-earth-se-asia.geojson").decodeToString(),
                 unitsJson = units.toMapJson(),
+                selectedTargetJson = selectedTargetPeerId?.let { "\"$it\"" } ?: "null",
             )
         }
     }
@@ -44,20 +45,28 @@ expect fun LeafletWebView(modifier: Modifier, html: String)
 
 internal const val MAP_BASE_URL = "https://meshta.app/"
 
-internal fun buildLeafletHtml(js: String, css: String, offlineRegion: String, unitsJson: String = "[]"): String = leafletHtml
+internal fun buildLeafletHtml(
+    js: String,
+    css: String,
+    offlineRegion: String,
+    unitsJson: String = "[]",
+    selectedTargetJson: String = "null",
+): String = leafletHtml
     .replace(LEAFLET_CSS_TAG, "<style>$css</style>")
     .replace(LEAFLET_JS_TAG, "<script>$js</script>")
     .replace(OFFLINE_REGION_TAG, offlineRegion)
     .replace(MAP_UNITS_TAG, unitsJson)
+    .replace(SELECTED_TARGET_TAG, selectedTargetJson)
 
 private const val LEAFLET_CSS_TAG = "<!--LEAFLET_CSS-->"
 private const val LEAFLET_JS_TAG = "<!--LEAFLET_JS-->"
 private const val OFFLINE_REGION_TAG = "/*OFFLINE_REGION*/"
 private const val MAP_UNITS_TAG = "/*MAP_UNITS*/"
+private const val SELECTED_TARGET_TAG = "/*SELECTED_TARGET*/"
 
 private fun List<TrackedUser>.toMapJson() = joinToString(prefix = "[", postfix = "]") { unit ->
     val safeName = unit.name.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ")
-    "{\"name\":\"$safeName\",\"latitude\":${unit.latitude},\"longitude\":${unit.longitude}," +
+    "{\"peerId\":\"${unit.peerId}\",\"name\":\"$safeName\",\"latitude\":${unit.latitude},\"longitude\":${unit.longitude}," +
         "\"accuracy\":${unit.accuracyMeters},\"rssi\":${unit.rssi ?: "null"},\"direct\":${unit.direct},\"own\":${unit.own}}"
 }
 
@@ -100,6 +109,7 @@ internal val leafletHtml = """
   <script>
     const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
     const initialUnits = /*MAP_UNITS*/;
+    const selectedTargetPeerId = /*SELECTED_TARGET*/;
     document.getElementById('map-status').style.display = 'none';
     const offlineRegion = /*OFFLINE_REGION*/;
     const offlineLayer = L.geoJSON(offlineRegion, {
@@ -134,6 +144,7 @@ internal val leafletHtml = """
     window.addEventListener('resize', fixSize);
     [100, 400, 1200].forEach(function(ms) { setTimeout(fixSize, ms); });
     window.nusaMarkers = L.layerGroup().addTo(map);
+    window.nusaGuidance = L.layerGroup().addTo(map);
     const searchMarkers = L.layerGroup().addTo(map);
     const form = document.getElementById('search');
     const query = document.getElementById('query');
@@ -196,6 +207,7 @@ internal val leafletHtml = """
     });
     window.setNusaUnits = function(units) {
       window.nusaMarkers.clearLayers();
+      window.nusaGuidance.clearLayers();
       const bounds = [];
       for (const unit of units) {
         if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
@@ -209,7 +221,17 @@ internal val leafletHtml = """
         );
         bounds.push([unit.latitude, unit.longitude]);
       }
-      if (bounds.length) map.fitBounds(bounds, {padding:[36,36], maxZoom:15});
+      const own = units.find(function(unit) { return unit.own; });
+      const target = units.find(function(unit) { return unit.peerId === selectedTargetPeerId; });
+      if (own && target) {
+        L.polyline([[own.latitude, own.longitude], [target.latitude, target.longitude]], {
+          color:'#F97316', weight:4, opacity:.9, dashArray:'10 8'
+        }).addTo(window.nusaGuidance);
+        L.circleMarker([target.latitude, target.longitude], {
+          radius:14, color:'#F97316', weight:4, fillColor:'#fff', fillOpacity:.35
+        }).addTo(window.nusaGuidance).bindTooltip('Tujuan: ' + String(target.name || 'Unit'), {permanent:true, direction:'top'});
+        map.fitBounds([[own.latitude, own.longitude], [target.latitude, target.longitude]], {padding:[54,54], maxZoom:16});
+      } else if (bounds.length) map.fitBounds(bounds, {padding:[36,36], maxZoom:15});
     };
     window.setNusaUnits(initialUnits);
   </script>
