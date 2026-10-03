@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.sp
 import nusamesh.composeapp.generated.resources.Res
 
 /**
- * Peta Leaflet. Pustaka Leaflet dibundel di aplikasi (composeResources/files/leaflet) supaya peta tetap
- * tampil tanpa internet; hanya ubin OpenStreetMap yang butuh jaringan.
+ * Leaflet dan peta vektor regional dibundel di aplikasi. Ubin OpenStreetMap bersifat opsional dan
+ * hanya menambah detail jalan saat jaringan tersedia.
  */
 @Composable
 fun LeafletMap(modifier: Modifier) {
@@ -23,6 +23,7 @@ fun LeafletMap(modifier: Modifier) {
             buildLeafletHtml(
                 js = Res.readBytes("files/leaflet/leaflet.js").decodeToString(),
                 css = Res.readBytes("files/leaflet/leaflet.css").decodeToString(),
+                offlineRegion = Res.readBytes("files/maps/natural-earth-se-asia.geojson").decodeToString(),
             )
         }
     }
@@ -41,12 +42,14 @@ expect fun LeafletWebView(modifier: Modifier, html: String)
 
 internal const val MAP_BASE_URL = "https://meshta.app/"
 
-internal fun buildLeafletHtml(js: String, css: String): String = leafletHtml
+internal fun buildLeafletHtml(js: String, css: String, offlineRegion: String): String = leafletHtml
     .replace(LEAFLET_CSS_TAG, "<style>$css</style>")
     .replace(LEAFLET_JS_TAG, "<script>$js</script>")
+    .replace(OFFLINE_REGION_TAG, offlineRegion)
 
 private const val LEAFLET_CSS_TAG = "<!--LEAFLET_CSS-->"
 private const val LEAFLET_JS_TAG = "<!--LEAFLET_JS-->"
+private const val OFFLINE_REGION_TAG = "/*OFFLINE_REGION*/"
 
 internal val leafletHtml = """
 <!doctype html>
@@ -55,7 +58,7 @@ internal val leafletHtml = """
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <!--LEAFLET_CSS-->
   <style>
-    html, body, #map { width:100%; height:100%; margin:0; padding:0; background:#EEF2FF; }
+    html, body, #map { width:100%; height:100%; margin:0; padding:0; background:#cfe8f6; }
     .leaflet-control-attribution { font:10px sans-serif !important; }
     .leaflet-top { top:94px; }
     .leaflet-control-zoom { border:1px solid #e2e8f0 !important; border-radius:8px !important; overflow:hidden; box-shadow:0 3px 12px #16203322 !important; }
@@ -80,17 +83,25 @@ internal val leafletHtml = """
     <button id="clear" type="button" aria-label="Hapus pencarian">&times;</button>
   </form>
   <div id="error"></div>
-  <div id="offline">Ubin peta tidak termuat: butuh koneksi internet. Titik lokasi tetap bisa ditandai.</div>
+  <div id="offline">Mode offline: peta wilayah tersedia, detail jalan memerlukan internet.</div>
   <div id="coordinate">Ketuk peta untuk menandai lokasi</div>
   <div id="map-status">Menyiapkan peta...</div>
   <!--LEAFLET_JS-->
   <script>
     const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
     document.getElementById('map-status').style.display = 'none';
+    const offlineRegion = /*OFFLINE_REGION*/;
+    L.geoJSON(offlineRegion, {
+      style: function() { return {color:'#8296ad',weight:1,fillColor:'#f8fafc',fillOpacity:1}; },
+      onEachFeature: function(feature, layer) {
+        if (feature.properties && feature.properties.name) layer.bindTooltip(feature.properties.name);
+      }
+    }).addTo(map);
+    L.control.attribution({position:'bottomright', prefix:false})
+      .addAttribution('Offline map: Natural Earth (public domain)').addTo(map);
     let loadedTileCount = 0;
-    const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom:19,
-      subdomains:['a','b','c'],
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     const offline = document.getElementById('offline');
@@ -112,6 +123,23 @@ internal val leafletHtml = """
     const form = document.getElementById('search');
     const query = document.getElementById('query');
     const error = document.getElementById('error');
+    const offlinePlaces = [
+      ['jakarta',-6.2088,106.8456,'Jakarta'],['bandung',-6.9175,107.6191,'Bandung'],
+      ['surabaya',-7.2575,112.7521,'Surabaya'],['yogyakarta',-7.7956,110.3695,'Yogyakarta'],
+      ['semarang',-6.9667,110.4167,'Semarang'],['medan',3.5952,98.6722,'Medan'],
+      ['padang',-0.9471,100.4172,'Padang'],['palembang',-2.9909,104.7566,'Palembang'],
+      ['denpasar',-8.6705,115.2126,'Denpasar'],['pontianak',-0.0263,109.3425,'Pontianak'],
+      ['banjarmasin',-3.3186,114.5944,'Banjarmasin'],['makassar',-5.1477,119.4327,'Makassar'],
+      ['manado',1.4748,124.8421,'Manado'],['ambon',-3.6954,128.1814,'Ambon'],
+      ['jayapura',-2.5916,140.6690,'Jayapura'],['kupang',-10.1772,123.6070,'Kupang']
+    ];
+    function showPlace(latitude, longitude, label, zoom) {
+      searchMarkers.clearLayers();
+      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#3B5BDB',fillOpacity:1})
+        .addTo(searchMarkers).bindPopup(label).openPopup();
+      map.setView([latitude, longitude], zoom || 11);
+      query.blur();
+    }
     document.getElementById('clear').onclick = function() {
       query.value = '';
       error.textContent = '';
@@ -123,6 +151,9 @@ internal val leafletHtml = """
       const term = query.value.trim();
       if (!term) return;
       error.textContent = '';
+      const normalized = term.toLocaleLowerCase('id-ID');
+      const local = offlinePlaces.find(function(place) { return place[0].includes(normalized) || normalized.includes(place[0]); });
+      if (local) { showPlace(local[1], local[2], local[3], 11); return; }
       try {
         const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(term);
         const response = await fetch(url, {headers:{'Accept':'application/json'}});
@@ -131,13 +162,9 @@ internal val leafletHtml = """
         if (!places.length) { error.textContent = 'Lokasi tidak ditemukan'; return; }
         const latitude = Number(places[0].lat);
         const longitude = Number(places[0].lon);
-        searchMarkers.clearLayers();
-        L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#3B5BDB',fillOpacity:1})
-          .addTo(searchMarkers).bindPopup(places[0].display_name).openPopup();
-        map.setView([latitude, longitude], 14);
-        query.blur();
+        showPlace(latitude, longitude, places[0].display_name, 14);
       } catch (_) {
-        error.textContent = 'Pencarian lokasi gagal. Cek koneksi internet.';
+        error.textContent = 'Lokasi belum tersedia offline. Sambungkan internet untuk pencarian lengkap.';
       }
     };
     const previewMarkers = L.layerGroup().addTo(map);

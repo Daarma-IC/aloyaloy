@@ -1,0 +1,6 @@
+Natural Earth data is in the public domain.
+Source: https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
+Dataset: Natural Earth Admin 0 - Countries, 1:110m
+
+The data bundled in this application was reduced to nearby countries and keeps
+only country name/ISO properties to provide a compact offline basemap.

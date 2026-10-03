@@ -156,7 +156,9 @@ class NodeQueueTest {
             type = MessageType.FILE_TRANSFER.value,
             senderId = me,
             timestamp = clock.t,
-            payload = ByteArray(96 * 1024),
+            // Codec frames are not an all-zero stream; random bytes also prevent transport
+            // compression from shrinking the fixture below the former 64-packet queue limit.
+            payload = Random(8).nextBytes(96 * 1024),
             ttl = 7,
         )
         val encoded = fragmenter.split(packet).map { WireProtocol.encode(it, random = Random(10)) }
