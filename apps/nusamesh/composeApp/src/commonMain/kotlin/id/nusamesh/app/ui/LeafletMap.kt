@@ -91,7 +91,7 @@ internal val leafletHtml = """
     const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
     document.getElementById('map-status').style.display = 'none';
     const offlineRegion = /*OFFLINE_REGION*/;
-    L.geoJSON(offlineRegion, {
+    const offlineLayer = L.geoJSON(offlineRegion, {
       style: function() { return {color:'#8296ad',weight:1,fillColor:'#f8fafc',fillOpacity:1}; },
       onEachFeature: function(feature, layer) {
         if (feature.properties && feature.properties.name) layer.bindTooltip(feature.properties.name);
@@ -105,9 +105,13 @@ internal val leafletHtml = """
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     const offline = document.getElementById('offline');
-    tiles.on('tileerror', function() { offline.style.display = 'block'; });
+    tiles.on('tileerror', function() {
+      if (!map.hasLayer(offlineLayer)) offlineLayer.addTo(map);
+      offline.style.display = 'block';
+    });
     tiles.on('tileload', function() {
       loadedTileCount += 1;
+      if (map.hasLayer(offlineLayer)) map.removeLayer(offlineLayer);
       offline.style.display = 'none';
     });
     setTimeout(function() {

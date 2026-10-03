@@ -101,6 +101,7 @@ private class NativeOfflineBasemap(context: Context) : View(context) {
 private class LocalMapWebView(context: Context) : WebView(context) {
     @Volatile private var document = MapDocument("", "", "")
     private var contentVersion: Int? = null
+    var onMapReady: (() -> Unit)? = null
 
     init {
         webViewClient = object : WebViewClient() {
@@ -157,7 +158,10 @@ private class LocalMapWebView(context: Context) : WebView(context) {
             "(function(){if(window.nusaMap)return 'map';if(window.L)return 'leaflet';return 'missing';})()",
         ) { state ->
             when {
-                state.contains("map") -> resizeMap(view)
+                state.contains("map") -> {
+                    onMapReady?.invoke()
+                    resizeMap(view)
+                }
                 state.contains("leaflet") -> runMapScript(view)
                 else -> {
                     // Fallback untuk Android System WebView yang gagal mengambil script lokal
@@ -175,7 +179,9 @@ private class LocalMapWebView(context: Context) : WebView(context) {
             resizeMap(view)
             view.postDelayed({
                 view.evaluateJavascript("Boolean(window.nusaMap)") { ready ->
-                    if (ready != "true") {
+                    if (ready == "true") {
+                        onMapReady?.invoke()
+                    } else {
                         view.evaluateJavascript(
                             "(function(){var e=document.getElementById('map-status');" +
                                 "if(e){e.style.display='block';e.textContent='Peta gagal dimulai. Perbarui Android System WebView.';}})()",
@@ -207,6 +213,7 @@ private class OfflineMapContainer(context: Context) : FrameLayout(context) {
     private val webView = LocalMapWebView(context)
 
     init {
+        webView.onMapReady = { backdrop.visibility = View.GONE }
         addView(backdrop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
