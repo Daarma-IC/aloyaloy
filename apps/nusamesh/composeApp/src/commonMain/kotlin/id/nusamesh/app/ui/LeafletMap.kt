@@ -58,7 +58,7 @@ internal val leafletHtml = """
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <!--LEAFLET_CSS-->
   <style>
-    html, body, #map { width:100%; height:100%; margin:0; padding:0; background:#cfe8f6; }
+    html, body, #map { width:100%; height:100%; margin:0; padding:0; background:transparent; }
     .leaflet-control-attribution { font:10px sans-serif !important; }
     .leaflet-top { top:94px; }
     .leaflet-control-zoom { border:1px solid #e2e8f0 !important; border-radius:8px !important; overflow:hidden; box-shadow:0 3px 12px #16203322 !important; }

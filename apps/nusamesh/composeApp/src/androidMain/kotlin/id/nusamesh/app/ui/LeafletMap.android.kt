@@ -3,7 +3,11 @@ package id.nusamesh.app.ui
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import android.util.Log
+import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -11,13 +15,81 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import java.io.ByteArrayInputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 private const val LOCAL_MAP_ORIGIN = "https://appassets.androidplatform.net"
 private const val LOCAL_MAP_PAGE = "$LOCAL_MAP_ORIGIN/map.html"
+
+/**
+ * Basemap native yang tidak bergantung Android System WebView. Leaflet tetap diletakkan di atasnya
+ * untuk interaksi/detail online, tetapi kegagalan JavaScript tidak lagi menghasilkan bidang kosong.
+ */
+private class NativeOfflineBasemap(context: Context) : View(context) {
+    private val polygons = mutableListOf<List<Pair<Double, Double>>>()
+    private val land = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(248, 250, 252); style = Paint.Style.FILL }
+    private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(130, 150, 173); style = Paint.Style.STROKE; strokeWidth = resources.displayMetrics.density
+    }
+
+    init { setBackgroundColor(Color.rgb(207, 232, 246)) }
+
+    fun loadFromHtml(html: String) {
+        if (polygons.isNotEmpty()) return
+        val marker = "const offlineRegion = "
+        val start = html.indexOf(marker).takeIf { it >= 0 }?.plus(marker.length) ?: return
+        val end = html.indexOf(";\n    L.geoJSON", start).takeIf { it > start } ?: return
+        runCatching {
+            val features = JSONObject(html.substring(start, end)).getJSONArray("features")
+            for (i in 0 until features.length()) readGeometry(features.getJSONObject(i).getJSONObject("geometry"))
+        }.onFailure { Log.e("MeshtaMap", "Native basemap parse failed", it) }
+        invalidate()
+    }
+
+    private fun readGeometry(geometry: JSONObject) {
+        val coordinates = geometry.getJSONArray("coordinates")
+        when (geometry.getString("type")) {
+            "Polygon" -> readPolygon(coordinates)
+            "MultiPolygon" -> for (i in 0 until coordinates.length()) readPolygon(coordinates.getJSONArray(i))
+        }
+    }
+
+    private fun readPolygon(rings: JSONArray) {
+        if (rings.length() == 0) return
+        val ring = rings.getJSONArray(0)
+        val points = ArrayList<Pair<Double, Double>>(ring.length())
+        for (i in 0 until ring.length()) {
+            val point = ring.getJSONArray(i)
+            points += point.getDouble(0) to point.getDouble(1)
+        }
+        if (points.size >= 3) polygons += points
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width == 0 || height == 0) return
+        val leftLon = 91.0
+        val rightLon = 144.0
+        val topLat = 12.0
+        val bottomLat = -15.0
+        fun x(lon: Double) = ((lon - leftLon) / (rightLon - leftLon) * width).toFloat()
+        fun y(lat: Double) = ((topLat - lat) / (topLat - bottomLat) * height).toFloat()
+        for (polygon in polygons) {
+            val path = Path()
+            polygon.forEachIndexed { index, point ->
+                if (index == 0) path.moveTo(x(point.first), y(point.second)) else path.lineTo(x(point.first), y(point.second))
+            }
+            path.close()
+            canvas.drawPath(path, land)
+            canvas.drawPath(path, border)
+        }
+    }
+}
 
 /**
  * Menyajikan HTML dan JavaScript peta sebagai resource lokal sungguhan.
@@ -58,7 +130,7 @@ private class LocalMapWebView(context: Context) : WebView(context) {
                 return true
             }
         }
-        setBackgroundColor(Color.rgb(238, 242, 255))
+        setBackgroundColor(Color.TRANSPARENT)
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.loadsImagesAutomatically = true
@@ -130,6 +202,21 @@ private class LocalMapWebView(context: Context) : WebView(context) {
     )
 }
 
+private class OfflineMapContainer(context: Context) : FrameLayout(context) {
+    private val backdrop = NativeOfflineBasemap(context)
+    private val webView = LocalMapWebView(context)
+
+    init {
+        addView(backdrop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    fun render(html: String) {
+        backdrop.loadFromHtml(html)
+        webView.render(html)
+    }
+}
+
 private data class MapDocument(val html: String, val leafletJs: String, val mapJs: String)
 
 private fun splitScripts(source: String): MapDocument {
@@ -151,7 +238,7 @@ private fun splitScripts(source: String): MapDocument {
 actual fun LeafletWebView(modifier: Modifier, html: String) {
     AndroidView(
         modifier = modifier,
-        factory = { context -> LocalMapWebView(context) },
-        update = { webView -> webView.render(html) },
+        factory = { context -> OfflineMapContainer(context) },
+        update = { container -> container.render(html) },
     )
 }
