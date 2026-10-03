@@ -28,6 +28,8 @@
 	<string>Meshta memakai Bluetooth agar HP lain dapat menyambung dan meneruskan pesan lewat HP ini.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Meshta memakai mikrofon untuk merekam voice note.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Meshta memakai lokasi untuk membagikan posisi pengguna kepada tim penyelamat melalui jaringan mesh.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

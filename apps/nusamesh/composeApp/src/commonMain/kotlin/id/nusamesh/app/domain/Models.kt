@@ -58,6 +58,18 @@ data class MeshStatus(
     val engine: EngineSnapshot = EngineSnapshot(),
 )
 
+data class TrackedUser(
+    val peerId: String,
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val accuracyMeters: Float,
+    val updatedAtMs: Long,
+    val rssi: Int? = null,
+    val direct: Boolean = false,
+    val own: Boolean = false,
+)
+
 data class AppUiState(
     val page: AppPage = AppPage.Home,
     val nickname: String = "",
@@ -66,6 +78,7 @@ data class AppUiState(
     val chats: List<ChatPreview> = emptyList(),
     val activeConversationId: String? = null,
     val messages: List<ChatMessage> = emptyList(),
+    val trackedUsers: List<TrackedUser> = emptyList(),
     /** Pemberitahuan nebeng yang belum ditutup (muncul saat rute nebeng baru terbentuk). */
     val nebengNotice: String? = null,
     val nodeSheetOpen: Boolean = false,

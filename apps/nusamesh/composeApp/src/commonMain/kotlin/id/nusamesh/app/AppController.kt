@@ -14,10 +14,13 @@ import id.nusamesh.app.domain.ChatPreview
 import id.nusamesh.app.domain.DeliveryPath
 import id.nusamesh.app.domain.DeliveryState
 import id.nusamesh.app.domain.MeshStatus
+import id.nusamesh.app.domain.TrackedUser
+import id.nusamesh.app.location.DeviceLocation
 import id.nusamesh.app.mesh.engine.EngineSnapshot
 import id.nusamesh.app.mesh.engine.IncomingFile
 import id.nusamesh.app.mesh.engine.IncomingMessage
 import id.nusamesh.app.mesh.mobility.MobilityConfig
+import id.nusamesh.app.mesh.protocol.LocationTelemetry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -91,6 +94,7 @@ class AppController(
 
     private var lastNebengRelay: String? = null
     private var announcedNodes = HashSet<String>()
+    private var lastLocationSentAt = 0L
 
     private fun onSnapshot(snapshot: EngineSnapshot) {
         val nebeng = snapshot.nebeng
@@ -105,7 +109,13 @@ class AppController(
         val fresh = snapshot.nodes.filter { it.peerId !in announcedNodes }
         announcedNodes += fresh.map { it.peerId }
         _state.update { current ->
-            var next = current.copy(mesh = MeshStatus(current.mesh.active, snapshot), nebengNotice = nebengNotice)
+            val telemetry = current.trackedUsers
+                .filter { currentEpochMillis() - it.updatedAtMs <= LOCATION_STALE_MS }
+                .map { user ->
+                val peer = snapshot.peers.firstOrNull { it.peerId == user.peerId }
+                if (peer == null) user else user.copy(rssi = peer.rssi, direct = peer.direct)
+            }
+            var next = current.copy(mesh = MeshStatus(current.mesh.active, snapshot), nebengNotice = nebengNotice, trackedUsers = telemetry)
             fresh.forEach { node ->
                 next = next.copy(messages = next.messages + systemMessage("Nusa Node tersedia: ${node.name}. Atur lewat menu Nusa Node."))
             }
@@ -118,6 +128,10 @@ class AppController(
     // ------------------------------------------------------------------------------------------
     private fun onIncomingMessage(incoming: IncomingMessage) {
         val m = incoming.message
+        if (m.content.startsWith("${LocationTelemetry.PREFIX}|")) {
+            receiveLocation(incoming)
+            return
+        }
         if (_state.value.messages.any { it.id == m.id }) return
         val message = ChatMessage(
             id = m.id,
@@ -257,6 +271,37 @@ class AppController(
         )
     }
 
+    fun updateOwnLocation(location: DeviceLocation) {
+        val mine = TrackedUser(
+            repository.myPeerId, repository.nickname, location.latitude, location.longitude,
+            location.accuracyMeters, location.timestampMs, own = true,
+        )
+        _state.update { current -> current.copy(trackedUsers = current.trackedUsers.filterNot { it.peerId == mine.peerId } + mine) }
+        if (_state.value.mesh.active && location.timestampMs - lastLocationSentAt >= 30_000L) {
+            lastLocationSentAt = location.timestampMs
+            repository.sendLocation(location.latitude, location.longitude, location.accuracyMeters, location.timestampMs)
+        }
+    }
+
+    private fun receiveLocation(incoming: IncomingMessage) {
+        val telemetry = LocationTelemetry.decode(incoming.message.content) ?: return
+        val peerId = incoming.fromPeerId
+        val peer = _state.value.mesh.engine.peers.firstOrNull { it.peerId == peerId }
+        val tracked = TrackedUser(
+            peerId = peerId,
+            name = incoming.message.sender.ifBlank { peer?.nickname ?: shortId(peerId) },
+            latitude = telemetry.latitude,
+            longitude = telemetry.longitude,
+            accuracyMeters = telemetry.accuracyMeters,
+            updatedAtMs = telemetry.timestampMs,
+            rssi = peer?.rssi,
+            direct = peer?.direct == true,
+        )
+        _state.update { current ->
+            current.copy(trackedUsers = current.trackedUsers.filterNot { it.peerId == peerId } + tracked)
+        }
+    }
+
     private fun canSend(): Boolean {
         val status = _state.value.mesh
         val linked = status.engine.peers.any { it.direct } || status.engine.nodes.any { it.connected }
@@ -317,6 +362,7 @@ class AppController(
         /** Penanda [ChatMessage.viaName] untuk pesan sistem (ditampilkan sebagai kartu info, bukan gelembung). */
         const val SYSTEM = "\u0000system"
         private const val KEY_ACTIVE = "mesh_active"
+        private const val LOCATION_STALE_MS = 3 * 60_000L
 
         fun kindOf(mime: String) = when {
             mime.startsWith("image/") -> ChatMessageKind.Image

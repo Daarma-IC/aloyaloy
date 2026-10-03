@@ -41,7 +41,7 @@ fun MapScreen(state: AppUiState, padding: PaddingValues) {
         val availablePx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().weight(1f - sheetFraction).background(BrandTint)) {
-                LeafletMap(Modifier.fillMaxSize())
+                LeafletMap(Modifier.fillMaxSize(), state.trackedUsers)
             }
             Column(
                 Modifier.fillMaxWidth()
@@ -63,10 +63,22 @@ fun MapScreen(state: AppUiState, padding: PaddingValues) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Unit Lapangan", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                StatusPill("0 Online")
+                StatusPill("${state.trackedUsers.size} Online")
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Text("Belum ada unit dengan koordinat yang diterima.", color = Slate, fontSize = 12.sp)
+                if (state.trackedUsers.isEmpty()) {
+                    Text("Belum ada unit dengan koordinat yang diterima.", color = Slate, fontSize = 12.sp)
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        state.trackedUsers.forEach { unit ->
+                            Text(
+                                "${if (unit.own) "Anda" else unit.name} · ${unit.rssi?.let { "$it dBm" } ?: "RSSI relay"} · ±${unit.accuracyMeters.toInt()} m",
+                                color = Slate,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
             }
             }
         }

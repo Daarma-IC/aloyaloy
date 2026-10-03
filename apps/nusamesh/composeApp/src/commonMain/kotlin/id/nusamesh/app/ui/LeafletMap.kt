@@ -11,19 +11,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import nusamesh.composeapp.generated.resources.Res
+import id.nusamesh.app.domain.TrackedUser
 
 /**
  * Leaflet dan peta vektor regional dibundel di aplikasi. Ubin OpenStreetMap bersifat opsional dan
  * hanya menambah detail jalan saat jaringan tersedia.
  */
 @Composable
-fun LeafletMap(modifier: Modifier) {
-    val htmlResult by produceState<Result<String>?>(null) {
+fun LeafletMap(modifier: Modifier, units: List<TrackedUser> = emptyList()) {
+    val htmlResult by produceState<Result<String>?>(null, units) {
         value = runCatching {
             buildLeafletHtml(
                 js = Res.readBytes("files/leaflet/leaflet.js").decodeToString(),
                 css = Res.readBytes("files/leaflet/leaflet.css").decodeToString(),
                 offlineRegion = Res.readBytes("files/maps/natural-earth-se-asia.geojson").decodeToString(),
+                unitsJson = units.toMapJson(),
             )
         }
     }
@@ -42,14 +44,22 @@ expect fun LeafletWebView(modifier: Modifier, html: String)
 
 internal const val MAP_BASE_URL = "https://meshta.app/"
 
-internal fun buildLeafletHtml(js: String, css: String, offlineRegion: String): String = leafletHtml
+internal fun buildLeafletHtml(js: String, css: String, offlineRegion: String, unitsJson: String = "[]"): String = leafletHtml
     .replace(LEAFLET_CSS_TAG, "<style>$css</style>")
     .replace(LEAFLET_JS_TAG, "<script>$js</script>")
     .replace(OFFLINE_REGION_TAG, offlineRegion)
+    .replace(MAP_UNITS_TAG, unitsJson)
 
 private const val LEAFLET_CSS_TAG = "<!--LEAFLET_CSS-->"
 private const val LEAFLET_JS_TAG = "<!--LEAFLET_JS-->"
 private const val OFFLINE_REGION_TAG = "/*OFFLINE_REGION*/"
+private const val MAP_UNITS_TAG = "/*MAP_UNITS*/"
+
+private fun List<TrackedUser>.toMapJson() = joinToString(prefix = "[", postfix = "]") { unit ->
+    val safeName = unit.name.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ")
+    "{\"name\":\"$safeName\",\"latitude\":${unit.latitude},\"longitude\":${unit.longitude}," +
+        "\"accuracy\":${unit.accuracyMeters},\"rssi\":${unit.rssi ?: "null"},\"direct\":${unit.direct},\"own\":${unit.own}}"
+}
 
 internal val leafletHtml = """
 <!doctype html>
@@ -89,6 +99,7 @@ internal val leafletHtml = """
   <!--LEAFLET_JS-->
   <script>
     const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
+    const initialUnits = /*MAP_UNITS*/;
     document.getElementById('map-status').style.display = 'none';
     const offlineRegion = /*OFFLINE_REGION*/;
     const offlineLayer = L.geoJSON(offlineRegion, {
@@ -190,11 +201,17 @@ internal val leafletHtml = """
         if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
         L.circleMarker([unit.latitude, unit.longitude], {
           radius:9, color:'#fff', weight:3, fillColor:'#3B5BDB', fillOpacity:1
-        }).addTo(window.nusaMarkers).bindPopup(String(unit.name || 'Unit'));
+        }).addTo(window.nusaMarkers).bindPopup(
+          '<b>' + String(unit.name || 'Unit') + '</b><br>' +
+          (unit.own ? 'Perangkat ini' : (unit.direct ? 'BLE langsung' : 'Via relay')) + '<br>' +
+          (unit.rssi == null ? 'RSSI tidak tersedia' : 'RSSI ' + unit.rssi + ' dBm') + '<br>' +
+          'Akurasi ±' + Math.round(unit.accuracy || 0) + ' m'
+        );
         bounds.push([unit.latitude, unit.longitude]);
       }
       if (bounds.length) map.fitBounds(bounds, {padding:[36,36], maxZoom:15});
     };
+    window.setNusaUnits(initialUnits);
   </script>
 </body>
 </html>

@@ -1,7 +1,12 @@
 package id.nusamesh.app
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.location.Location
+import android.location.LocationListener
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
@@ -15,6 +20,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,12 +31,17 @@ import id.nusamesh.app.data.AndroidKeyValueStore
 import id.nusamesh.app.media.ChatMediaActions
 import id.nusamesh.app.media.AndroidCodec2
 import id.nusamesh.app.media.LoraImageCodec
+import id.nusamesh.app.location.LocationAccessActions
+import id.nusamesh.app.location.LocationAccessState
+import id.nusamesh.app.location.DeviceLocation
 import id.nusamesh.app.mesh.engine.AndroidBleLink
 import id.nusamesh.app.protocol.MeshMediaCodec
 import java.io.ByteArrayOutputStream
 import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
-class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions {
+class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions {
     private lateinit var link: AndroidBleLink
     private var imageResult: ((ChatAttachment) -> Unit)? = null
     private var imageLoraProfile = false
@@ -48,6 +59,21 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private var pendingRecordStart: (() -> Unit)? = null
     private var pendingBluetoothAction: (() -> Unit)? = null
     private var bluetoothDenied: ((String) -> Unit)? = null
+    private val mutableLocationState = MutableStateFlow(LocationAccessState.Checking)
+    override val state: StateFlow<LocationAccessState> = mutableLocationState
+    private val mutableLocation = MutableStateFlow<DeviceLocation?>(null)
+    override val location: StateFlow<DeviceLocation?> = mutableLocation
+    private var locationUpdatesStarted = false
+    private var locationPermissionRequested = false
+    private val locationListener = object : LocationListener {
+        override fun onLocationChanged(value: Location) {
+            mutableLocation.value = DeviceLocation(
+                value.latitude, value.longitude, value.accuracy, value.time.coerceAtLeast(System.currentTimeMillis() - 60_000L),
+            )
+        }
+        override fun onProviderEnabled(provider: String) = refresh()
+        override fun onProviderDisabled(provider: String) = refresh()
+    }
 
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { loadImage(it) } ?: mediaError?.invoke("Pemilihan gambar dibatalkan")
@@ -72,11 +98,71 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         bluetoothDenied = null
     }
 
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        locationPermissionRequested = true
+        refresh()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         link = AndroidBleLink(applicationContext)
         val store = AndroidKeyValueStore(applicationContext)
-        setContent { NusaMeshApp(link, store, mediaActions = this, bluetoothPermission = this) }
+        setContent {
+            NusaMeshApp(link, store, mediaActions = this, bluetoothPermission = this, locationAccess = this)
+        }
+        refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refresh()
+    }
+
+    override fun requestPermission() {
+        if (locationPermissionRequested &&
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            !shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)
+        ) {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                },
+            )
+            return
+        }
+        locationPermissionLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+        )
+    }
+
+    override fun openLocationSettings() {
+        startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+    }
+
+    override fun refresh() {
+        val permitted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!permitted) {
+            mutableLocationState.value = LocationAccessState.PermissionRequired
+            return
+        }
+        val enabled = getSystemService(LocationManager::class.java)?.isLocationEnabled == true
+        mutableLocationState.value = if (enabled) LocationAccessState.Ready else LocationAccessState.ServiceDisabled
+        if (enabled) startLocationUpdates()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        if (locationUpdatesStarted) return
+        val manager = getSystemService(LocationManager::class.java) ?: return
+        locationUpdatesStarted = true
+        listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).forEach { provider ->
+            if (manager.isProviderEnabled(provider)) {
+                manager.getLastKnownLocation(provider)?.let(locationListener::onLocationChanged)
+                manager.requestLocationUpdates(provider, 15_000L, 10f, locationListener)
+            }
+        }
     }
 
     override fun runWithPermission(onGranted: () -> Unit, onDenied: (String) -> Unit) {
@@ -95,6 +181,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     override fun onDestroy() {
+        getSystemService(LocationManager::class.java)?.removeUpdates(locationListener)
         isRecordingVoice = false
         runCatching { recorder?.stop() }
         runCatching { recorder?.release() }

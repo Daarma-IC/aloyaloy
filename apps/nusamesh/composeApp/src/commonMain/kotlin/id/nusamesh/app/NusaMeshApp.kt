@@ -13,6 +13,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,6 +43,9 @@ import id.nusamesh.app.ui.ChatScreen
 import id.nusamesh.app.ui.HomeScreen
 import id.nusamesh.app.ui.MapScreen
 import id.nusamesh.app.ui.NusaTheme
+import id.nusamesh.app.location.ImmediateLocationAccess
+import id.nusamesh.app.location.LocationAccessActions
+import id.nusamesh.app.location.LocationAccessState
 
 @Composable
 fun NusaMeshApp(
@@ -44,7 +55,18 @@ fun NusaMeshApp(
     initialConversationId: String? = null,
     mediaActions: ChatMediaActions = UnavailableChatMediaActions,
     bluetoothPermission: BluetoothPermissionActions = ImmediateBluetoothPermission,
+    locationAccess: LocationAccessActions = ImmediateLocationAccess,
 ) {
+    val locationState by locationAccess.state.collectAsState()
+    val currentLocation by locationAccess.location.collectAsState()
+    LaunchedEffect(locationAccess) {
+        locationAccess.refresh()
+        if (locationAccess.state.value == LocationAccessState.PermissionRequired) locationAccess.requestPermission()
+    }
+    if (locationState != LocationAccessState.Ready) {
+        LocationRequiredScreen(locationState, locationAccess)
+        return
+    }
     val container = remember(link, initialPage, initialConversationId) {
         AppContainer(link, store, initialPage, initialConversationId)
     }
@@ -52,6 +74,8 @@ fun NusaMeshApp(
     val state by controller.state.collectAsState()
     val mobilityLog by controller.mobilityLog.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(currentLocation) { currentLocation?.let(controller::updateOwnLocation) }
 
     LaunchedEffect(controller) {
         if (controller.resumeMeshOnLaunch) {
@@ -120,6 +144,36 @@ fun NusaMeshApp(
                         onClearLog = controller::clearMobilityLog,
                         onDismiss = controller::closeNodeSheet,
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationRequiredScreen(state: LocationAccessState, actions: LocationAccessActions) {
+    NusaTheme {
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("Lokasi wajib diaktifkan", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    when (state) {
+                        LocationAccessState.Checking -> "Memeriksa layanan lokasi…"
+                        LocationAccessState.PermissionRequired -> "Meshta memerlukan izin lokasi presisi agar posisi pengguna dapat dibagikan melalui jaringan penyelamatan."
+                        LocationAccessState.ServiceDisabled -> "Izin sudah diberikan, tetapi GPS/layanan lokasi masih mati. Aktifkan lokasi untuk melanjutkan."
+                        LocationAccessState.Ready -> "Lokasi aktif."
+                    },
+                    textAlign = TextAlign.Center,
+                )
+                if (state != LocationAccessState.Checking) {
+                    Spacer(Modifier.height(20.dp))
+                    Button(onClick = {
+                        if (state == LocationAccessState.PermissionRequired) actions.requestPermission()
+                        else actions.openLocationSettings()
+                    }) { Text(if (state == LocationAccessState.PermissionRequired) "Izinkan lokasi" else "Aktifkan GPS") }
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = actions::refresh) { Text("Periksa lagi") }
                 }
             }
         }

@@ -12,6 +12,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import id.nusamesh.app.mesh.protocol.LocationTelemetry
 
 private class Clock(var t: Long = 1_700_000_000_000) { fun now() = t }
 
@@ -135,6 +136,16 @@ class RoutingTest {
         assertNull(Hcma.findNebengRoute("me", listOf(node), listOf("relay"), topo.snapshot.value), "tersambung langsung bukan nebeng")
         assertNull(Hcma.findNebengRoute("me", emptyList(), emptyList(), topo.snapshot.value), "perantara harus masih tersambung")
         assertEquals(2, nusaNodeNumber(node))
+    }
+}
+
+class LocationTelemetryTest {
+    @Test
+    fun roundTripAndRejectInvalidCoordinates() {
+        val value = LocationTelemetry(-7.86978, 111.404097, 8.5f, 123456789L)
+        assertEquals(value, LocationTelemetry.decode(value.encode()))
+        assertNull(LocationTelemetry.decode("${LocationTelemetry.PREFIX}|95|111|5|123"))
+        assertNull(LocationTelemetry.decode("pesan biasa"))
     }
 }
 

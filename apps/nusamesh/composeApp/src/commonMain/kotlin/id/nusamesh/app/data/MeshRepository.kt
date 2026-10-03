@@ -10,6 +10,7 @@ import id.nusamesh.app.mesh.engine.MobilityLogSink
 import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
+import id.nusamesh.app.mesh.protocol.LocationTelemetry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -101,6 +102,11 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
             onProgress,
             onComplete,
         )
+    }
+
+    fun sendLocation(latitude: Double, longitude: Double, accuracyMeters: Float, timestampMs: Long) {
+        val content = LocationTelemetry(latitude, longitude, accuracyMeters, timestampMs).encode()
+        engine.sendPublic(MeshMessage(sender = nickname, content = content, timestampMs = timestampMs, senderPeerId = myPeerId))
     }
 
     fun nicknameOf(peerId: String): String? = snapshot.value.peers.firstOrNull { it.peerId == peerId }?.nickname
