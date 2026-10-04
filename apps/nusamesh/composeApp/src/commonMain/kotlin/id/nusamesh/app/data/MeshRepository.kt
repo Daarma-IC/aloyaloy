@@ -11,6 +11,8 @@ import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
 import id.nusamesh.app.mesh.protocol.LocationTelemetry
+import id.nusamesh.app.mesh.protocol.EmergencyTelemetry
+import id.nusamesh.app.mesh.protocol.MeshMessageType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -107,6 +109,18 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
     fun sendLocation(latitude: Double, longitude: Double, accuracyMeters: Float, timestampMs: Long) {
         val content = LocationTelemetry(latitude, longitude, accuracyMeters, timestampMs).encode()
         engine.sendPublic(MeshMessage(sender = nickname, content = content, timestampMs = timestampMs, senderPeerId = myPeerId))
+    }
+
+    fun sendEmergency(telemetry: EmergencyTelemetry) {
+        engine.sendPublic(
+            MeshMessage(
+                sender = nickname,
+                content = telemetry.encode(),
+                type = if (telemetry.action == EmergencyTelemetry.Action.Alert) MeshMessageType.SOS else MeshMessageType.SOS_Cancel,
+                timestampMs = telemetry.timestampMs,
+                senderPeerId = myPeerId,
+            ),
+        )
     }
 
     fun nicknameOf(peerId: String): String? = snapshot.value.peers.firstOrNull { it.peerId == peerId }?.nickname

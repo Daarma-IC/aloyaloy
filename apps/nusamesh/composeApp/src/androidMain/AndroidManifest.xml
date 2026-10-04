@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -17,6 +20,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Meshta"
         android:theme="@style/AppTheme">
+        <service
+            android:name=".emergency.SosForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location"
+            android:stopWithTask="false" />
         <activity
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize"

@@ -68,6 +68,7 @@ data class TrackedUser(
     val rssi: Int? = null,
     val direct: Boolean = false,
     val own: Boolean = false,
+    val emergency: Boolean = false,
 )
 
 data class AppUiState(
@@ -81,6 +82,7 @@ data class AppUiState(
     val trackedUsers: List<TrackedUser> = emptyList(),
     val selectedTargetPeerId: String? = null,
     val headingDegrees: Float? = null,
+    val sosActive: Boolean = false,
     /** Pemberitahuan nebeng yang belum ditutup (muncul saat rute nebeng baru terbentuk). */
     val nebengNotice: String? = null,
     val nodeSheetOpen: Boolean = false,

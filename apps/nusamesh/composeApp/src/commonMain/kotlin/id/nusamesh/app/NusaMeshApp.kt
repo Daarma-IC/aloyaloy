@@ -46,6 +46,8 @@ import id.nusamesh.app.ui.NusaTheme
 import id.nusamesh.app.location.ImmediateLocationAccess
 import id.nusamesh.app.location.LocationAccessActions
 import id.nusamesh.app.location.LocationAccessState
+import id.nusamesh.app.emergency.EmergencyActions
+import id.nusamesh.app.emergency.NoopEmergencyActions
 
 @Composable
 fun NusaMeshApp(
@@ -56,6 +58,7 @@ fun NusaMeshApp(
     mediaActions: ChatMediaActions = UnavailableChatMediaActions,
     bluetoothPermission: BluetoothPermissionActions = ImmediateBluetoothPermission,
     locationAccess: LocationAccessActions = ImmediateLocationAccess,
+    emergencyActions: EmergencyActions = NoopEmergencyActions,
 ) {
     val locationState by locationAccess.state.collectAsState()
     val currentLocation by locationAccess.location.collectAsState()
@@ -75,9 +78,17 @@ fun NusaMeshApp(
     val state by controller.state.collectAsState()
     val mobilityLog by controller.mobilityLog.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    var knownEmergencyIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(currentLocation) { currentLocation?.let(controller::updateOwnLocation) }
     LaunchedEffect(currentHeading) { controller.updateHeading(currentHeading) }
+    LaunchedEffect(state.sosActive) { emergencyActions.setBroadcastActive(state.sosActive) }
+    LaunchedEffect(state.trackedUsers) {
+        val active = state.trackedUsers.filter { it.emergency && !it.own }.associateBy { it.peerId }
+        (active.keys - knownEmergencyIds).forEach { id -> emergencyActions.showIncoming(id, active.getValue(id).name) }
+        (knownEmergencyIds - active.keys).forEach(emergencyActions::clearIncoming)
+        knownEmergencyIds = active.keys
+    }
 
     LaunchedEffect(controller) {
         if (controller.resumeMeshOnLaunch) {
@@ -117,6 +128,7 @@ fun NusaMeshApp(
                         onOpenNodes = controller::openNodeSheet,
                         onRename = controller::setNickname,
                         onDismissNebeng = controller::dismissNebengNotice,
+                        onSosToggle = controller::toggleSos,
                     )
                     AppPage.Chats -> ChatScreen(
                         state = state,

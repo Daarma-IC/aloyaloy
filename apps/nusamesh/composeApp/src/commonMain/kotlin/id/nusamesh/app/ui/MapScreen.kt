@@ -94,8 +94,10 @@ fun MapScreen(state: AppUiState, padding: PaddingValues, onSelectTarget: (String
                         state.trackedUsers.forEach { unit ->
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    "${if (unit.own) "Anda" else unit.name} | ${unit.rssi?.let { "$it dBm" } ?: "RSSI relay"} | +/-${unit.accuracyMeters.toInt()} m",
-                                    color = Slate, fontSize = 12.sp, modifier = Modifier.weight(1f),
+                                    "${if (unit.emergency) "SOS - " else ""}${if (unit.own) "Anda" else unit.name} | ${unit.rssi?.let { "$it dBm" } ?: "RSSI relay"} | +/-${unit.accuracyMeters.toInt()} m",
+                                    color = if (unit.emergency) Danger else Slate,
+                                    fontWeight = if (unit.emergency) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 12.sp, modifier = Modifier.weight(1f),
                                 )
                                 if (!unit.own) {
                                     Button(onClick = { onSelectTarget(unit.peerId) }) {

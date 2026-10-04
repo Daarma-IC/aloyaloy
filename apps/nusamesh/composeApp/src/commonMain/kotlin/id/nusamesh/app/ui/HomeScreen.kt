@@ -58,7 +58,9 @@ fun HomeScreen(
     onOpenNodes: () -> Unit,
     onRename: (String) -> Unit,
     onDismissNebeng: () -> Unit,
+    onSosToggle: () -> Unit,
 ) {
+    var confirmSos by remember { mutableStateOf(false) }
     val snapshot = state.mesh.engine
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Canvas),
@@ -72,6 +74,12 @@ fun HomeScreen(
         item { HomeHeader(state.nickname, onRename) }
         item { Spacer(Modifier.height(20.dp)) }
         item { ModuleQualityCard(state, onMeshToggle, onOpenNodes) }
+        item { Spacer(Modifier.height(12.dp)) }
+        item {
+            SosButton(state.sosActive) {
+                if (state.sosActive) onSosToggle() else confirmSos = true
+            }
+        }
         state.nebengNotice?.let { notice ->
             item { Spacer(Modifier.height(12.dp)) }
             item { NebengBanner(notice, onDismissNebeng) }
@@ -114,6 +122,36 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
             }
         }
+    }
+    if (confirmSos) {
+        AlertDialog(
+            onDismissRequest = { confirmSos = false },
+            containerColor = Color.White,
+            title = { Text("Aktifkan SOS?", color = Danger, fontWeight = FontWeight.Bold) },
+            text = { Text("Koordinat Anda akan disiarkan berulang ke seluruh jaringan mesh sampai SOS dibatalkan.", color = Slate) },
+            confirmButton = {
+                Text("Kirim SOS", color = Danger, fontWeight = FontWeight.Bold, modifier = Modifier.padding(12.dp).pressableClick {
+                    confirmSos = false
+                    onSosToggle()
+                })
+            },
+            dismissButton = { Text("Batal", color = Slate, modifier = Modifier.padding(12.dp).pressableClick { confirmSos = false }) },
+        )
+    }
+}
+
+@Composable
+private fun SosButton(active: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(22.dp)
+    Row(
+        Modifier.fillMaxWidth().height(54.dp)
+            .background(if (active) Color(0xFF991B1B) else Danger, shape)
+            .shadow(10.dp, shape, ambientColor = Danger.copy(alpha = .3f), spotColor = Danger.copy(alpha = .3f))
+            .pressableClick(onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(if (active) "BATALKAN SOS" else "SOS DARURAT", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }
 

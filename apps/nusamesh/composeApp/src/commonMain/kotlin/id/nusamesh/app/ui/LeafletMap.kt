@@ -67,7 +67,8 @@ private const val SELECTED_TARGET_TAG = "/*SELECTED_TARGET*/"
 private fun List<TrackedUser>.toMapJson() = joinToString(prefix = "[", postfix = "]") { unit ->
     val safeName = unit.name.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ")
     "{\"peerId\":\"${unit.peerId}\",\"name\":\"$safeName\",\"latitude\":${unit.latitude},\"longitude\":${unit.longitude}," +
-        "\"accuracy\":${unit.accuracyMeters},\"rssi\":${unit.rssi ?: "null"},\"direct\":${unit.direct},\"own\":${unit.own}}"
+        "\"accuracy\":${unit.accuracyMeters},\"rssi\":${unit.rssi ?: "null"},\"direct\":${unit.direct}," +
+        "\"own\":${unit.own},\"emergency\":${unit.emergency}}"
 }
 
 internal val leafletHtml = """
@@ -212,9 +213,10 @@ internal val leafletHtml = """
       for (const unit of units) {
         if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
         L.circleMarker([unit.latitude, unit.longitude], {
-          radius:9, color:'#fff', weight:3, fillColor:'#3B5BDB', fillOpacity:1
+          radius:unit.emergency ? 13 : 9, color:'#fff', weight:3,
+          fillColor:unit.emergency ? '#DC2626' : '#3B5BDB', fillOpacity:1
         }).addTo(window.nusaMarkers).bindPopup(
-          '<b>' + String(unit.name || 'Unit') + '</b><br>' +
+          '<b>' + (unit.emergency ? 'SOS - ' : '') + String(unit.name || 'Unit') + '</b><br>' +
           (unit.own ? 'Perangkat ini' : (unit.direct ? 'BLE langsung' : 'Via relay')) + '<br>' +
           (unit.rssi == null ? 'RSSI tidak tersedia' : 'RSSI ' + unit.rssi + ' dBm') + '<br>' +
           'Akurasi ±' + Math.round(unit.accuracy || 0) + ' m'

@@ -38,6 +38,9 @@ import id.nusamesh.app.media.LoraImageCodec
 import id.nusamesh.app.location.LocationAccessActions
 import id.nusamesh.app.location.LocationAccessState
 import id.nusamesh.app.location.DeviceLocation
+import id.nusamesh.app.emergency.EmergencyActions
+import id.nusamesh.app.emergency.EmergencyNotifications
+import id.nusamesh.app.emergency.SosForegroundService
 import id.nusamesh.app.mesh.engine.AndroidBleLink
 import id.nusamesh.app.protocol.MeshMediaCodec
 import java.io.ByteArrayOutputStream
@@ -45,7 +48,7 @@ import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions, SensorEventListener {
+class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions, SensorEventListener, EmergencyActions {
     private lateinit var link: AndroidBleLink
     private var imageResult: ((ChatAttachment) -> Unit)? = null
     private var imageLoraProfile = false
@@ -71,6 +74,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     override val heading: StateFlow<Float?> = mutableHeading
     private var locationUpdatesStarted = false
     private var locationPermissionRequested = false
+    private var notificationPermissionRequested = false
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(value: Location) {
             mutableLocation.value = DeviceLocation(
@@ -110,13 +114,19 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         locationPermissionRequested = true
         refresh()
     }
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { notificationPermissionRequested = true }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         link = AndroidBleLink(applicationContext)
         val store = AndroidKeyValueStore(applicationContext)
         setContent {
-            NusaMeshApp(link, store, mediaActions = this, bluetoothPermission = this, locationAccess = this)
+            NusaMeshApp(
+                link, store, mediaActions = this, bluetoothPermission = this,
+                locationAccess = this, emergencyActions = this,
+            )
         }
         refresh()
     }
@@ -158,10 +168,18 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             )
             return
         }
-        locationPermissionLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-        )
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) permissions += Manifest.permission.POST_NOTIFICATIONS
+        locationPermissionLauncher.launch(permissions.toTypedArray())
     }
+
+    override fun setBroadcastActive(active: Boolean) {
+        val intent = Intent(this, SosForegroundService::class.java)
+        if (active) startForegroundService(intent) else stopService(intent)
+    }
+
+    override fun showIncoming(peerId: String, name: String) = EmergencyNotifications.showIncoming(this, peerId, name)
+    override fun clearIncoming(peerId: String) = EmergencyNotifications.clearIncoming(this, peerId)
 
     override fun openLocationSettings() {
         startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
@@ -172,6 +190,13 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         if (!permitted) {
             mutableLocationState.value = LocationAccessState.PermissionRequired
             return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !notificationPermissionRequested
+        ) {
+            notificationPermissionRequested = true
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         val enabled = getSystemService(LocationManager::class.java)?.isLocationEnabled == true
         mutableLocationState.value = if (enabled) LocationAccessState.Ready else LocationAccessState.ServiceDisabled

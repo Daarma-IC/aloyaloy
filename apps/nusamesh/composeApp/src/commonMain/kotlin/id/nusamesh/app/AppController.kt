@@ -21,6 +21,8 @@ import id.nusamesh.app.mesh.engine.IncomingFile
 import id.nusamesh.app.mesh.engine.IncomingMessage
 import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.protocol.LocationTelemetry
+import id.nusamesh.app.mesh.protocol.EmergencyTelemetry
+import id.nusamesh.app.mesh.protocol.MeshMessageType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +31,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 class AppController(
     private val repository: MeshRepository,
@@ -43,6 +48,7 @@ class AppController(
             nickname = repository.nickname,
             myPeerId = repository.myPeerId,
             activeConversationId = initialConversationId,
+            sosActive = store.get(KEY_SOS_ACTIVE) == "1",
             chats = listOf(globalPreview("Chat bersama semua pengguna di mesh", 0, "")),
         ),
     )
@@ -68,6 +74,10 @@ class AppController(
     }
 
     fun stopMesh() {
+        if (_state.value.sosActive) {
+            showNotice("Batalkan SOS sebelum mematikan mesh")
+            return
+        }
         store.put(KEY_ACTIVE, "0")
         repository.stop()
         _state.update { it.copy(mesh = it.mesh.copy(active = false), nebengNotice = null) }
@@ -95,6 +105,8 @@ class AppController(
     private var lastNebengRelay: String? = null
     private var announcedNodes = HashSet<String>()
     private var lastLocationSentAt = 0L
+    private var lastSosSentAt = 0L
+    private var sosRepeatJob: Job? = null
 
     private fun onSnapshot(snapshot: EngineSnapshot) {
         val nebeng = snapshot.nebeng
@@ -133,6 +145,10 @@ class AppController(
     // ------------------------------------------------------------------------------------------
     private fun onIncomingMessage(incoming: IncomingMessage) {
         val m = incoming.message
+        if (m.type == MeshMessageType.SOS || m.type == MeshMessageType.SOS_Cancel) {
+            receiveEmergency(incoming)
+            return
+        }
         if (m.content.startsWith("${LocationTelemetry.PREFIX}|")) {
             receiveLocation(incoming)
             return
@@ -279,12 +295,85 @@ class AppController(
     fun updateOwnLocation(location: DeviceLocation) {
         val mine = TrackedUser(
             repository.myPeerId, repository.nickname, location.latitude, location.longitude,
-            location.accuracyMeters, location.timestampMs, own = true,
+            location.accuracyMeters, location.timestampMs, own = true, emergency = _state.value.sosActive,
         )
         _state.update { current -> current.copy(trackedUsers = current.trackedUsers.filterNot { it.peerId == mine.peerId } + mine) }
         if (_state.value.mesh.active && location.timestampMs - lastLocationSentAt >= 30_000L) {
             lastLocationSentAt = location.timestampMs
             repository.sendLocation(location.latitude, location.longitude, location.accuracyMeters, location.timestampMs)
+        }
+        if (_state.value.mesh.active && _state.value.sosActive && location.timestampMs - lastSosSentAt >= 15_000L) {
+            lastSosSentAt = location.timestampMs
+            repository.sendEmergency(
+                EmergencyTelemetry(
+                    EmergencyTelemetry.Action.Alert,
+                    location.latitude,
+                    location.longitude,
+                    location.accuracyMeters,
+                    location.timestampMs,
+                ),
+            )
+        }
+        if (_state.value.sosActive && sosRepeatJob == null) startSosRepeater()
+    }
+
+    fun toggleSos() {
+        val current = _state.value
+        val own = current.trackedUsers.firstOrNull { it.own }
+        if (!current.mesh.active) {
+            showNotice("Aktifkan mesh sebelum mengirim SOS")
+            return
+        }
+        if (own == null) {
+            showNotice("Menunggu koordinat GPS sebelum mengirim SOS")
+            return
+        }
+        val activating = !current.sosActive
+        val now = currentEpochMillis()
+        repository.sendEmergency(
+            EmergencyTelemetry(
+                if (activating) EmergencyTelemetry.Action.Alert else EmergencyTelemetry.Action.Cancel,
+                own.latitude,
+                own.longitude,
+                own.accuracyMeters,
+                now,
+            ),
+        )
+        lastSosSentAt = if (activating) now else 0L
+        store.put(KEY_SOS_ACTIVE, if (activating) "1" else "0")
+        _state.update { state ->
+            state.copy(
+                sosActive = activating,
+                trackedUsers = state.trackedUsers.map { if (it.own) it.copy(emergency = activating, updatedAtMs = now) else it },
+                notice = if (activating) "SOS aktif dan disiarkan lewat mesh" else "SOS dibatalkan",
+            )
+        }
+        if (activating) startSosRepeater() else {
+            sosRepeatJob?.cancel()
+            sosRepeatJob = null
+        }
+    }
+
+    private fun startSosRepeater() {
+        sosRepeatJob?.cancel()
+        sosRepeatJob = scope.launch {
+            while (isActive && _state.value.sosActive) {
+                delay(30_000L)
+                val current = _state.value
+                val own = current.trackedUsers.firstOrNull { it.own } ?: continue
+                if (!current.mesh.active || !current.sosActive) continue
+                val now = currentEpochMillis()
+                repository.sendEmergency(
+                    EmergencyTelemetry(
+                        EmergencyTelemetry.Action.Alert,
+                        own.latitude,
+                        own.longitude,
+                        own.accuracyMeters,
+                        now,
+                    ),
+                )
+                lastSosSentAt = now
+            }
         }
     }
 
@@ -307,9 +396,37 @@ class AppController(
             updatedAtMs = telemetry.timestampMs,
             rssi = peer?.rssi,
             direct = peer?.direct == true,
+            emergency = _state.value.trackedUsers.firstOrNull { it.peerId == peerId }?.emergency == true,
         )
         _state.update { current ->
             current.copy(trackedUsers = current.trackedUsers.filterNot { it.peerId == peerId } + tracked)
+        }
+    }
+
+    private fun receiveEmergency(incoming: IncomingMessage) {
+        val telemetry = EmergencyTelemetry.decode(incoming.message.content) ?: return
+        val peerId = incoming.fromPeerId
+        val peer = _state.value.mesh.engine.peers.firstOrNull { it.peerId == peerId }
+        val active = telemetry.action == EmergencyTelemetry.Action.Alert
+        _state.update { current ->
+            val previous = current.trackedUsers.firstOrNull { it.peerId == peerId }
+            val unit = TrackedUser(
+                peerId = peerId,
+                name = incoming.message.sender.ifBlank { peer?.nickname ?: shortId(peerId) },
+                latitude = telemetry.latitude,
+                longitude = telemetry.longitude,
+                accuracyMeters = telemetry.accuracyMeters,
+                updatedAtMs = telemetry.timestampMs,
+                rssi = peer?.rssi,
+                direct = peer?.direct == true,
+                own = false,
+                emergency = active,
+            )
+            current.copy(
+                trackedUsers = current.trackedUsers.filterNot { it.peerId == peerId } +
+                    if (active || previous == null) unit else unit.copy(emergency = false),
+                notice = if (active) "SOS diterima dari ${unit.name}" else "SOS ${unit.name} dibatalkan",
+            )
         }
     }
 
@@ -373,6 +490,7 @@ class AppController(
         /** Penanda [ChatMessage.viaName] untuk pesan sistem (ditampilkan sebagai kartu info, bukan gelembung). */
         const val SYSTEM = "\u0000system"
         private const val KEY_ACTIVE = "mesh_active"
+        private const val KEY_SOS_ACTIVE = "sos_active"
         private const val LOCATION_STALE_MS = 3 * 60_000L
 
         fun kindOf(mime: String) = when {
