@@ -302,7 +302,7 @@ internal val leafletHtml = """
     }
     const waypointStyle = {
       posko:['P','#2563EB'], korban:['K','#DC2626'], bahaya:['!','#D97706'],
-      heli:['H','#7C3AED'], air:['A','#0891B2'], lain:['•','#475569']
+      heli:['H','#3B5BDB'], air:['A','#0891B2'], lain:['•','#475569']
     };
     const triageColors = {Merah:'#DC2626', Kuning:'#CA8A04', Hijau:'#16A34A', Hitam:'#111827'};
     let lastFocusKey;
@@ -339,7 +339,7 @@ internal val leafletHtml = """
         const plan = route.kind === 'Plan';
         const live = route.kind === 'LiveTrack';
         const style = {
-          color: plan ? '#7C3AED' : (route.own ? '#0F766E' : '#EA580C'),
+          color: plan ? '#3B5BDB' : (route.own ? '#0F766E' : '#EA580C'),
           weight: 5, opacity: .85, dashArray: plan ? '12 8' : null, lineJoin:'round'
         };
         const label = '<b>' + esc(route.name) + '</b><br>' + esc(route.owner) +

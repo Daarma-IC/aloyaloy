@@ -509,7 +509,7 @@ private fun WaypointBadge(type: WaypointType, victim: VictimInfo? = null) {
         WaypointType.Posko -> "P" to Color(0xFF2563EB)
         WaypointType.Korban -> "K" to Color(0xFFDC2626)
         WaypointType.Bahaya -> "!" to Color(0xFFD97706)
-        WaypointType.Helipad -> "H" to Color(0xFF7C3AED)
+        WaypointType.Helipad -> "H" to Brand
         WaypointType.Air -> "A" to Color(0xFF0891B2)
         WaypointType.Lainnya -> "•" to Color(0xFF475569)
     }
