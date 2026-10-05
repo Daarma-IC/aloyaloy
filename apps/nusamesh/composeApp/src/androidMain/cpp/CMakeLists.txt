@@ -3,8 +3,10 @@ project(nusamesh_codec2 C)
 
 set(CODEC2_SRC ../../../../third_party/codec2/src)
 set(CODEC2_GENERATED ../../nativeInterop/codec2-generated)
+set(CODEC2_BRIDGE ../../nativeInterop/codec2)
 add_library(nusamesh_codec2 SHARED
     codec2_jni.c
+    ${CODEC2_BRIDGE}/codec2_bridge.c
     ${CODEC2_SRC}/codec2.c
     ${CODEC2_SRC}/codec2_fft.c
     ${CODEC2_SRC}/dump.c
@@ -29,10 +31,11 @@ add_library(nusamesh_codec2 SHARED
     ${CODEC2_GENERATED}/codebooknewamp1_energy.c
 )
 target_compile_definitions(nusamesh_codec2 PRIVATE
-    CODEC2_MODE_EN_DEFAULT=0 CODEC2_MODE_3200_EN=1
+    CODEC2_MODE_EN_DEFAULT=0 CODEC2_MODE_3200_EN=1 CODEC2_MODE_1200_EN=1
 )
 target_link_libraries(nusamesh_codec2 PRIVATE log m)
 target_include_directories(nusamesh_codec2 PRIVATE
     ${CODEC2_SRC}
+    ${CODEC2_BRIDGE}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

@@ -134,6 +134,8 @@ class MeshEngine(
     private val _messages = MutableSharedFlow<IncomingMessage>(extraBufferCapacity = 64)
     val messages: SharedFlow<IncomingMessage> = _messages.asSharedFlow()
     private val _files = MutableSharedFlow<IncomingFile>(extraBufferCapacity = 16)
+    private val _acks = MutableSharedFlow<IncomingAck>(extraBufferCapacity = 64)
+    val acks: SharedFlow<IncomingAck> = _acks
     val files: SharedFlow<IncomingFile> = _files.asSharedFlow()
     /** Paket mentah yang ditujukan ke HP ini (untuk lapisan di atas engine: Noise, media, ACK). */
     private val _packets = MutableSharedFlow<Pair<WirePacket, String>>(extraBufferCapacity = 64)
@@ -185,12 +187,13 @@ class MeshEngine(
     // ----------------------------------------------------------------------------------------------
 
     /** Kirim pesan publik ke seluruh mesh (dan LoRa bila ada jalur). */
-    fun sendPublic(message: MeshMessage) = scope.launch {
+    /** [onComplete] dipanggil saat pesan benar-benar keluar dari semua antrean (termasuk airtime LoRa node). */
+    fun sendPublic(message: MeshMessage, onComplete: (Boolean) -> Unit = {}) = scope.launch {
         val packet = WirePacket(
             type = MessageType.MESSAGE.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
             timestamp = now(), payload = message.encode(), ttl = recommendedTtl(peers.size),
         )
-        broadcast(packet, except = null)
+        broadcast(packet, except = null, onComplete = onComplete)
     }
 
     /** Kirim berkas publik (FILE_TRANSFER, kompatibel Nusa Mesh). Dipecah fragmen sesuai MTU. */
@@ -211,6 +214,10 @@ class MeshEngine(
             onComplete = onComplete,
         )
     }
+
+    /** Konfirmasi terima ke pengirim asli pesan penting: paket kecil, prioritas tertinggi di antrean node. */
+    fun sendAck(toPeerId: String, messageId: String) =
+        sendTo(toPeerId, MessageType.DELIVERY_ACK.value, messageId.encodeToByteArray())
 
     /** Kirim paket ber-recipient (dipakai lapisan Noise/ACK). Rute terarah bila diketahui. */
     fun sendTo(recipientPeerId: String, type: Int, payload: ByteArray) = scope.launch {
@@ -424,6 +431,7 @@ class MeshEngine(
             MessageType.NODE_LORA_HEALTH -> onNodeHealth(sender, p.payload)
             MessageType.NODE_REGISTER_ACK -> if (forMe) onRegisterAck(sender, p.payload)
             MessageType.FILE_TRANSFER -> if (forMe || broadcast) emitFile(p, from, forMe)
+            MessageType.DELIVERY_ACK -> if (forMe) _acks.tryEmit(IncomingAck(p.payload.decodeToString(), sender))
             else -> if (forMe) _packets.tryEmit(p to sender)
         }
         if (forMe && p.messageType == MessageType.MESSAGE) _packets.tryEmit(p to sender)
@@ -462,6 +470,13 @@ class MeshEngine(
                 else broadcast(decision.packet, except = from.id)
             }
             is RelayDecision.Flood -> broadcast(decision.packet, except = from.id)
+            is RelayDecision.NodesOnly -> {
+                // Paket dari node sudah ada di LoRa; yang dijamin hanya arah HP → node.
+                val nodes = devices.values.filter { it.connected && it.isNode && it.id != from.id }
+                if (from.isNode || nodes.isEmpty()) return
+                val parts = fragmenter.split(decision.packet)
+                nodes.forEach { sendParts(it, parts) }
+            }
         }
         relayedCount++
     }

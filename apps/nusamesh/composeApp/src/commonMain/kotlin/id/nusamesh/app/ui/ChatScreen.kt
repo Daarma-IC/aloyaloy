@@ -60,6 +60,9 @@ import id.nusamesh.app.domain.ChatPreview
 import id.nusamesh.app.AppController
 import id.nusamesh.app.domain.DeliveryPath
 import id.nusamesh.app.domain.DeliveryState
+import id.nusamesh.app.domain.FieldChannels
+import id.nusamesh.app.mesh.protocol.ImportantMessage
+import id.nusamesh.app.mesh.protocol.QuickStatus
 import id.nusamesh.app.media.ChatMediaActions
 
 @Composable
@@ -223,6 +226,7 @@ private fun GlobalConversationScreen(
     onDismissNebeng: () -> Unit,
 ) {
     var message by remember { mutableStateOf("") }
+    var important by remember { mutableStateOf(false) }
     var attachmentOpen by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
     val messages = state.messages.filter { it.conversationId == state.activeConversationId }
@@ -303,11 +307,14 @@ private fun GlobalConversationScreen(
             },
             onSend = {
                 if (message.isNotBlank()) {
-                    onSend(message)
+                    onSend(if (important) ImportantMessage.PREFIX + message.trim() else message)
                     message = ""
+                    important = false
                     attachmentOpen = false
                 }
             },
+            important = important,
+            onToggleImportant = { important = !important },
         )
     }
 }
@@ -327,9 +334,14 @@ private fun ConversationHeader(state: AppUiState, onBack: () -> Unit) {
             AppIcon(IconKind.Mesh, Color.White, Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Global Mesh", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+            val conversation = state.activeConversationId ?: AppController.GLOBAL_CHAT_ID
+            Text(FieldChannels.title(conversation, "Global Mesh"), color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text(
-                "$phones HP tersambung · ${snapshot.peers.size} di jaringan",
+                when {
+                    conversation == FieldChannels.SAR_CHAT_ID -> "Hanya tim SAR & posko · tidak terenkripsi"
+                    FieldChannels.teamSlugOf(conversation) != null -> "Hanya anggota tim & posko · tidak terenkripsi"
+                    else -> "$phones HP tersambung · ${snapshot.peers.size} di jaringan"
+                },
                 color = Slate, fontSize = 9.sp, maxLines = 1,
             )
         }
@@ -388,7 +400,13 @@ private fun GlobalWelcomeCard() {
 private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start) {
         Column(horizontalAlignment = if (message.outgoing) Alignment.End else Alignment.Start) {
-            if (!message.outgoing) Text(message.senderName, color = Slate, fontSize = 8.sp, modifier = Modifier.padding(start = 10.dp, bottom = 3.dp))
+            if (!message.outgoing) Text(
+                // ✓ Tim = ditandatangani kunci operasi: pengirim pasti anggota tim, bukan peniru.
+                message.senderName + if (message.verified) "  ✓ Tim" else "",
+                color = if (message.verified) Success else Slate, fontSize = 8.sp,
+                fontWeight = if (message.verified) FontWeight.SemiBold else null,
+                modifier = Modifier.padding(start = 10.dp, bottom = 3.dp),
+            )
             val bubbleShape = RoundedCornerShape(
                 topStart = 20.dp,
                 topEnd = 20.dp,
@@ -405,7 +423,24 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                 verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 when (message.kind) {
-                    ChatMessageKind.Text -> Text(message.body, color = if (message.outgoing) Color.White else Ink, fontSize = 11.sp, lineHeight = 16.sp)
+                    ChatMessageKind.Text -> {
+                        val status = QuickStatus.decode(message.body)
+                        val important = ImportantMessage.isImportant(message.body)
+                        if (important) Text(
+                            "PENTING", fontSize = 8.sp, fontWeight = FontWeight.Bold,
+                            color = if (message.outgoing) Color.White else Danger,
+                        )
+                        Text(
+                            status?.let { "Status: ${it.label}" } ?: message.body.removePrefix(ImportantMessage.PREFIX),
+                            color = when {
+                                message.outgoing -> Color.White
+                                status?.urgent == true -> Danger
+                                else -> Ink
+                            },
+                            fontSize = 11.sp, lineHeight = 16.sp,
+                            fontWeight = if (status != null || important) FontWeight.Bold else null,
+                        )
+                    }
                     ChatMessageKind.Image -> ImagePreview(message)
                     ChatMessageKind.Voice -> VoicePreview(message.durationSeconds, message.outgoing, playback, onPlayVoice)
                     ChatMessageKind.File -> AttachmentPreview(IconKind.File, message.attachmentName ?: "File", message.attachmentBytes, message.outgoing)
@@ -429,19 +464,36 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PathTag(message)
                     Text(message.time, color = if (message.outgoing) Color.White.copy(alpha = .75f) else Muted, fontSize = 7.sp)
-                    if (message.outgoing) Text(
-                        when (message.delivery) {
-                            DeliveryState.Sending -> "Mengirim"
-                            DeliveryState.Sent -> "Terkirim"
-                            DeliveryState.Failed -> "Gagal"
-                            DeliveryState.Received -> ""
-                        },
-                        color = if (message.delivery == DeliveryState.Failed) Color(0xFFFECACA) else Color.White,
-                        fontSize = 7.sp,
-                    )
+                    if (message.outgoing) DeliveryStatus(message)
                 }
             }
         }
+    }
+}
+
+/** "Diterima Budi, Sari +2" — siapa saja yang mengonfirmasi menerima pesan penting. */
+internal fun ackLabel(names: List<String>): String =
+    "Diterima " + names.take(2).joinToString(", ") + if (names.size > 2) " +${names.size - 2}" else ""
+
+/**
+ * Status kirim: jam = masih antre (lewat LoRa bisa puluhan detik karena airtime), centang = sudah keluar
+ * dari HP/node ke jaringan, tanda seru = gagal.
+ */
+@Composable
+private fun DeliveryStatus(message: ChatMessage) {
+    val viaLora = message.path != DeliveryPath.Ble
+    val (icon, label, color) = when {
+        message.ackedBy.isNotEmpty() -> Triple(IconKind.DoubleCheck, ackLabel(message.ackedBy), Color.White)
+        else -> when (message.delivery) {
+        DeliveryState.Sending -> Triple(IconKind.Clock, if (viaLora) "Antre LoRa" else "Mengirim", Color.White.copy(alpha = .85f))
+        DeliveryState.Sent -> Triple(IconKind.Check, if (ImportantMessage.wantsAck(message.body)) "Terkirim, menunggu konfirmasi" else "Terkirim", Color.White)
+        DeliveryState.Failed -> Triple(IconKind.Alert, "Gagal", Color(0xFFFECACA))
+        DeliveryState.Received -> return
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        AppIcon(icon, color, Modifier.size(9.dp))
+        Text(label, color = color, fontSize = 7.sp)
     }
 }
 
@@ -544,8 +596,22 @@ private fun Composer(
     onFile: () -> Unit,
     onVoice: () -> Unit,
     onSend: () -> Unit,
+    important: Boolean = false,
+    onToggleImportant: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        if (message.isNotBlank() && !recording) {
+            // Pesan penting (perintah posko dll.) meminta konfirmasi terima dari tiap HP penerima.
+            Text(
+                if (important) "PENTING · minta konfirmasi terima (ketuk untuk batal)" else "Tandai penting (minta konfirmasi terima)",
+                color = if (important) Color.White else Danger,
+                fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 8.dp)
+                    .background(if (important) Danger else DangerTint, RoundedCornerShape(12.dp))
+                    .pressableClick(onToggleImportant)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+        }
         if (attachmentOpen) {
             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AttachmentAction(IconKind.Image, "Gambar", onImage)

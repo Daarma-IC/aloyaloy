@@ -11,7 +11,8 @@ class AppContainer(
     store: KeyValueStore,
     initialPage: AppPage = AppPage.Home,
     initialConversationId: String? = null,
+    batteryLevel: () -> Int? = { null },
 ) {
     private val meshRepository = MeshRepository(link, store)
-    val appController = AppController(meshRepository, store, initialPage, initialConversationId)
+    val appController = AppController(meshRepository, store, initialPage, initialConversationId, batteryLevel)
 }

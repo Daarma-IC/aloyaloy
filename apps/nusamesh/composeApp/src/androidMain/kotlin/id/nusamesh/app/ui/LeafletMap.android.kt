@@ -9,6 +9,7 @@ import android.graphics.Path
 import android.util.Log
 import android.view.View
 import android.webkit.ConsoleMessage
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -101,13 +102,31 @@ private class NativeOfflineBasemap(context: Context) : View(context) {
 private class LocalMapWebView(context: Context) : WebView(context) {
     @Volatile private var document = MapDocument("", "", "")
     private var contentVersion: Int? = null
+    private var mapReady = false
+    private var dataJson = "null"
     var onMapReady: (() -> Unit)? = null
+    var onMapTap: ((Double, Double) -> Unit)? = null
 
     init {
         webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val current = document
-                return when (request.url.path) {
+                val path = request.url.path.orEmpty()
+                // Ubin OSM lewat cache offline; paket MBTiles di /mbtiles/{z}/{x}/{y}. Ubin yang tidak ada
+                // dijawab 404 cepat supaya Leaflet langsung jatuh ke peta wilayah kasar, bukan menunggu timeout.
+                // Berjalan di thread IO WebView: exception di sini mematikan seluruh aplikasi, jadi semua
+                // kegagalan penyajian ubin dijawab 404 (peta jatuh ke peta wilayah kasar), bukan crash.
+                if (request.url.host == "tile.openstreetmap.org") {
+                    return runCatching {
+                        TileMath.parse(path)?.let(OfflineTileStore::osmTile)?.let { tileResponse(it, "image/png") }
+                    }.onFailure { Log.w("MeshtaMap", "Ubin OSM gagal disajikan", it) }.getOrNull() ?: notFound()
+                }
+                if (path.startsWith("/mbtiles/")) {
+                    return runCatching {
+                        TileMath.parse(path.removePrefix("/mbtiles"))?.let(OfflineTileStore::packTile)?.let { (bytes, mime) -> tileResponse(bytes, mime) }
+                    }.onFailure { Log.w("MeshtaMap", "Ubin paket gagal disajikan", it) }.getOrNull() ?: notFound()
+                }
+                return when (path) {
                     "/map.html" -> localResponse("text/html", current.html)
                     "/leaflet.js" -> localResponse("application/javascript", current.leafletJs)
                     "/map.js" -> localResponse("application/javascript", current.mapJs)
@@ -140,6 +159,33 @@ private class LocalMapWebView(context: Context) : WebView(context) {
         settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
         settings.setSupportZoom(true)
         settings.userAgentString = settings.userAgentString + " Meshta/0.2"
+        addJavascriptInterface(TapBridge(), "NusaBridge")
+        OfflineTileStore.init(context)
+    }
+
+    /** Dipanggil JavaScript (thread binder WebView) saat peta diketuk. */
+    private inner class TapBridge {
+        @JavascriptInterface
+        fun tap(latitude: Double, longitude: Double) {
+            post { onMapTap?.invoke(latitude, longitude) }
+        }
+    }
+
+    /** Kirim data peta terbaru tanpa memuat ulang halaman; ditunda sampai peta siap. */
+    fun setData(json: String) {
+        if (json == dataJson) return
+        dataJson = json
+        if (mapReady) pushData()
+    }
+
+    private fun pushData() {
+        evaluateJavascript("if(window.setNusaData){window.setNusaData($dataJson);}", null)
+    }
+
+    private fun markReady() {
+        mapReady = true
+        pushData()
+        onMapReady?.invoke()
     }
 
     fun render(html: String) {
@@ -150,6 +196,7 @@ private class LocalMapWebView(context: Context) : WebView(context) {
         }
         document = splitScripts(html)
         contentVersion = version
+        mapReady = false
         loadUrl("$LOCAL_MAP_PAGE?v=$version")
     }
 
@@ -159,7 +206,7 @@ private class LocalMapWebView(context: Context) : WebView(context) {
         ) { state ->
             when {
                 state.contains("map") -> {
-                    onMapReady?.invoke()
+                    markReady()
                     resizeMap(view)
                 }
                 state.contains("leaflet") -> runMapScript(view)
@@ -180,7 +227,7 @@ private class LocalMapWebView(context: Context) : WebView(context) {
             view.postDelayed({
                 view.evaluateJavascript("Boolean(window.nusaMap)") { ready ->
                     if (ready == "true") {
-                        onMapReady?.invoke()
+                        markReady()
                     } else {
                         view.evaluateJavascript(
                             "(function(){var e=document.getElementById('map-status');" +
@@ -201,6 +248,10 @@ private class LocalMapWebView(context: Context) : WebView(context) {
         )
     }
 
+    private fun tileResponse(bytes: ByteArray, mime: String) = WebResourceResponse(mime, null, ByteArrayInputStream(bytes))
+
+    private fun notFound() = WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+
     private fun localResponse(mimeType: String, content: String) = WebResourceResponse(
         mimeType,
         "UTF-8",
@@ -218,9 +269,11 @@ private class OfflineMapContainer(context: Context) : FrameLayout(context) {
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
-    fun render(html: String) {
+    fun render(html: String, dataJson: String, onMapTap: (Double, Double) -> Unit) {
         backdrop.loadFromHtml(html)
+        webView.onMapTap = onMapTap
         webView.render(html)
+        webView.setData(dataJson)
     }
 }
 
@@ -242,10 +295,10 @@ private fun splitScripts(source: String): MapDocument {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-actual fun LeafletWebView(modifier: Modifier, html: String) {
+actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit) {
     AndroidView(
         modifier = modifier,
         factory = { context -> OfflineMapContainer(context) },
-        update = { container -> container.render(html) },
+        update = { container -> container.render(html, dataJson, onMapTap) },
     )
 }

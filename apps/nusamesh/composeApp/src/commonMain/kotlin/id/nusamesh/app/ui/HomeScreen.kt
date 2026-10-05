@@ -2,6 +2,8 @@ package id.nusamesh.app.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.nusamesh.app.domain.AppUiState
 import id.nusamesh.app.domain.MeshStatus
+import id.nusamesh.app.mesh.protocol.QuickStatus
+import id.nusamesh.app.domain.FieldRole
 import id.nusamesh.app.mesh.engine.LinkState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
@@ -59,6 +63,11 @@ fun HomeScreen(
     onRename: (String) -> Unit,
     onDismissNebeng: () -> Unit,
     onSosToggle: () -> Unit,
+    onQuickStatus: (QuickStatus) -> Unit = {},
+    onSetRole: (FieldRole, String?) -> Unit = { _, _ -> },
+    onGenerateKey: () -> Unit = {},
+    onEnterKey: (String) -> Unit = {},
+    onClearKey: () -> Unit = {},
 ) {
     var confirmSos by remember { mutableStateOf(false) }
     val snapshot = state.mesh.engine
@@ -75,11 +84,31 @@ fun HomeScreen(
         item { Spacer(Modifier.height(20.dp)) }
         item { ModuleQualityCard(state, onMeshToggle, onOpenNodes) }
         item { Spacer(Modifier.height(12.dp)) }
+        item { RoleCard(state.role, state.team, onSetRole) }
+        if (state.role != FieldRole.Warga || state.operationCode != null) {
+            item { Spacer(Modifier.height(12.dp)) }
+            item { OperationKeyCard(state.operationCode, state.role, onGenerateKey, onEnterKey, onClearKey) }
+        }
+        item { Spacer(Modifier.height(12.dp)) }
         item {
             SosButton(state.sosActive) {
                 if (state.sosActive) onSosToggle() else confirmSos = true
             }
         }
+        if (state.sosActive) {
+            item { Spacer(Modifier.height(8.dp)) }
+            item {
+                // Korban perlu tahu siarannya sampai: menenangkan & mencegah SOS dimatikan terlalu cepat.
+                Text(
+                    if (state.sosAckedBy.isEmpty()) "Menunggu konfirmasi: belum ada HP yang mengonfirmasi menerima SOS Anda"
+                    else "SOS diterima oleh: " + state.sosAckedBy.joinToString(", "),
+                    color = if (state.sosAckedBy.isEmpty()) Warning else Success,
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        item { Spacer(Modifier.height(12.dp)) }
+        item { QuickStatusRow(state.unitStatuses[state.myPeerId]?.status, onQuickStatus) }
         state.nebengNotice?.let { notice ->
             item { Spacer(Modifier.height(12.dp)) }
             item { NebengBanner(notice, onDismissNebeng) }
@@ -137,6 +166,159 @@ fun HomeScreen(
             },
             dismissButton = { Text("Batal", color = Slate, modifier = Modifier.padding(12.dp).pressableClick { confirmSos = false }) },
         )
+    }
+}
+
+/** Peran menentukan channel chat yang terlihat: warga tidak tenggelam di chat tim, dan sebaliknya. */
+@Composable
+private fun RoleCard(role: FieldRole, team: String?, onSet: (FieldRole, String?) -> Unit) {
+    var teamName by remember(team) { mutableStateOf(team.orEmpty()) }
+    // Kolom nama tim muncul begitu "Tim SAR" diketuk, sebelum peran benar-benar berganti.
+    var choosingTeam by remember { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Peran di operasi", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldRole.entries.forEach { option ->
+                val selected = option == role || (option == FieldRole.Tim && choosingTeam)
+                Text(
+                    option.label,
+                    color = if (selected) Color.White else Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.background(if (selected) Brand else BrandTint, RoundedCornerShape(14.dp))
+                        .pressableClick {
+                            if (option != FieldRole.Tim) {
+                                choosingTeam = false
+                                onSet(option, null)
+                            } else if (role != FieldRole.Tim) {
+                                choosingTeam = true
+                            }
+                        }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
+        }
+        if (role == FieldRole.Tim || choosingTeam) {
+            Text("Nama tim", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    Modifier.weight(1f).height(38.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(19.dp)).padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (teamName.isEmpty()) Text("Nama tim, mis. Alfa", color = Muted, fontSize = 12.sp)
+                    BasicTextField(
+                        value = teamName, onValueChange = { teamName = it.take(20) }, singleLine = true,
+                        textStyle = TextStyle(color = Ink, fontSize = 12.sp), modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Text(
+                    "Simpan", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.pressableClick {
+                        if (teamName.isNotBlank()) choosingTeam = false
+                        onSet(FieldRole.Tim, teamName)
+                    }.padding(8.dp),
+                )
+            }
+        }
+        Text(
+            when {
+                choosingTeam && role != FieldRole.Tim -> "Isi nama tim lalu ketuk Simpan. Anggota tim harus memakai nama yang sama."
+                else -> when (role) {
+                FieldRole.Warga -> "Hanya chat Global. Chat tim SAR tidak tampil."
+                FieldRole.Tim -> "Chat Global, Operasional SAR, dan Tim ${team.orEmpty()}."
+                FieldRole.Posko -> "Chat Global, Operasional SAR, dan semua tim."
+                }
+            },
+            color = Slate, fontSize = 11.sp,
+        )
+    }
+}
+
+/**
+ * Kunci operasi: dibuat posko, dibacakan/ditulis saat briefing. Tidak pernah dikirim lewat jaringan,
+ * jadi orang luar tidak bisa memalsukan pesan tim atau membaca channel tim.
+ */
+@Composable
+private fun OperationKeyCard(
+    code: String?,
+    role: FieldRole,
+    onGenerate: () -> Unit,
+    onEnter: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    var input by remember { mutableStateOf("") }
+    var revealed by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().background(if (code != null) SuccessTint else WarningTint, RoundedCornerShape(18.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(if (code != null) "Kunci operasi aktif" else "Belum ada kunci operasi", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        if (code != null) {
+            Text(
+                if (revealed) code else "••••-••••-••••-••••-" + code.takeLast(4),
+                color = Ink, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
+            )
+            Text(
+                "Pesan Anda ditandatangani & channel tim dienkripsi. Bagikan kode HANYA secara langsung saat briefing — jangan lewat chat.",
+                color = Slate, fontSize = 11.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(if (revealed) "Sembunyikan" else "Tampilkan kode", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.pressableClick { revealed = !revealed }.padding(vertical = 4.dp))
+                Text(if (confirmClear) "Yakin hapus?" else "Hapus kunci", color = Danger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.pressableClick { if (confirmClear) { confirmClear = false; onClear() } else confirmClear = true }.padding(vertical = 4.dp))
+            }
+        } else {
+            Text(
+                "Tanpa kunci, pesan tim bisa dipalsukan dan channel tim bisa dibaca orang lain. Minta kode ke posko.",
+                color = Slate, fontSize = 11.sp,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    Modifier.weight(1f).height(38.dp).background(Color.White, RoundedCornerShape(19.dp)).padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (input.isEmpty()) Text("XXXX-XXXX-XXXX-XXXX-XXXX", color = Muted, fontSize = 12.sp)
+                    BasicTextField(
+                        value = input, onValueChange = { input = it.uppercase().take(29) }, singleLine = true,
+                        textStyle = TextStyle(color = Ink, fontSize = 12.sp), modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Text("Pakai", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.pressableClick { onEnter(input) }.padding(8.dp))
+            }
+            if (role == FieldRole.Posko) {
+                Text("Buat kunci baru (posko)", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.pressableClick { revealed = true; onGenerate() }.padding(vertical = 4.dp))
+            }
+        }
+    }
+}
+
+/** Status cepat satu ketukan (tanpa mengetik saat tangan sibuk/basah). Yang terakhir dikirim disorot. */
+@Composable
+private fun QuickStatusRow(current: QuickStatus?, onSend: (QuickStatus) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Status cepat", color = Slate, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickStatus.entries.forEach { status ->
+                val selected = status == current
+                val tint = if (status.urgent) Danger else Brand
+                Text(
+                    status.label,
+                    color = if (selected) Color.White else tint,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .background(if (selected) tint else Color.White, RoundedCornerShape(16.dp))
+                        .border(1.dp, tint.copy(alpha = .35f), RoundedCornerShape(16.dp))
+                        .pressableClick { onSend(status) }
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                )
+            }
+        }
     }
 }
 

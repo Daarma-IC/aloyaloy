@@ -36,7 +36,14 @@ data class IncomingMessage(
     /** true bila hop terakhir yang mengantar adalah Nusa Node (pesan datang lewat LoRa). */
     val viaNode: Boolean,
     val isPrivateToMe: Boolean,
+    /** Ditandatangani / dienkripsi dengan kunci operasi kita (diisi MeshRepository). */
+    val verified: Boolean = false,
+    /** Mengaku memakai kunci kita tapi tanda tangannya tidak valid: kemungkinan palsu. */
+    val forged: Boolean = false,
 )
+
+/** Konfirmasi terima (DELIVERY_ACK) untuk pesan [messageId] milik kita, dari [fromPeerId]. */
+data class IncomingAck(val messageId: String, val fromPeerId: String)
 
 /** Berkas (gambar/voice/file) utuh dari FILE_TRANSFER 0x22. */
 data class IncomingFile(
@@ -45,6 +52,10 @@ data class IncomingFile(
     val timestampMs: Long,
     val viaNode: Boolean,
     val isPrivateToMe: Boolean,
+    /** Terenkripsi kunci operasi dan berhasil dibuka. */
+    val verified: Boolean = false,
+    /** Terenkripsi dengan kunci yang tidak kita punya: isi tidak bisa ditampilkan. */
+    val locked: Boolean = false,
 )
 
 data class EngineSnapshot(

@@ -185,6 +185,12 @@ sealed interface RelayDecision {
     /** Unicast yang rutenya diketahui: cukup ke satu tetangga. */
     data class Directed(val nextHop: String, val packet: WirePacket) : RelayDecision
     data class Flood(val packet: WirePacket) : RelayDecision
+    /**
+     * Gagal undian flood: jangan ramaikan HP tetangga, tapi tetap serahkan ke Nusa Node yang tersambung.
+     * HP yang nebeng (slot node penuh) bergantung pada kita sebagai satu-satunya jalan ke LoRa; node sendiri
+     * membuang duplikat (dedup msgId) sebelum memancarkan, jadi tidak ada airtime yang terbuang.
+     */
+    data class NodesOnly(val packet: WirePacket) : RelayDecision
 }
 
 class RelayPolicy(
@@ -213,6 +219,6 @@ class RelayPolicy(
             networkSize <= 100 -> 0.55
             else -> 0.4
         }
-        return if (random.nextDouble() < p) RelayDecision.Flood(next) else RelayDecision.Drop
+        return if (random.nextDouble() < p) RelayDecision.Flood(next) else RelayDecision.NodesOnly(next)
     }
 }

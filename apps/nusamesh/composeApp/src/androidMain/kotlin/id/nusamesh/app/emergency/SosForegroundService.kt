@@ -7,26 +7,53 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.IBinder
 import id.nusamesh.app.MainActivity
 
+/**
+ * Foreground service bertipe lokasi yang menjaga GPS dan mesh tetap jalan saat layar mati, untuk SOS
+ * dan/atau perekaman jejak. Mode dikirim lewat extra; notifikasi mengikuti mode yang aktif.
+ */
 class SosForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         EmergencyNotifications.ensureChannels(this)
-        startForeground(EmergencyNotifications.OWN_SOS_ID, EmergencyNotifications.ownSos(this))
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val sos = intent?.getBooleanExtra(EXTRA_SOS, false) ?: false
+        val track = intent?.getBooleanExtra(EXTRA_TRACK, false) ?: false
+        // Restart sistem (START_STICKY, intent null) tanpa aplikasi yang memberi lokasi tidak berguna.
+        if (!sos && !track) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        val notification = EmergencyNotifications.foreground(this, sos, track)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(EmergencyNotifications.OWN_SOS_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(EmergencyNotifications.OWN_SOS_ID, notification)
+        }
+        return START_STICKY
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
+
+    companion object {
+        const val EXTRA_SOS = "sos"
+        const val EXTRA_TRACK = "track"
+    }
 }
 
 object EmergencyNotifications {
     const val OWN_SOS_ID = 7100
     private const val SERVICE_CHANNEL = "meshta_sos_active"
+    private const val TRACK_CHANNEL = "meshta_track_recording"
     private const val ALERT_CHANNEL = "meshta_sos_incoming"
 
     fun ensureChannels(context: Context) {
@@ -34,6 +61,12 @@ object EmergencyNotifications {
         manager.createNotificationChannel(
             NotificationChannel(SERVICE_CHANNEL, "SOS aktif", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "Menjaga pelacakan dan broadcast SOS tetap aktif saat layar mati"
+                setShowBadge(false)
+            },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(TRACK_CHANNEL, "Rekam jejak", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Menjaga perekaman jejak tetap berjalan saat layar mati"
                 setShowBadge(false)
             },
         )
@@ -50,14 +83,21 @@ object EmergencyNotifications {
         )
     }
 
-    fun ownSos(context: Context): Notification = Notification.Builder(context, SERVICE_CHANNEL)
-        .setSmallIcon(android.R.drawable.ic_dialog_alert)
-        .setContentTitle("SOS NusaMesh aktif")
-        .setContentText("Lokasi darurat tetap disiarkan melalui mesh")
-        .setContentIntent(openApp(context))
-        .setOngoing(true)
-        .setCategory(Notification.CATEGORY_SERVICE)
-        .build()
+    fun foreground(context: Context, sos: Boolean, track: Boolean): Notification {
+        val (title, text) = when {
+            sos && track -> "SOS aktif · merekam jejak" to "Lokasi darurat dan jejak tetap disiarkan melalui mesh"
+            sos -> "SOS NusaMesh aktif" to "Lokasi darurat tetap disiarkan melalui mesh"
+            else -> "Merekam jejak" to "Jalur Anda direkam dan dibagikan lewat mesh, juga saat layar mati"
+        }
+        return Notification.Builder(context, if (sos) SERVICE_CHANNEL else TRACK_CHANNEL)
+            .setSmallIcon(if (sos) android.R.drawable.ic_dialog_alert else android.R.drawable.ic_menu_mylocation)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(openApp(context))
+            .setOngoing(true)
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .build()
+    }
 
     fun showIncoming(context: Context, peerId: String, name: String) {
         ensureChannels(context)

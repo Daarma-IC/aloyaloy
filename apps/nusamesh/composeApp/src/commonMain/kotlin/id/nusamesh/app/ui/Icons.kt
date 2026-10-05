@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 
 /** Ikon garis sederhana (digambar, bukan emoji) agar gaya ikon seragam di semua platform. */
-internal enum class IconKind { Plus, Close, Back, Mesh, Image, File, Mic, Send, Play, Node, Relay, Lock, Signal, Chevron, Stop }
+internal enum class IconKind { Plus, Close, Back, Mesh, Image, File, Mic, Send, Play, Node, Relay, Lock, Signal, Chevron, Stop, Clock, Check, DoubleCheck, Alert }
 
 @Composable
 internal fun AppIcon(kind: IconKind, color: Color, modifier: Modifier = Modifier) {
@@ -19,6 +19,34 @@ internal fun AppIcon(kind: IconKind, color: Color, modifier: Modifier = Modifier
         val stroke = Stroke(width = size.minDimension * .09f, cap = StrokeCap.Round)
         val center = Offset(size.width / 2f, size.height / 2f)
         when (kind) {
+            IconKind.Clock -> {
+                drawCircle(color, size.minDimension * .4f, center, style = stroke)
+                drawLine(color, center, Offset(center.x, size.height * .26f), stroke.width, StrokeCap.Round)
+                drawLine(color, center, Offset(size.width * .68f, size.height * .62f), stroke.width, StrokeCap.Round)
+            }
+            IconKind.Check -> {
+                val path = Path().apply {
+                    moveTo(size.width * .16f, size.height * .54f)
+                    lineTo(size.width * .4f, size.height * .76f)
+                    lineTo(size.width * .86f, size.height * .26f)
+                }
+                drawPath(path, color, style = stroke)
+            }
+            IconKind.DoubleCheck -> {
+                listOf(0f, .22f).forEach { dx ->
+                    val path = Path().apply {
+                        moveTo(size.width * (.04f + dx), size.height * .54f)
+                        lineTo(size.width * (.26f + dx), size.height * .76f)
+                        lineTo(size.width * (.7f + dx), size.height * .26f)
+                    }
+                    drawPath(path, color, style = stroke)
+                }
+            }
+            IconKind.Alert -> {
+                drawCircle(color, size.minDimension * .4f, center, style = stroke)
+                drawLine(color, Offset(center.x, size.height * .28f), Offset(center.x, size.height * .56f), stroke.width, StrokeCap.Round)
+                drawCircle(color, stroke.width * .7f, Offset(center.x, size.height * .72f))
+            }
             IconKind.Plus -> {
                 drawLine(color, Offset(center.x, size.height * .22f), Offset(center.x, size.height * .78f), stroke.width, StrokeCap.Round)
                 drawLine(color, Offset(size.width * .22f, center.y), Offset(size.width * .78f, center.y), stroke.width, StrokeCap.Round)

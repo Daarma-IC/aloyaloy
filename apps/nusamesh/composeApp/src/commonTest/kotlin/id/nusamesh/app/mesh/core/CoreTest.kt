@@ -121,6 +121,12 @@ class RoutingTest {
         val broadcast = WirePacket(type = 4, senderId = peerIdBytes("b0"), timestamp = 1, payload = byteArrayOf(1), ttl = 7)
         assertIs<RelayDecision.Flood>(policy.decide(broadcast, "x", 500, topo.snapshot.value), "TTL tinggi selalu diteruskan")
         assertIs<RelayDecision.Drop>(policy.decide(broadcast.withTtl(0), "x", 5, topo.snapshot.value))
+        // Jaringan ramai + TTL rendah: undian boleh melewati HP tetangga, tapi tidak pernah membuang paket
+        // diam-diam — minimal tetap diserahkan ke Nusa Node (jalan satu-satunya HP yang nebeng).
+        val decisions = (1..200).map { policy.decide(broadcast.withTtl(2), "x", 500, topo.snapshot.value) }
+        assertTrue(decisions.none { it is RelayDecision.Drop })
+        assertTrue(decisions.any { it is RelayDecision.NodesOnly })
+        assertTrue(decisions.any { it is RelayDecision.Flood })
     }
 
     @Test

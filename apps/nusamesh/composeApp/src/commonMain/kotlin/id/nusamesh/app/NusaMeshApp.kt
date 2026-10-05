@@ -41,6 +41,13 @@ import id.nusamesh.app.media.UnavailableChatMediaActions
 import id.nusamesh.app.ui.AppBottomBar
 import id.nusamesh.app.ui.ChatScreen
 import id.nusamesh.app.ui.HomeScreen
+import id.nusamesh.app.data.GpxCodec
+import id.nusamesh.app.data.currentEpochMillis
+import id.nusamesh.app.media.DocumentActions
+import id.nusamesh.app.media.UnavailableDocumentActions
+import id.nusamesh.app.ui.MapActions
+import id.nusamesh.app.ui.OfflineMapActions
+import id.nusamesh.app.ui.UnavailableOfflineMaps
 import id.nusamesh.app.ui.MapScreen
 import id.nusamesh.app.ui.NusaTheme
 import id.nusamesh.app.location.ImmediateLocationAccess
@@ -59,9 +66,12 @@ fun NusaMeshApp(
     bluetoothPermission: BluetoothPermissionActions = ImmediateBluetoothPermission,
     locationAccess: LocationAccessActions = ImmediateLocationAccess,
     emergencyActions: EmergencyActions = NoopEmergencyActions,
+    /** Runtime tingkat proses (Android). null = dibuat di sini, hidup selama komposisi (iOS/web). */
+    runtime: AppRuntime? = null,
+    documentActions: DocumentActions = UnavailableDocumentActions,
+    offlineMaps: OfflineMapActions = UnavailableOfflineMaps,
 ) {
     val locationState by locationAccess.state.collectAsState()
-    val currentLocation by locationAccess.location.collectAsState()
     val currentHeading by locationAccess.heading.collectAsState()
     LaunchedEffect(locationAccess) {
         locationAccess.refresh()
@@ -71,24 +81,19 @@ fun NusaMeshApp(
         LocationRequiredScreen(locationState, locationAccess)
         return
     }
-    val container = remember(link, initialPage, initialConversationId) {
-        AppContainer(link, store, initialPage, initialConversationId)
+    val appRuntime = runtime ?: remember(link, initialPage, initialConversationId) {
+        AppRuntime(link, store, locationAccess.location, emergencyActions, initialPage, initialConversationId)
     }
-    val controller = container.appController
+    val controller = appRuntime.controller
     val state by controller.state.collectAsState()
+    val offlinePack by offlineMaps.pack.collectAsState()
+    val offlineSummary by offlineMaps.cacheSummary.collectAsState()
     val mobilityLog by controller.mobilityLog.collectAsState()
     val snackbar = remember { SnackbarHostState() }
-    var knownEmergencyIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    LaunchedEffect(currentLocation) { currentLocation?.let(controller::updateOwnLocation) }
+    // GPS → controller, foreground service, dan notifikasi SOS masuk diurus AppRuntime (bukan efek
+    // komposisi) supaya tetap jalan saat layar mati atau Activity sudah ditutup.
     LaunchedEffect(currentHeading) { controller.updateHeading(currentHeading) }
-    LaunchedEffect(state.sosActive) { emergencyActions.setBroadcastActive(state.sosActive) }
-    LaunchedEffect(state.trackedUsers) {
-        val active = state.trackedUsers.filter { it.emergency && !it.own }.associateBy { it.peerId }
-        (active.keys - knownEmergencyIds).forEach { id -> emergencyActions.showIncoming(id, active.getValue(id).name) }
-        (knownEmergencyIds - active.keys).forEach(emergencyActions::clearIncoming)
-        knownEmergencyIds = active.keys
-    }
 
     LaunchedEffect(controller) {
         if (controller.resumeMeshOnLaunch) {
@@ -128,7 +133,20 @@ fun NusaMeshApp(
                         onOpenNodes = controller::openNodeSheet,
                         onRename = controller::setNickname,
                         onDismissNebeng = controller::dismissNebengNotice,
-                        onSosToggle = controller::toggleSos,
+                        onQuickStatus = controller::sendQuickStatus,
+                        onSetRole = controller::setRole,
+                        onGenerateKey = controller::generateOperationKey,
+                        onEnterKey = controller::enterOperationKey,
+                        onClearKey = controller::clearOperationKey,
+                        onSosToggle = {
+                            // Korban panik tidak perlu menyalakan mesh dulu: SOS menyalakannya sendiri.
+                            if (!state.sosActive && !state.mesh.active) {
+                                bluetoothPermission.runWithPermission(
+                                    onGranted = { controller.startMesh(); controller.toggleSos() },
+                                    onDenied = controller::showNotice,
+                                )
+                            } else controller.toggleSos()
+                        },
                     )
                     AppPage.Chats -> ChatScreen(
                         state = state,
@@ -142,7 +160,42 @@ fun NusaMeshApp(
                         onNotice = controller::showNotice,
                         onDismissNebeng = controller::dismissNebengNotice,
                     )
-                    AppPage.Map -> MapScreen(state, padding, controller::selectNavigationTarget)
+                    AppPage.Map -> MapScreen(
+                        state,
+                        padding,
+                        offlinePack = offlinePack,
+                        offlineSummary = offlineSummary,
+                        actions = MapActions(
+                            selectTarget = controller::selectNavigationTarget,
+                            selectWaypoint = controller::selectWaypoint,
+                            followRoute = controller::followRoute,
+                            mapTap = controller::onMapTap,
+                            startTrack = controller::startTrackRecording,
+                            stopTrack = controller::stopTrackRecording,
+                            startDraft = controller::startRouteDraft,
+                            undoDraft = controller::undoRouteDraftPoint,
+                            cancelDraft = controller::cancelRouteDraft,
+                            sendDraft = controller::sendRouteDraft,
+                            addWaypoint = controller::addWaypoint,
+                            updateWaypoint = controller::updateWaypoint,
+                            clearPicked = controller::clearPickedPoint,
+                            deleteRoute = controller::deleteRoute,
+                            deleteWaypoint = controller::deleteWaypoint,
+                            resolveEmergency = controller::resolveEmergency,
+                            shareRoute = controller::shareRoute,
+                            shareWaypoint = controller::shareWaypoint,
+                            exportGpx = {
+                                val name = "nusamesh-" + GpxCodec.isoTime(currentEpochMillis()).take(16).replace(':', '-') + ".gpx"
+                                documentActions.saveDocument(name, GpxCodec.MIME, controller.exportGpx(), controller::showNotice)
+                            },
+                            importOfflineMap = { offlineMaps.importPack(controller::showNotice) },
+                            removeOfflineMap = { offlineMaps.removePack(controller::showNotice) },
+                            importGpx = {
+                                // Banyak pengelola file memberi GPX tipe octet-stream/xml, jadi terima semua lalu validasi isinya.
+                                documentActions.openDocument(listOf("*/*"), controller::importGpx, controller::showNotice)
+                            },
+                        ),
+                    )
                 } }
                 if (showBar) {
                     AppBottomBar(state.page, hazeState, controller::navigate, Modifier.align(Alignment.BottomCenter))

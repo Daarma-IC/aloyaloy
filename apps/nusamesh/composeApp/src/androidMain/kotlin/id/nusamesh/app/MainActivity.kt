@@ -5,8 +5,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
-import android.location.Location
-import android.location.LocationListener
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -31,25 +29,24 @@ import androidx.activity.result.contract.ActivityResultContracts
 import id.nusamesh.app.ble.BluetoothPermissionActions
 import id.nusamesh.app.domain.ChatAttachment
 import id.nusamesh.app.domain.ChatMessageKind
-import id.nusamesh.app.data.AndroidKeyValueStore
 import id.nusamesh.app.media.ChatMediaActions
 import id.nusamesh.app.media.AndroidCodec2
+import id.nusamesh.app.media.DocumentActions
+import id.nusamesh.app.ui.OfflineMapActions
+import id.nusamesh.app.ui.OfflineTileStore
 import id.nusamesh.app.media.LoraImageCodec
+import id.nusamesh.app.media.VoiceSilenceTrimmer
 import id.nusamesh.app.location.LocationAccessActions
 import id.nusamesh.app.location.LocationAccessState
 import id.nusamesh.app.location.DeviceLocation
-import id.nusamesh.app.emergency.EmergencyActions
-import id.nusamesh.app.emergency.EmergencyNotifications
-import id.nusamesh.app.emergency.SosForegroundService
-import id.nusamesh.app.mesh.engine.AndroidBleLink
 import id.nusamesh.app.protocol.MeshMediaCodec
 import java.io.ByteArrayOutputStream
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions, SensorEventListener, EmergencyActions {
-    private lateinit var link: AndroidBleLink
+class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions, SensorEventListener, DocumentActions, OfflineMapActions {
+    private lateinit var process: NusaMeshProcess.Holder
     private var imageResult: ((ChatAttachment) -> Unit)? = null
     private var imageLoraProfile = false
     private var fileResult: ((ChatAttachment) -> Unit)? = null
@@ -62,28 +59,17 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private var codec2Player: AudioTrack? = null
     private var codec2PlaybackToken = 0L
     private var playbackFile: File? = null
-    private var recordingStartedAt = 0L
     private var pendingRecordStart: (() -> Unit)? = null
     private var pendingBluetoothAction: (() -> Unit)? = null
     private var bluetoothDenied: ((String) -> Unit)? = null
     private val mutableLocationState = MutableStateFlow(LocationAccessState.Checking)
     override val state: StateFlow<LocationAccessState> = mutableLocationState
-    private val mutableLocation = MutableStateFlow<DeviceLocation?>(null)
-    override val location: StateFlow<DeviceLocation?> = mutableLocation
+    /** GPS hidup di tingkat proses supaya tetap mengalir setelah Activity ini ditutup. */
+    override val location: StateFlow<DeviceLocation?> get() = process.location.location
     private val mutableHeading = MutableStateFlow<Float?>(null)
     override val heading: StateFlow<Float?> = mutableHeading
-    private var locationUpdatesStarted = false
     private var locationPermissionRequested = false
     private var notificationPermissionRequested = false
-    private val locationListener = object : LocationListener {
-        override fun onLocationChanged(value: Location) {
-            mutableLocation.value = DeviceLocation(
-                value.latitude, value.longitude, value.accuracy, value.time.coerceAtLeast(System.currentTimeMillis() - 60_000L),
-            )
-        }
-        override fun onProviderEnabled(provider: String) = refresh()
-        override fun onProviderDisabled(provider: String) = refresh()
-    }
 
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { loadImage(it) } ?: mediaError?.invoke("Pemilihan gambar dibatalkan")
@@ -91,6 +77,64 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { loadFile(it) } ?: mediaError?.invoke("Pemilihan file dibatalkan")
+    }
+
+    private var pendingSave: Pair<String, (String) -> Unit>? = null
+    private var pendingOpen: Pair<(String) -> Unit, (String) -> Unit>? = null
+
+    private val documentSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
+        val (content, onResult) = pendingSave ?: return@registerForActivityResult
+        pendingSave = null
+        if (uri == null) return@registerForActivityResult onResult("Ekspor dibatalkan")
+        runCatching { contentResolver.openOutputStream(uri)?.use { it.write(content.encodeToByteArray()) } ?: error("File tidak dapat ditulis") }
+            .onSuccess { onResult("GPX tersimpan: ${displayName(uri)}") }
+            .onFailure { onResult(it.message ?: "Gagal menyimpan GPX") }
+    }
+
+    private val documentOpener = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val (onOpened, onError) = pendingOpen ?: return@registerForActivityResult
+        pendingOpen = null
+        if (uri == null) return@registerForActivityResult onError("Impor dibatalkan")
+        runCatching { contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("File tidak dapat dibaca") }
+            .onSuccess { bytes -> onOpened(bytes.decodeToString()) }
+            .onFailure { onError(it.message ?: "Gagal membaca file") }
+    }
+
+    private var pendingPackResult: ((String) -> Unit)? = null
+
+    private val packOpener = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val onResult = pendingPackResult ?: return@registerForActivityResult
+        pendingPackResult = null
+        if (uri == null) return@registerForActivityResult onResult("Impor peta dibatalkan")
+        onResult("Mengimpor peta offline…")
+        // File MBTiles bisa ratusan MB: salin di thread terpisah.
+        Thread {
+            val message = OfflineTileStore.importPack { target ->
+                contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
+                    ?: error("File tidak dapat dibaca")
+            }
+            runOnUiThread { onResult(message) }
+        }.apply { name = "NusaMesh-mbtiles-import"; start() }
+    }
+
+    override val pack get() = OfflineTileStore.packInfo
+    override val cacheSummary get() = OfflineTileStore.cacheSummary
+
+    override fun importPack(onResult: (String) -> Unit) {
+        pendingPackResult = onResult
+        packOpener.launch(arrayOf("*/*"))
+    }
+
+    override fun removePack(onResult: (String) -> Unit) = onResult(OfflineTileStore.removePack())
+
+    override fun saveDocument(fileName: String, mimeType: String, content: String, onResult: (String) -> Unit) {
+        pendingSave = content to onResult
+        documentSaver.launch(fileName)
+    }
+
+    override fun openDocument(mimeTypes: List<String>, onOpened: (String) -> Unit, onError: (String) -> Unit) {
+        pendingOpen = onOpened to onError
+        documentOpener.launch(mimeTypes.toTypedArray())
     }
 
     private val microphonePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -120,12 +164,13 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        link = AndroidBleLink(applicationContext)
-        val store = AndroidKeyValueStore(applicationContext)
+        process = NusaMeshProcess.get(this)
+        OfflineTileStore.init(this)
+        process.location.onProviderChanged = ::refresh
         setContent {
             NusaMeshApp(
-                link, store, mediaActions = this, bluetoothPermission = this,
-                locationAccess = this, emergencyActions = this,
+                process.link, mediaActions = this, bluetoothPermission = this,
+                locationAccess = this, runtime = process.runtime, documentActions = this, offlineMaps = this,
             )
         }
         refresh()
@@ -173,14 +218,6 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         locationPermissionLauncher.launch(permissions.toTypedArray())
     }
 
-    override fun setBroadcastActive(active: Boolean) {
-        val intent = Intent(this, SosForegroundService::class.java)
-        if (active) startForegroundService(intent) else stopService(intent)
-    }
-
-    override fun showIncoming(peerId: String, name: String) = EmergencyNotifications.showIncoming(this, peerId, name)
-    override fun clearIncoming(peerId: String) = EmergencyNotifications.clearIncoming(this, peerId)
-
     override fun openLocationSettings() {
         startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
     }
@@ -200,20 +237,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         }
         val enabled = getSystemService(LocationManager::class.java)?.isLocationEnabled == true
         mutableLocationState.value = if (enabled) LocationAccessState.Ready else LocationAccessState.ServiceDisabled
-        if (enabled) startLocationUpdates()
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun startLocationUpdates() {
-        if (locationUpdatesStarted) return
-        val manager = getSystemService(LocationManager::class.java) ?: return
-        locationUpdatesStarted = true
-        listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).forEach { provider ->
-            if (manager.isProviderEnabled(provider)) {
-                manager.getLastKnownLocation(provider)?.let(locationListener::onLocationChanged)
-                manager.requestLocationUpdates(provider, 15_000L, 10f, locationListener)
-            }
-        }
+        if (enabled) process.location.start()
     }
 
     override fun runWithPermission(onGranted: () -> Unit, onDenied: (String) -> Unit) {
@@ -232,12 +256,13 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     override fun onDestroy() {
-        getSystemService(LocationManager::class.java)?.removeUpdates(locationListener)
+        process.location.onProviderChanged = null
         isRecordingVoice = false
         runCatching { recorder?.stop() }
         runCatching { recorder?.release() }
         releasePlayer()
-        if (isFinishing && ::link.isInitialized) link.stop()
+        // SOS / rekam jejak berjalan → mesh tetap hidup di proses (dijaga foreground service).
+        if (isFinishing && !process.runtime.keepAliveInBackground) process.runtime.controller.suspendMesh()
         super.onDestroy()
     }
 
@@ -267,7 +292,6 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun stopVoiceNote(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
         val activeRecorder = recorder ?: return onError("Belum ada rekaman aktif")
-        val duration = ((System.currentTimeMillis() - recordingStartedAt) / 1000L).toInt().coerceAtLeast(1)
         isRecordingVoice = false
         runCatching { activeRecorder.stop() }
         runCatching { recordingThread?.join(1_500) }
@@ -287,8 +311,11 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                     val high = pcmBytes[index * 2 + 1].toInt()
                     ((high shl 8) or low).toShort()
                 }
-                AndroidCodec2.encode(pcm)
-            }.onSuccess { bytes ->
+                val voiced = VoiceSilenceTrimmer.trim(pcm, AndroidCodec2.SAMPLE_RATE)
+                require(voiced.size >= AndroidCodec2.SAMPLE_RATE / 4) { "Tidak ada suara terdeteksi" }
+                val voicedSeconds = (voiced.size + AndroidCodec2.SAMPLE_RATE - 1) / AndroidCodec2.SAMPLE_RATE
+                AndroidCodec2.encode(voiced) to voicedSeconds
+            }.onSuccess { (bytes, voicedSeconds) ->
                 runOnUiThread {
                     if (bytes.size > MeshMediaCodec.MAX_MEDIA_BYTES) {
                         onError("Voice note terlalu besar untuk jaringan LoRa")
@@ -299,7 +326,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                                 AndroidCodec2.MIME,
                                 bytes,
                                 ChatMessageKind.Voice,
-                                duration,
+                                voicedSeconds,
                             ),
                         )
                     }
@@ -435,7 +462,6 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             }.apply { name = "Meshta-voice-recorder"; start() }
         }.onSuccess {
             recorder = activeRecorder
-            recordingStartedAt = System.currentTimeMillis()
         }.onFailure { error ->
             isRecordingVoice = false
             activeRecorder.release()

@@ -70,6 +70,51 @@ class MeshEngineTest {
     }
 
     @Test
+    fun deliveryAckReturnsToOriginalSenderThroughRelay() = runTest {
+        val radio = world()
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        val b = phone(radio, "B", "0b0b0b0b0b0b0b0b", "Budi")
+        val c = phone(radio, "C", "0c0c0c0c0c0c0c0c", "Citra")
+        radio.setRssi("A", "B", -60); radio.setRssi("B", "C", -60)   // A tidak menjangkau C
+        advanceTimeBy(MeshEngine.GOSSIP_PERIOD_MS + 6_000); runCurrent()
+        val acks = mutableListOf<IncomingAck>()
+        backgroundScope.launch { a.engine.acks.collect { acks += it } }
+        val bAcks = mutableListOf<IncomingAck>()
+        backgroundScope.launch { b.engine.acks.collect { bAcks += it } }
+
+        val important = msg("Ayu", "[PENTING] semua tim kembali ke posko")
+        a.engine.sendPublic(important)
+        advanceTimeBy(2_000); runCurrent()
+        c.engine.sendAck("0a0a0a0a0a0a0a0a", important.id)
+        advanceTimeBy(2_000); runCurrent()
+
+        assertEquals(listOf(IncomingAck(important.id, "0c0c0c0c0c0c0c0c")), acks, "konfirmasi C harus sampai ke A lewat B")
+        assertTrue(bAcks.isEmpty(), "perantara hanya meneruskan, tidak menganggap konfirmasi untuk dirinya")
+        assertTrue(c.inbox.none { it.contains(important.id) })
+    }
+
+    @Test
+    fun deliveryAckCrossesLoraBackbone() = runTest {
+        val radio = world()
+        val n1 = node(radio, "N1", 1)
+        val n2 = node(radio, "N2", 2)
+        n1.loraPeers += n2; n2.loraPeers += n1
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        val z = phone(radio, "Z", "0f0f0f0f0f0f0f0f", "Zaki")
+        radio.setRssi("A", "N1", -60); radio.setRssi("Z", "N2", -60)
+        advanceTimeBy(8_000); runCurrent()
+        val acks = mutableListOf<IncomingAck>()
+        backgroundScope.launch { a.engine.acks.collect { acks += it } }
+        val sos = msg("Ayu", "SOS")
+        a.engine.sendPublic(sos)
+        advanceTimeBy(30_000); runCurrent()
+        assertTrue("Ayu:SOS" in z.inbox)
+        z.engine.sendAck("0a0a0a0a0a0a0a0a", sos.id)
+        advanceTimeBy(30_000); runCurrent()
+        assertEquals(listOf(sos.id), acks.map { it.messageId }, "konfirmasi harus kembali lewat LoRa")
+    }
+
+    @Test
     fun electsStrongestNodeOnlyAndRegisters() = runTest {
         val radio = world()
         val n1 = node(radio, "N1", 1)
