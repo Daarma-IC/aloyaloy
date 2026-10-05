@@ -94,6 +94,13 @@ fun MapScreen(
     /** Titik yang sedang diperbarui lewat panel tandai (null = membuat titik baru). */
     var editingWaypointId by remember { mutableStateOf<String?>(null) }
     var coordinateFormat by remember { mutableStateOf(CoordinateFormat.Utm) }
+    // Back menutup panel yang sedang terbuka dulu, bukan langsung meninggalkan peta.
+    PlatformBackHandler(enabled = markingOpen || editingWaypointId != null || state.routeDraft != null) {
+        when {
+            markingOpen || editingWaypointId != null -> { markingOpen = false; editingWaypointId = null; actions.clearPicked() }
+            else -> actions.cancelDraft()
+        }
+    }
     val own = state.trackedUsers.firstOrNull { it.own }
     val target = navigationTarget(state)
     val here = own?.let { GeoPoint(it.latitude, it.longitude) }

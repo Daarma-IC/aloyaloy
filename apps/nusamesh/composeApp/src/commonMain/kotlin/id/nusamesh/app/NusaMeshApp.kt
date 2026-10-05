@@ -46,6 +46,7 @@ import id.nusamesh.app.data.currentEpochMillis
 import id.nusamesh.app.media.DocumentActions
 import id.nusamesh.app.media.UnavailableDocumentActions
 import id.nusamesh.app.ui.MapActions
+import id.nusamesh.app.ui.PlatformBackHandler
 import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.UnavailableOfflineMaps
 import id.nusamesh.app.ui.MapScreen
@@ -90,6 +91,16 @@ fun NusaMeshApp(
     val offlineSummary by offlineMaps.cacheSummary.collectAsState()
     val mobilityLog by controller.mobilityLog.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+
+    // Back: tutup lembar node / percakapan dulu, lalu kembali ke Beranda; baru di Beranda keluar aplikasi.
+    // Overlay di dalam layar (gambar penuh, panel peta) mendaftarkan handler sendiri yang lebih diutamakan.
+    PlatformBackHandler(enabled = state.nodeSheetOpen || state.activeConversationId != null || state.page != AppPage.Home) {
+        when {
+            state.nodeSheetOpen -> controller.closeNodeSheet()
+            state.activeConversationId != null -> controller.closeChat()
+            else -> controller.navigate(AppPage.Home)
+        }
+    }
 
     // GPS → controller, foreground service, dan notifikasi SOS masuk diurus AppRuntime (bukan efek
     // komposisi) supaya tetap jalan saat layar mati atau Activity sudah ditutup.
