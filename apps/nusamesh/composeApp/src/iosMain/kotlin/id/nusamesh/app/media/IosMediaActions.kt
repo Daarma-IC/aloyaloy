@@ -194,7 +194,7 @@ class IosMediaActions : ChatMediaActions {
             AVEncoderBitRateKey to NSNumber(int = 16_000),
         )
         val rec = AVAudioRecorder(uRL = url, settings = settings, error = null)
-        if (!rec.recordForDuration(40.0)) return onError("Perekam suara gagal dimulai")
+        if (!rec.record()) return onError("Perekam suara gagal dimulai")
         recorder = rec
         recordingUrl = url
         recordingStartedAt = currentEpochMillis()
@@ -210,7 +210,6 @@ class IosMediaActions : ChatMediaActions {
         val bytes = NSData.dataWithContentsOfURL(url)?.toByteArray()
         NSFileManager.defaultManager.removeItemAtURL(url, error = null)
         if (duration < 1 || bytes == null || bytes.isEmpty()) return onError("Voice note terlalu pendek")
-        if (bytes.size > MeshMediaCodec.MAX_MEDIA_BYTES) return onError("Voice note terlalu besar. Rekam maksimal sekitar 40 detik")
         onRecorded(ChatAttachment("voice-${currentEpochMillis()}.m4a", "audio/mp4", bytes, ChatMessageKind.Voice, duration))
     }
 

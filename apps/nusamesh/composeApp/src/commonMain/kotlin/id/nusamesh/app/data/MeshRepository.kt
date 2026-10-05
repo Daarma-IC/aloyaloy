@@ -12,11 +12,14 @@ import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
 import id.nusamesh.app.mesh.protocol.LocationTelemetry
+import id.nusamesh.app.mesh.protocol.VoiceSegment
+import id.nusamesh.app.mesh.protocol.VoiceTransferAssembler
 import id.nusamesh.app.mesh.protocol.EmergencyTelemetry
 import id.nusamesh.app.mesh.protocol.MeshMessageType
 import id.nusamesh.app.security.OperationKey
 import id.nusamesh.app.security.OperationSecurity
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -81,10 +84,19 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
         val opened = OperationSecurity.open(incoming.message, operationKey, incoming.fromPeerId)
         incoming.copy(message = opened.message, verified = opened.verified, forged = opened.forged)
     }
-    val files: Flow<IncomingFile> = engine.files.map { incoming ->
-        if (!OperationSecurity.isEncryptedFile(incoming.file.content)) return@map incoming
-        val opened = OperationSecurity.openFile(incoming.file, operationKey)
-        if (opened != null) incoming.copy(file = opened, verified = true) else incoming.copy(locked = true)
+    private val voiceAssembler = VoiceTransferAssembler(::currentEpochMillis)
+    val files: Flow<IncomingFile> = engine.files.transform { raw ->
+        val incoming = if (!OperationSecurity.isEncryptedFile(raw.file.content)) raw else {
+            val opened = OperationSecurity.openFile(raw.file, operationKey)
+            if (opened != null) raw.copy(file = opened, verified = true) else raw.copy(locked = true)
+        }
+        if (incoming.locked || incoming.file.mimeType != VoiceSegment.MIME) {
+            emit(incoming)
+            return@transform
+        }
+        val segment = VoiceSegment.decode(incoming.file.content) ?: return@transform
+        val assembled = voiceAssembler.accept(incoming.fromPeerId, segment, incoming.timestampMs) ?: return@transform
+        emit(incoming.copy(file = assembled.file, timestampMs = assembled.timestampMs, durationSeconds = assembled.durationSeconds))
     }
 
     private fun publish(message: MeshMessage, onComplete: (Boolean) -> Unit = {}) =
@@ -125,12 +137,38 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
         onProgress: (Float) -> Unit = {},
         onComplete: (Boolean) -> Unit = {},
     ) {
-        val file = FilePacket(attachment.name, attachment.mimeType, attachment.bytes)
-        engine.sendFile(
-            if (encrypt) OperationSecurity.sealFile(file, operationKey) else file,
-            onProgress,
-            onComplete,
-        )
+        if (attachment.kind != id.nusamesh.app.domain.ChatMessageKind.Voice || attachment.bytes.size <= VoiceSegment.CHUNK_BYTES) {
+            val file = FilePacket(attachment.name, attachment.mimeType, attachment.bytes)
+            engine.sendFile(if (encrypt) OperationSecurity.sealFile(file, operationKey) else file, onProgress, onComplete)
+            return
+        }
+        val transferId = "${currentEpochMillis().toString(16)}-${randomPeerId()}"
+        val segments = runCatching {
+            VoiceSegment.split(transferId, attachment.name, attachment.mimeType, attachment.durationSeconds ?: 0, attachment.bytes)
+        }.getOrElse {
+            onComplete(false)
+            return
+        }
+        fun send(index: Int) {
+            val segment = segments[index]
+            val part = FilePacket(
+                "voice-$transferId-${index + 1}of${segments.size}.nsv",
+                VoiceSegment.MIME,
+                segment.encode(),
+            )
+            engine.sendFile(
+                if (encrypt) OperationSecurity.sealFile(part, operationKey) else part,
+                onProgress = { partProgress -> onProgress((index + partProgress) / segments.size) },
+                onComplete = { success ->
+                    when {
+                        !success -> onComplete(false)
+                        index == segments.lastIndex -> { onProgress(1f); onComplete(true) }
+                        else -> send(index + 1)
+                    }
+                },
+            )
+        }
+        send(0)
     }
 
     fun sendLocation(latitude: Double, longitude: Double, accuracyMeters: Float, timestampMs: Long, batteryPercent: Int? = null) {

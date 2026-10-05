@@ -317,19 +317,15 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                 AndroidCodec2.encode(voiced) to voicedSeconds
             }.onSuccess { (bytes, voicedSeconds) ->
                 runOnUiThread {
-                    if (bytes.size > MeshMediaCodec.MAX_MEDIA_BYTES) {
-                        onError("Voice note terlalu besar untuk jaringan LoRa")
-                    } else {
-                        onRecorded(
-                            ChatAttachment(
-                                "voice-${System.currentTimeMillis()}.${AndroidCodec2.EXTENSION}",
-                                AndroidCodec2.MIME,
-                                bytes,
-                                ChatMessageKind.Voice,
-                                voicedSeconds,
-                            ),
-                        )
-                    }
+                    onRecorded(
+                        ChatAttachment(
+                            "voice-${System.currentTimeMillis()}.${AndroidCodec2.EXTENSION}",
+                            AndroidCodec2.MIME,
+                            bytes,
+                            ChatMessageKind.Voice,
+                            voicedSeconds,
+                        ),
+                    )
                 }
             }.onFailure { error ->
                 runOnUiThread { onError(error.message ?: "Voice note gagal dikompresi") }

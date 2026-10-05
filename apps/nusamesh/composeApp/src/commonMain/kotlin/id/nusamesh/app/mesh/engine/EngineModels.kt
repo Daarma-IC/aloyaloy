@@ -56,6 +56,8 @@ data class IncomingFile(
     val verified: Boolean = false,
     /** Terenkripsi dengan kunci yang tidak kita punya: isi tidak bisa ditampilkan. */
     val locked: Boolean = false,
+    /** Durasi voice hasil penyatuan segmen; null untuk file biasa/format lama. */
+    val durationSeconds: Int? = null,
 )
 
 data class EngineSnapshot(

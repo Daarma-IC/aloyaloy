@@ -40,6 +40,7 @@ import id.nusamesh.app.mesh.protocol.TrackSegmentTelemetry
 import id.nusamesh.app.mesh.protocol.VictimInfo
 import id.nusamesh.app.mesh.protocol.WaypointTelemetry
 import id.nusamesh.app.mesh.protocol.WaypointType
+import id.nusamesh.app.mesh.protocol.VoiceSegment
 import id.nusamesh.app.security.OperationKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -269,6 +270,7 @@ class AppController(
             attachmentBytes = file.content.size,
             attachmentMimeType = file.mimeType,
             attachmentData = file.content,
+            durationSeconds = incoming.durationSeconds,
             path = if (incoming.viaNode) DeliveryPath.Node else DeliveryPath.Ble,
         )
         if (_state.value.messages.any { it.id == message.id }) return
@@ -350,7 +352,8 @@ class AppController(
         if (!canSend()) return
         val conversationId = activeConversation()
         val (path, via) = currentPath()
-        val loraSkipped = path != DeliveryPath.Ble && attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES
+        val segmentedVoice = attachment.kind == ChatMessageKind.Voice && attachment.bytes.size > VoiceSegment.CHUNK_BYTES
+        val loraSkipped = !segmentedVoice && path != DeliveryPath.Ble && attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES
         val now = currentEpochMillis()
         val messageId = "file-$now-${repository.myPeerId}"
         val outgoing = ChatMessage(
