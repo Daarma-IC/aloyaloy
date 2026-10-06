@@ -50,6 +50,8 @@ data class ChatMessage(
     val ackedBy: List<String> = emptyList(),
     /** Ditandatangani / dienkripsi kunci operasi: pengirim pasti anggota tim. */
     val verified: Boolean = false,
+    /** Data ukur penerimaan (RSSI/SNR/SF/jarak) — geser gelembung untuk melihat. */
+    val rx: RxMeasurement? = null,
 )
 
 data class ChatAttachment(
@@ -161,6 +163,9 @@ data class AppUiState(
     val operationCode: String? = null,
     /** Slug tim (mis. "alfa") bila peran Tim SAR. */
     val team: String? = null,
+    /** Sesi uji QoS yang diterima HP ini (per pengirim & run). */
+    val qosRuns: List<QosRun> = emptyList(),
+    val qosSending: QosSending? = null,
     /** Nama HP yang mengonfirmasi menerima SOS kita (direset tiap SOS dinyalakan). */
     val sosAckedBy: List<String> = emptyList(),
     val headingDegrees: Float? = null,

@@ -51,6 +51,15 @@ uint8_t enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_t hop,
 // Airtime (ms) sebuah paket sepanjang len byte pada setelan radio saat ini.
 float airtimeMs(size_t len);
 
+// Spreading factor aktif. Default LORA_SF; bisa diganti saat berjalan untuk uji
+// QoS (PSP/RSSI vs jarak per SF) dan tersimpan di NVS sampai diganti lagi.
+// INGAT: node dengan SF berbeda tidak saling mendengar — ganti di SEMUA node.
+uint8_t spreadingFactor();
+
+// Minta ganti SF (7..12). Diterapkan di loop() saat radio tidak sedang
+// memancar, jadi aman dipanggil dari callback BLE. false = nilai tidak sah.
+bool requestSpreadingFactor(uint8_t sf);
+
 // --- telemetri untuk UI & keputusan penjadwalan ---
 uint16_t queueDepth();
 float    budgetMs();        // sisa anggaran airtime

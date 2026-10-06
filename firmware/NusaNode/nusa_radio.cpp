@@ -1,6 +1,7 @@
 #include "nusa_radio.h"
 #include <RadioLib.h>
 #include <SPI.h>
+#include <Preferences.h>
 
 // ---------------------------------------------------------------------------
 //  Perangkat keras
@@ -46,6 +47,11 @@ static uint32_t s_txCount = 0, s_rxCount = 0, s_dropCount = 0;
 static uint32_t s_crcErrCount = 0, s_timeoutCount = 0;
 static float    s_rssi = 0, s_snr = 0;
 
+// SF saat berjalan (uji QoS). Permintaan dari callback BLE hanya menyetel
+// s_pendingSf; radio baru disentuh di loop() — SPI radio tidak thread-safe.
+static uint8_t          s_sf        = LORA_SF;
+static volatile uint8_t s_pendingSf = 0;
+
 // ---------------------------------------------------------------------------
 //  ISR — hanya boleh menyetel flag. Semua kerja nyata di loop().
 // ---------------------------------------------------------------------------
@@ -61,9 +67,9 @@ static void onIrq() { s_irq = true; }
 //  angka ini, jadi ia harus benar.
 // ---------------------------------------------------------------------------
 float NusaRadio::airtimeMs(size_t len) {
-  const float sf = LORA_SF;
+  const float sf = s_sf;
   const float bw = LORA_BW;                     // kHz
-  const float tSym = (float)(1UL << LORA_SF) / bw;   // ms
+  const float tSym = (float)(1UL << s_sf) / bw;   // ms
 
   // Low Data Rate Optimize wajib aktif saat durasi simbol > 16 ms,
   // yang terjadi pada SF11/SF12 di BW 125 kHz.
@@ -197,7 +203,15 @@ bool NusaRadio::begin(NusaRxHandler handler) {
 
   loraSpi.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
 
-  int16_t st = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR,
+  {
+    Preferences prefs;
+    prefs.begin("nusaradio", true);
+    uint8_t saved = prefs.getUChar("sf", LORA_SF);
+    prefs.end();
+    s_sf = (saved >= 7 && saved <= 12) ? saved : LORA_SF;
+  }
+
+  int16_t st = radio.begin(LORA_FREQ, LORA_BW, s_sf, LORA_CR,
                            LORA_SYNC, LORA_POWER, LORA_PREAMBLE);
   if (st != RADIOLIB_ERR_NONE) {
     Serial.printf("[RADIO] init GAGAL, kode %d\n", st);
@@ -222,7 +236,7 @@ bool NusaRadio::begin(NusaRxHandler handler) {
   s_healthy    = true;
 
   Serial.printf("[RADIO] SX1276 siap — %.1f MHz SF%d BW%.0f CR4/%d %d dBm\n",
-                LORA_FREQ, LORA_SF, LORA_BW, LORA_CR, LORA_POWER);
+                LORA_FREQ, s_sf, LORA_BW, LORA_CR, LORA_POWER);
   Serial.printf("[RADIO] airtime frame penuh (%d B) = %.0f ms\n",
                 NUSA_FRAME_MAX, airtimeMs(NUSA_FRAME_MAX));
   return true;
@@ -339,9 +353,34 @@ static void serviceTx() {
 // ---------------------------------------------------------------------------
 //  Loop
 // ---------------------------------------------------------------------------
+static void applyPendingSf() {
+  uint8_t sf = s_pendingSf;
+  if (!sf || s_state == R_TX) return;     // tunggu pancaran selesai
+  s_pendingSf = 0;
+  if (sf == s_sf) return;
+
+  radio.standby();
+  int16_t st = radio.setSpreadingFactor(sf);
+  if (st == RADIOLIB_ERR_NONE) {
+    s_sf = sf;
+    Preferences prefs;
+    prefs.begin("nusaradio", false);
+    prefs.putUChar("sf", sf);
+    prefs.end();
+    Serial.printf("[RADIO] SF diganti ke SF%u (airtime frame penuh %.0f ms)\n",
+                  sf, NusaRadio::airtimeMs(NUSA_FRAME_MAX));
+  } else {
+    Serial.printf("[RADIO] ganti SF%u gagal, kode %d\n", sf, st);
+  }
+  s_irq = false;                           // standby bisa memicu IRQ palsu
+  radio.startReceive();
+  s_state = R_RX;
+}
+
 void NusaRadio::loop() {
   if (!s_healthy) return;
 
+  applyPendingSf();
   refillBudget();
 
   if (s_irq) {
@@ -373,5 +412,12 @@ uint32_t NusaRadio::dropCount()  { return s_dropCount; }
 uint32_t NusaRadio::crcErrCount()   { return s_crcErrCount; }
 uint32_t NusaRadio::timeoutCount()  { return s_timeoutCount; }
 float    NusaRadio::lastRssi()   { return s_rssi; }
+uint8_t  NusaRadio::spreadingFactor() { return s_sf; }
+
+bool NusaRadio::requestSpreadingFactor(uint8_t sf) {
+  if (sf < 7 || sf > 12) return false;
+  s_pendingSf = sf;
+  return true;
+}
 float    NusaRadio::lastSnr()    { return s_snr; }
 bool     NusaRadio::healthy()    { return s_healthy; }

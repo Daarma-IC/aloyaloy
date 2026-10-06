@@ -46,6 +46,7 @@ import id.nusamesh.app.data.currentEpochMillis
 import id.nusamesh.app.media.DocumentActions
 import id.nusamesh.app.media.UnavailableDocumentActions
 import id.nusamesh.app.ui.MapActions
+import id.nusamesh.app.ui.QosActions
 import id.nusamesh.app.ui.PlatformBackHandler
 import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.UnavailableOfflineMaps
@@ -170,6 +171,17 @@ fun NusaMeshApp(
                         onSendAttachment = controller::sendAttachment,
                         onNotice = controller::showNotice,
                         onDismissNebeng = controller::dismissNebengNotice,
+                        qos = QosActions(
+                            start = controller::startQosTest,
+                            stop = controller::stopQosTest,
+                            clear = controller::clearQosRuns,
+                            exportPackets = {
+                                documentActions.saveDocument(csvName("qos-paket"), "text/csv", controller.qosPacketsCsv(), controller::showNotice)
+                            },
+                            exportSummary = {
+                                documentActions.saveDocument(csvName("qos-ringkasan"), "text/csv", controller.qosSummaryCsv(), controller::showNotice)
+                            },
+                        ),
                     )
                     AppPage.Map -> MapScreen(
                         state,
@@ -221,12 +233,16 @@ fun NusaMeshApp(
                         onConfigChange = { config = it; controller.mobilityConfig = it },
                         onClearLog = controller::clearMobilityLog,
                         onDismiss = controller::closeNodeSheet,
+                        onSetSpreadingFactor = controller::setNodeSpreadingFactor,
                     )
                 }
             }
         }
     }
 }
+
+private fun csvName(kind: String) =
+    "nusamesh-$kind-" + GpxCodec.isoTime(currentEpochMillis()).take(16).replace(':', '-') + ".csv"
 
 @Composable
 private fun LocationRequiredScreen(state: LocationAccessState, actions: LocationAccessActions) {

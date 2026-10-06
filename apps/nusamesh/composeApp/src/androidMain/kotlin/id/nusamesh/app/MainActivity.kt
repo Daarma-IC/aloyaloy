@@ -82,14 +82,18 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private var pendingSave: Pair<String, (String) -> Unit>? = null
     private var pendingOpen: Pair<(String) -> Unit, (String) -> Unit>? = null
 
-    private val documentSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
-        val (content, onResult) = pendingSave ?: return@registerForActivityResult
+    private fun writeSaved(uri: Uri?) {
+        val (content, onResult) = pendingSave ?: return
         pendingSave = null
-        if (uri == null) return@registerForActivityResult onResult("Ekspor dibatalkan")
+        if (uri == null) return onResult("Ekspor dibatalkan")
         runCatching { contentResolver.openOutputStream(uri)?.use { it.write(content.encodeToByteArray()) } ?: error("File tidak dapat ditulis") }
-            .onSuccess { onResult("GPX tersimpan: ${displayName(uri)}") }
-            .onFailure { onResult(it.message ?: "Gagal menyimpan GPX") }
+            .onSuccess { onResult("Tersimpan: ${displayName(uri)}") }
+            .onFailure { onResult(it.message ?: "Gagal menyimpan file") }
     }
+
+    // Tipe MIME CreateDocument ditetapkan saat registrasi, jadi satu launcher per jenis file.
+    private val gpxSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml"), ::writeSaved)
+    private val csvSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv"), ::writeSaved)
 
     private val documentOpener = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val (onOpened, onError) = pendingOpen ?: return@registerForActivityResult
@@ -129,7 +133,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun saveDocument(fileName: String, mimeType: String, content: String, onResult: (String) -> Unit) {
         pendingSave = content to onResult
-        documentSaver.launch(fileName)
+        (if (mimeType == "text/csv") csvSaver else gpxSaver).launch(fileName)
     }
 
     override fun openDocument(mimeTypes: List<String>, onOpened: (String) -> Unit, onError: (String) -> Unit) {

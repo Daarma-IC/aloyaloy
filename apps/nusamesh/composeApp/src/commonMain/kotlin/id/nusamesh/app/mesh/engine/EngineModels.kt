@@ -1,6 +1,7 @@
 package id.nusamesh.app.mesh.engine
 
 import id.nusamesh.app.mesh.core.NebengRoute
+import id.nusamesh.app.mesh.protocol.LoraRxMeta
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
 
@@ -28,6 +29,10 @@ data class NodeInfo(
     val userSlots: Pair<Int, Int>? = null,
     val registered: Boolean = false,
     val locked: Boolean = false,
+    /** SF LoRa aktif node (firmware dengan uji QoS); null = firmware lama. */
+    val spreadingFactor: Int? = null,
+    /** Mode uji jarak aktif (tombol BOOT): hanya saat ini SF boleh diganti dari app. */
+    val testMode: Boolean = false,
 )
 
 data class IncomingMessage(
@@ -40,6 +45,10 @@ data class IncomingMessage(
     val verified: Boolean = false,
     /** Mengaku memakai kunci kita tapi tanda tangannya tidak valid: kemungkinan palsu. */
     val forged: Boolean = false,
+    /** Data ukur LoRa dari node (hanya bila paket datang lewat Nusa Node dengan firmware uji QoS). */
+    val loraRx: LoraRxMeta? = null,
+    /** RSSI BLE hop terakhir (HP/node yang mengantar paket ini ke kita). */
+    val bleRssi: Int? = null,
 )
 
 /** Konfirmasi terima (DELIVERY_ACK) untuk pesan [messageId] milik kita, dari [fromPeerId]. */
@@ -56,6 +65,8 @@ data class IncomingFile(
     val verified: Boolean = false,
     /** Terenkripsi dengan kunci yang tidak kita punya: isi tidak bisa ditampilkan. */
     val locked: Boolean = false,
+    val loraRx: LoraRxMeta? = null,
+    val bleRssi: Int? = null,
 )
 
 data class EngineSnapshot(

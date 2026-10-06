@@ -3,6 +3,7 @@ package id.nusamesh.app
 import id.nusamesh.app.data.KeyValueStore
 import id.nusamesh.app.data.GpxCodec
 import id.nusamesh.app.data.MapPersistence
+import id.nusamesh.app.data.QosRecords
 import id.nusamesh.app.data.MeshRepository
 import id.nusamesh.app.data.MobilityLogEntry
 import id.nusamesh.app.data.currentEpochMillis
@@ -22,6 +23,10 @@ import id.nusamesh.app.domain.MeshStatus
 import id.nusamesh.app.domain.RouteKind
 import id.nusamesh.app.domain.SharedRoute
 import id.nusamesh.app.domain.TrackedUser
+import id.nusamesh.app.domain.QosRun
+import id.nusamesh.app.domain.QosSample
+import id.nusamesh.app.domain.QosSending
+import id.nusamesh.app.domain.RxMeasurement
 import id.nusamesh.app.domain.UnitStatus
 import id.nusamesh.app.location.DeviceLocation
 import id.nusamesh.app.mesh.engine.EngineSnapshot
@@ -34,6 +39,8 @@ import id.nusamesh.app.mesh.protocol.GeoPoint
 import id.nusamesh.app.mesh.protocol.ImportantMessage
 import id.nusamesh.app.mesh.protocol.MeshMessageType
 import id.nusamesh.app.mesh.protocol.QuickStatus
+import id.nusamesh.app.mesh.protocol.QosProbe
+import id.nusamesh.app.mesh.protocol.LoraRxMeta
 import id.nusamesh.app.mesh.protocol.RoutePolyline
 import id.nusamesh.app.mesh.protocol.RouteTelemetry
 import id.nusamesh.app.mesh.protocol.TrackSegmentTelemetry
@@ -82,10 +89,12 @@ class AppController(
     val resumeMeshOnLaunch: Boolean get() = store.get(KEY_ACTIVE) == "1"
 
     private var saveMapJob: Job? = null
+    private var saveQosJob: Job? = null
 
     init {
         restoreOperationKey()
         restoreMapData()
+        _state.update { it.copy(qosRuns = QosRecords.decode(store.get(KEY_QOS))) }
         _state.update { it.copy(chats = withChannelPreviews(it.chats, it.role, it.team)) }
         scope.launch { repository.snapshot.collect(::onSnapshot) }
         // Jalur & titik disimpan permanen; ditunda sedikit supaya update GPS beruntun cukup satu tulis.
@@ -97,6 +106,19 @@ class AppController(
                 if (encoded != savedEmergencies) {
                     savedEmergencies = encoded
                     store.put(KEY_EMERGENCIES, encoded)
+                }
+            }
+        }
+        // Hasil uji QoS (data TA) disimpan permanen, ditunda sedikit supaya tiap paket tak memicu tulis.
+        scope.launch {
+            var savedRuns = _state.value.qosRuns
+            _state.collect { current ->
+                if (current.qosRuns == savedRuns) return@collect
+                savedRuns = current.qosRuns
+                saveQosJob?.cancel()
+                saveQosJob = scope.launch {
+                    delay(MAP_SAVE_DELAY_MS)
+                    store.put(KEY_QOS, QosRecords.encode(savedRuns))
                 }
             }
         }
@@ -222,6 +244,7 @@ class AppController(
             return
         }
         if (receiveRouteTelemetry(incoming)) return
+        QosProbe.decode(m.content)?.let { probe -> return receiveQos(incoming, probe) }
         if (_state.value.messages.any { it.id == m.id }) return
         // Chat channel tim/operasional yang bukan untuk peran kita disembunyikan (tetap diteruskan mesh).
         val conversationId = FieldChannels.conversationFor(m.channel, _state.value.role, _state.value.team, GLOBAL_CHAT_ID) ?: return
@@ -235,6 +258,7 @@ class AppController(
             delivery = DeliveryState.Received,
             path = if (incoming.viaNode) DeliveryPath.Node else DeliveryPath.Ble,
             verified = incoming.verified,
+            rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, m.timestampMs),
         )
         appendIncoming(message, QuickStatus.display(m.content))
         if (ImportantMessage.wantsAck(m.content)) acknowledge(m.id, incoming.fromPeerId)
@@ -266,6 +290,7 @@ class AppController(
             delivery = DeliveryState.Received,
             attachmentName = fileName,
             verified = incoming.verified,
+            rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, incoming.timestampMs),
             attachmentBytes = file.content.size,
             attachmentMimeType = file.mimeType,
             attachmentData = file.content,
@@ -1077,6 +1102,97 @@ class AppController(
     }
 
     // ------------------------------------------------------------------------------------------
+    //  Uji QoS (TA): RSSI vs jarak, Packet Success Probability vs jarak per SF
+    // ------------------------------------------------------------------------------------------
+    /**
+     * Data ukur penerimaan. Posisi pengirim: dari paket uji (bila ada) atau lokasi rutin terakhirnya.
+     * Latensi memakai jam dua HP yang berbeda — sinkronkan jam (jaringan/GPS) sebelum uji.
+     */
+    private fun measure(
+        fromPeerId: String,
+        viaNode: Boolean,
+        lora: LoraRxMeta?,
+        bleRssi: Int?,
+        sentAtMs: Long,
+        senderPoint: GeoPoint? = null,
+    ): RxMeasurement {
+        val now = currentEpochMillis()
+        val units = _state.value.trackedUsers
+        val own = units.firstOrNull { it.own }
+        val sender = units.firstOrNull { it.peerId == fromPeerId && !it.own }
+        val from = senderPoint ?: sender?.let { GeoPoint(it.latitude, it.longitude) }
+        return RxMeasurement(
+            receivedAtMs = now,
+            path = if (viaNode) DeliveryPath.Node else DeliveryPath.Ble,
+            loraRssiDbm = lora?.rssiDbm,
+            loraSnrDb = lora?.snrDb,
+            spreadingFactor = lora?.spreadingFactor,
+            bandwidthKHz = lora?.bandwidthKHz,
+            hopLeft = lora?.hopLeft,
+            metaMatched = lora?.matched,
+            bleRssiDbm = bleRssi,
+            distanceMeters = if (own != null && from != null) RoutePolyline.distanceMeters(GeoPoint(own.latitude, own.longitude), from) else null,
+            senderPositionAgeMs = if (senderPoint != null) 0L else sender?.let { now - it.updatedAtMs },
+            latencyMs = (now - sentAtMs).takeIf { it in -60_000L..3_600_000L },
+        )
+    }
+
+    private var qosJob: Job? = null
+
+    /** Kirim [total] paket uji bernomor tiap [intervalSeconds]; penerima menghitung PSP & RSSI. */
+    fun startQosTest(total: Int, intervalSeconds: Int, label: String) {
+        if (qosJob != null || !canSendTelemetry()) return
+        val runId = newTelemetryId()
+        val count = total.coerceIn(1, QosProbe.MAX_TOTAL)
+        val intervalMs = intervalSeconds.coerceIn(2, 600) * 1000L
+        val name = label.trim().ifBlank { "Uji ${formatClock(currentEpochMillis())}" }
+        _state.update { it.copy(qosSending = QosSending(runId, name, 0, count, intervalMs)) }
+        qosJob = scope.launch {
+            for (seq in 1..count) {
+                val own = _state.value.trackedUsers.firstOrNull { it.own }
+                val sf = _state.value.mesh.engine.servingNode?.spreadingFactor
+                repository.sendTelemetry(QosProbe(runId, seq, count, sf, own?.let { GeoPoint(it.latitude, it.longitude) }, name).encode())
+                _state.update { it.copy(qosSending = it.qosSending?.copy(sent = seq)) }
+                if (seq < count) delay(intervalMs)
+            }
+            qosJob = null
+            _state.update { it.copy(qosSending = null) }
+            showNotice("Uji QoS \"$name\" selesai: $count paket dikirim")
+        }
+    }
+
+    fun stopQosTest() {
+        qosJob?.cancel()
+        qosJob = null
+        _state.update { it.copy(qosSending = null) }
+    }
+
+    fun clearQosRuns() = _state.update { it.copy(qosRuns = emptyList()) }
+
+    fun qosPacketsCsv() = QosRecords.packetsCsv(_state.value.qosRuns)
+    fun qosSummaryCsv() = QosRecords.summaryCsv(_state.value.qosRuns)
+
+    /** Ganti SF Nusa Node yang melayani HP ini (hanya diterima node saat mode uji jarak aktif). */
+    fun setNodeSpreadingFactor(sf: Int) {
+        val node = _state.value.mesh.engine.servingNode ?: return showNotice("Belum tersambung ke Nusa Node")
+        if (!node.testMode) return showNotice("Tekan tombol BOOT di node untuk menyalakan mode uji, lalu coba lagi")
+        repository.sendRadioConfig(node.peerId, sf)
+        showNotice("Permintaan SF$sf dikirim ke ${node.name}. Ganti juga di node lain — beda SF tidak saling dengar.")
+    }
+
+    private fun receiveQos(incoming: IncomingMessage, probe: QosProbe) {
+        val sender = incoming.message.sender.ifBlank { repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId) }
+        val rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, incoming.message.timestampMs, probe.senderPoint)
+        _state.update { current ->
+            val existing = current.qosRuns.firstOrNull { it.runId == probe.runId && it.senderPeerId == incoming.fromPeerId }
+            if (existing?.samples?.any { it.seq == probe.seq } == true) return@update current // duplikat lewat jalur lain
+            val run = (existing ?: QosRun(probe.runId, incoming.fromPeerId, sender, probe.label, probe.total, probe.senderSf, startedAtMs = rx.receivedAtMs))
+                .let { it.copy(samples = it.samples + QosSample(probe.seq, rx)) }
+            current.copy(qosRuns = (current.qosRuns.filterNot { it === existing } + run).takeLast(MAX_QOS_RUNS))
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     //  Kunci operasi (keamanan)
     // ------------------------------------------------------------------------------------------
     private val hasKey get() = repository.operationKey != null
@@ -1147,6 +1263,8 @@ class AppController(
         private const val KEY_SOS_ACTIVE = "sos_active"
         private const val KEY_ROLE = "field_role"
         private const val KEY_OP_CODE = "operation_key"
+        private const val KEY_QOS = "qos_runs"
+        private const val MAX_QOS_RUNS = 100
         private const val FORGED_NOTICE_INTERVAL_MS = 60_000L
         private const val KEY_TEAM = "field_team"
         private const val KEY_ROUTES = "map_routes"

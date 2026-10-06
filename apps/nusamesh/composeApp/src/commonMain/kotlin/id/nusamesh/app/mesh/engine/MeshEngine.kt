@@ -17,6 +17,7 @@ import id.nusamesh.app.mesh.mobility.HandoverEvent
 import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.mobility.RssiSample
 import id.nusamesh.app.mesh.protocol.FilePacket
+import id.nusamesh.app.mesh.protocol.LoraRxMeta
 import id.nusamesh.app.mesh.protocol.MeshMessage
 import id.nusamesh.app.mesh.protocol.MessageType
 import id.nusamesh.app.mesh.protocol.SpecialRecipients
@@ -64,6 +65,8 @@ class MeshEngine(
         const val REGISTER_RETRY_MS = 5_000L
         const val PREV_NODE_MEMORY_MS = 600_000L
         const val FRAGMENT_GAP_MS = 60L
+        /** RX_META lebih tua dari ini dianggap basi (paketnya hilang/ditolak). */
+        const val RX_META_MAX_AGE_MS = 5_000L
         /** Batas isi media yang boleh difragmentasi dan dikirim lewat LoRa. */
         const val LORA_FILE_MAX_BYTES = 96 * 1024
 
@@ -95,7 +98,11 @@ class MeshEngine(
     private class NodeHealth(
         var neighbors: Int? = null, var bestRssi: Int? = null, var bestSnr: Float? = null,
         var slots: Pair<Int, Int>? = null,
+        var sf: Int? = null, var testMode: Boolean = false,
     )
+
+    /** RX_META terakhir dari tiap node (per deviceId), menunggu paket yang dijelaskannya. */
+    private val pendingRxMeta = HashMap<String, Pair<LoraRxMeta, Long>>()
 
     private val myIdBytes = peerIdBytes(myPeerId)
     private val devices = HashMap<String, Device>()
@@ -215,6 +222,19 @@ class MeshEngine(
         )
     }
 
+    /**
+     * Uji QoS: minta node [nodePeerId] (tersambung langsung) ganti SF. Firmware hanya menerima saat mode uji
+     * jarak aktif (tombol BOOT). Node dengan SF berbeda tidak saling mendengar — ganti di semua node.
+     */
+    fun sendRadioConfig(nodePeerId: String, spreadingFactor: Int) = scope.launch {
+        val d = devices.values.firstOrNull { it.connected && it.isNode && it.peerId == nodePeerId } ?: return@launch
+        val packet = WirePacket(
+            type = MessageType.NODE_RADIO_CFG.value, senderId = myIdBytes, recipientId = peerIdBytes(nodePeerId),
+            timestamp = now(), payload = byteArrayOf(spreadingFactor.toByte()), ttl = 1,
+        )
+        sendToDevice(d, packet)
+    }
+
     /** Konfirmasi terima ke pengirim asli pesan penting: paket kecil, prioritas tertinggi di antrean node. */
     fun sendAck(toPeerId: String, messageId: String) =
         sendTo(toPeerId, MessageType.DELIVERY_ACK.value, messageId.encodeToByteArray())
@@ -332,7 +352,7 @@ class MeshEngine(
                 return
             }
             if (pid != null && servingNode == null && lockedNode == null) servingNode = pid
-            d.queue = NodeQueue(myIdBytes, now).also { it.start(scope) }
+            d.queue = NodeQueue(myIdBytes, now) { d.peerId?.let { nodeHealth[it]?.sf } ?: NodeQueue.DEFAULT_SF }.also { it.start(scope) }
             if (pid != null && pid == pendingHandoverTo) {
                 mobilityLog.log("BLE_CONNECTED", null, pid, null, null, now() - pendingHandoverAt, "since_attempt")
             }
@@ -367,13 +387,29 @@ class MeshEngine(
     private suspend fun onReceived(deviceId: String, data: ByteArray) {
         val packet = WireProtocol.decode(data) ?: return
         val d = device(deviceId)
+        // Data ukur dari node: simpan, lalu pasangkan ke paket berikutnya dari node yang sama.
+        if (packet.type == MessageType.NODE_RX_META.value) {
+            if (d.isNode) LoraRxMeta.decode(packet.payload)?.let { pendingRxMeta[d.id] = it to now() }
+            return
+        }
+        val rx = if (d.isNode) takeRxMeta(d.id, data) else null
         learnDirectPeer(d, packet)
         when (guard.check(packet)) {
             GuardVerdict.Accept -> {}
             else -> return
         }
         receivedCount++
-        processPacket(packet, d)
+        processPacket(packet, d, rx)
+    }
+
+    /**
+     * Firmware mengirim RX_META tepat sebelum paketnya dan BLE menjaga urutan per koneksi, jadi meta
+     * terakhir dari node ini milik paket ini. msgId dicocokkan sebagai bukti ([LoraRxMeta.matched]).
+     */
+    private fun takeRxMeta(deviceId: String, raw: ByteArray): LoraRxMeta? {
+        val (meta, at) = pendingRxMeta.remove(deviceId) ?: return null
+        if (now() - at > RX_META_MAX_AGE_MS) return null
+        return meta.copy(matched = meta.msgId == LoraRxMeta.msgIdOf(raw))
     }
 
     /** Paket yang PASTI dikirim tetangga langsung (bukan relay) memberi tahu siapa di ujung koneksi ini. */
@@ -399,7 +435,7 @@ class MeshEngine(
 
     private fun peer(id: String) = peers.getOrPut(id) { PeerState(id) }
 
-    private suspend fun processPacket(p: WirePacket, from: Device) {
+    private suspend fun processPacket(p: WirePacket, from: Device, rx: LoraRxMeta? = null) {
         val forMe = p.recipientHex == myPeerId
         val broadcast = SpecialRecipients.isBroadcast(p.recipientId)
         val sender = p.senderHex
@@ -414,13 +450,13 @@ class MeshEngine(
             MessageType.LEAVE -> { peers.remove(sender); topology.removePeer(sender) }
             MessageType.MESSAGE -> if (forMe || broadcast) {
                 MeshMessage.decode(p.payload)?.let { m ->
-                    _messages.tryEmit(IncomingMessage(m, sender, from.isNode, forMe))
+                    _messages.tryEmit(IncomingMessage(m, sender, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
                 }
             }
             MessageType.FRAGMENT_START, MessageType.FRAGMENT_CONTINUE, MessageType.FRAGMENT_END ->
                 if (forMe || broadcast) fragmenter.accept(p)?.let { inner ->
                     // Paket utuh hasil rakitan diproses seperti datang langsung (tanpa relay ulang: fragmennya sudah di-relay).
-                    if (guard.check(inner) == GuardVerdict.Accept) processInner(inner, from)
+                    if (guard.check(inner) == GuardVerdict.Accept) processInner(inner, from, rx)
                 }
             MessageType.TOPOLOGY_GOSSIP -> {
                 val neighbors = TopologyGossipCodec.decode(p.payload).filter { it.peerId != sender }
@@ -430,7 +466,7 @@ class MeshEngine(
             }
             MessageType.NODE_LORA_HEALTH -> onNodeHealth(sender, p.payload)
             MessageType.NODE_REGISTER_ACK -> if (forMe) onRegisterAck(sender, p.payload)
-            MessageType.FILE_TRANSFER -> if (forMe || broadcast) emitFile(p, from, forMe)
+            MessageType.FILE_TRANSFER -> if (forMe || broadcast) emitFile(p, from, forMe, rx)
             MessageType.DELIVERY_ACK -> if (forMe) _acks.tryEmit(IncomingAck(p.payload.decodeToString(), sender))
             else -> if (forMe) _packets.tryEmit(p to sender)
         }
@@ -444,20 +480,23 @@ class MeshEngine(
         relayPacket(p, from)
     }
 
-    private suspend fun processInner(inner: WirePacket, from: Device) {
+    /** [rx] = data ukur fragmen yang melengkapi paket (fragmen terakhir yang tiba). */
+    private suspend fun processInner(inner: WirePacket, from: Device, rx: LoraRxMeta? = null) {
         val forMe = inner.recipientHex == myPeerId
         when (inner.messageType) {
             MessageType.MESSAGE -> MeshMessage.decode(inner.payload)?.let { m ->
-                _messages.tryEmit(IncomingMessage(m, inner.senderHex, from.isNode, forMe))
+                _messages.tryEmit(IncomingMessage(m, inner.senderHex, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
             }
-            MessageType.FILE_TRANSFER -> if (forMe || SpecialRecipients.isBroadcast(inner.recipientId)) emitFile(inner, from, forMe)
+            MessageType.FILE_TRANSFER -> if (forMe || SpecialRecipients.isBroadcast(inner.recipientId)) emitFile(inner, from, forMe, rx)
             else -> if (forMe) _packets.tryEmit(inner to inner.senderHex)
         }
         if (forMe && inner.messageType == MessageType.MESSAGE) _packets.tryEmit(inner to inner.senderHex)
     }
 
-    private fun emitFile(p: WirePacket, from: Device, forMe: Boolean) {
-        FilePacket.decode(p.payload)?.let { _files.tryEmit(IncomingFile(it, p.senderHex, p.timestamp, from.isNode, forMe)) }
+    private fun emitFile(p: WirePacket, from: Device, forMe: Boolean, rx: LoraRxMeta? = null) {
+        FilePacket.decode(p.payload)?.let {
+            _files.tryEmit(IncomingFile(it, p.senderHex, p.timestamp, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
+        }
     }
 
     private suspend fun relayPacket(p: WirePacket, from: Device) {
@@ -493,6 +532,9 @@ class MeshEngine(
             h.bestSnr = payload[2].toInt().takeIf { it != -128 }?.div(2f)
         }
         if (payload.size >= 5) h.slots = (payload[3].toInt() and 0xFF) to (payload[4].toInt() and 0xFF)
+        // Firmware uji QoS: [5] = SF aktif, [6] = mode uji jarak.
+        if (payload.size >= 6) h.sf = (payload[5].toInt() and 0xFF).takeIf { it in 7..12 }
+        if (payload.size >= 7) h.testMode = payload[6].toInt() != 0
         // Registrasi berkala / ulang bila ACK belum datang.
         registerWithNode(nodeId, force = false)
     }
@@ -726,6 +768,7 @@ class MeshEngine(
                     connected = d.connected, serving = pid == servingNode, rssi = d.scanRssi,
                     loraNeighbors = h?.neighbors, loraBestRssi = h?.bestRssi, loraBestSnr = h?.bestSnr,
                     userSlots = h?.slots, registered = registerAcked == pid, locked = lockedNode == pid,
+                    spreadingFactor = h?.sf, testMode = h?.testMode == true,
                 )
             }.sortedByDescending { it.rssi ?: -999 },
             nebeng = nebeng,

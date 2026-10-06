@@ -93,6 +93,8 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
 
     fun sendAck(toPeerId: String, messageId: String) { engine.sendAck(toPeerId, messageId) }
 
+    fun sendRadioConfig(nodePeerId: String, spreadingFactor: Int) { engine.sendRadioConfig(nodePeerId, spreadingFactor) }
+
     var nickname: String = store.get(KEY_NICKNAME) ?: "Meshta-${myPeerId.takeLast(4).uppercase()}"
         set(value) {
             field = value.trim().take(24).ifBlank { field }

@@ -1,5 +1,13 @@
 package id.nusamesh.app.ui
 
+import kotlin.math.roundToInt
+import kotlin.math.abs
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -77,6 +85,7 @@ fun ChatScreen(
     onSendAttachment: (ChatAttachment) -> Unit,
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
+    qos: QosActions = QosActions(),
 ) {
     if (state.activeConversationId == null) {
         ChatListScreen(state, padding, onCreateGlobal, onOpenChat)
@@ -90,6 +99,7 @@ fun ChatScreen(
             onSendAttachment = onSendAttachment,
             onNotice = onNotice,
             onDismissNebeng = onDismissNebeng,
+            qos = qos,
         )
     }
 }
@@ -224,7 +234,10 @@ private fun GlobalConversationScreen(
     onSendAttachment: (ChatAttachment) -> Unit,
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
+    qos: QosActions,
 ) {
+    var qosOpen by remember { mutableStateOf(false) }
+    if (qosOpen) QosDialog(state, qos) { qosOpen = false }
     var message by remember { mutableStateOf("") }
     var important by remember { mutableStateOf(false) }
     var attachmentOpen by remember { mutableStateOf(false) }
@@ -288,6 +301,7 @@ private fun GlobalConversationScreen(
                     onError = onNotice,
                 )
             },
+            onQos = { attachmentOpen = false; qosOpen = true },
             onFile = {
                 mediaActions.pickFile(
                     onPicked = { attachmentOpen = false; onSendAttachment(it) },
@@ -398,7 +412,25 @@ private fun GlobalWelcomeCard() {
 
 @Composable
 private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start) {
+    // Geser gelembung ke samping untuk membuka/menutup data ukur penerimaan (uji QoS).
+    var dragX by remember { mutableFloatStateOf(0f) }
+    var showRx by remember(message.id) { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val threshold = with(density) { 56.dp.toPx() }
+    Row(
+        Modifier.fillMaxWidth()
+            .offset { IntOffset(dragX.roundToInt(), 0) }
+            .pointerInput(message.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = { if (abs(dragX) >= threshold) showRx = !showRx; dragX = 0f },
+                    onDragCancel = { dragX = 0f },
+                ) { change, amount ->
+                    change.consume()
+                    dragX = (dragX + amount).coerceIn(-threshold * 1.6f, threshold * 1.6f)
+                }
+            },
+        horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start,
+    ) {
         Column(horizontalAlignment = if (message.outgoing) Alignment.End else Alignment.Start) {
             if (!message.outgoing) Text(
                 // ✓ Tim = ditandatangani kunci operasi: pengirim pasti anggota tim, bukan peniru.
@@ -467,9 +499,56 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                     if (message.outgoing) DeliveryStatus(message)
                 }
             }
+            if (showRx) RxPanel(message)
         }
     }
 }
+
+/** Data ukur satu pesan: dibuka dengan menggeser gelembung (bahan uji QoS TA). */
+@Composable
+private fun RxPanel(message: ChatMessage) {
+    val rx = message.rx
+    val lines = buildList {
+        if (message.outgoing) {
+            add("Pesan Anda — data ukur (RSSI/SNR/jarak) tercatat di HP penerima.")
+            add("Jalur: ${pathLabel(message.path)}" + (message.viaName?.takeIf { it != AppController.SYSTEM }?.let { " · via $it" } ?: ""))
+            if (message.ackedBy.isNotEmpty()) add(ackLabel(message.ackedBy))
+        } else if (rx == null) {
+            add("Tidak ada data ukur untuk pesan ini.")
+        } else {
+            add("Jalur: ${pathLabel(rx.path)}")
+            if (rx.loraRssiDbm != null) {
+                add("RSSI LoRa: ${fmt1(rx.loraRssiDbm.toDouble())} dBm · SNR ${fmt1((rx.loraSnrDb ?: 0f).toDouble())} dB")
+                add(listOfNotNull(rx.spreadingFactor?.let { "SF$it" }, rx.bandwidthKHz?.let { "BW ${it.roundToInt()} kHz" }, rx.hopLeft?.let { "sisa hop $it" }).joinToString(" · "))
+                if (rx.metaMatched == false) add("⚠ Data LoRa dipasangkan berdasarkan urutan (msgId tidak cocok)")
+            } else if (rx.path != DeliveryPath.Ble) {
+                add("RSSI LoRa: tidak tersedia (firmware node lama / lewat perantara)")
+            }
+            rx.bleRssiDbm?.let { add("RSSI BLE hop terakhir: $it dBm") }
+            add(
+                rx.distanceMeters?.let { d ->
+                    "Jarak ke pengirim: ${AppController.formatDistance(d)}" +
+                        (rx.senderPositionAgeMs?.takeIf { it > 0 }?.let { " (posisi ${it / 1000} dtk lalu)" } ?: "")
+                } ?: "Jarak: posisi pengirim/penerima belum diketahui",
+            )
+            rx.latencyMs?.let { add("Latensi: ${fmt1(it / 1000.0)} dtk (jam kedua HP harus sinkron)") }
+        }
+    }
+    Column(
+        Modifier.padding(top = 6.dp).widthIn(max = 280.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        lines.forEach { Text(it, color = Ink, fontSize = 9.sp, lineHeight = 13.sp) }
+    }
+}
+
+private fun pathLabel(path: DeliveryPath) = when (path) {
+    DeliveryPath.Ble -> "Bluetooth langsung"
+    DeliveryPath.Node -> "LoRa lewat Nusa Node"
+    DeliveryPath.Nebeng -> "Nebeng HP perantara"
+}
+
+private fun fmt1(value: Double) = ((value * 10).roundToInt() / 10.0).toString()
 
 /** "Diterima Budi, Sari +2" — siapa saja yang mengonfirmasi menerima pesan penting. */
 internal fun ackLabel(names: List<String>): String =
@@ -594,6 +673,7 @@ private fun Composer(
     recording: Boolean,
     onImage: () -> Unit,
     onFile: () -> Unit,
+    onQos: () -> Unit,
     onVoice: () -> Unit,
     onSend: () -> Unit,
     important: Boolean = false,
@@ -616,6 +696,7 @@ private fun Composer(
             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AttachmentAction(IconKind.Image, "Gambar", onImage)
                 AttachmentAction(IconKind.File, "File", onFile)
+                AttachmentAction(IconKind.Signal, "Uji QoS", onQos)
             }
         }
         if (recording) {

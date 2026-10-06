@@ -89,7 +89,21 @@ static bool mobSendFlood(const uint8_t* pkt, size_t len, uint8_t hop, uint64_t m
   return NusaRadio::enqueuePacketWithId(pkt, len, hop, PRIO_RELAY, msgId) > 0;
 }
 
+// Data ukur uji QoS (RSSI/SNR/SF) untuk paket LoRa yang akan diantar ke HP,
+// dikirim TEPAT SEBELUM paketnya supaya app bisa memasangkannya (msgId, atau
+// paket berikutnya dari node ini). Telemetri gossip/health tidak diberi meta.
+static void sendRxMeta(const uint8_t* pkt, size_t len, uint64_t msgId, uint8_t hop) {
+  if (len >= 2 && (pkt[1] == 0x30 || pkt[1] == 0x31)) return;
+  uint8_t meta[48];
+  size_t metaLen = nusaBuildRxMeta(meta, sizeof(meta), msgId, NusaRadio::lastRssi(),
+                                   NusaRadio::lastSnr(), NusaRadio::spreadingFactor(), hop);
+  if (metaLen) UserLink::broadcast(meta, metaLen);
+}
+
 static void mobDeliverLocal(const uint8_t* pkt, size_t len) {
+  // Paket terarah: hop tersisa tak diketahui di sini (0xFF). Bila paket sempat
+  // ditahan (handover), RSSI adalah frame LoRa terakhir yang diterima node.
+  sendRxMeta(pkt, len, nusaMsgId(pkt, len), 0xFF);
   UserLink::broadcast(pkt, len);
   s_toUsers++;
 }
@@ -223,6 +237,22 @@ static void onPacketFromUser(const uint8_t* pkt, size_t len, uint8_t clientId) {
   // msgId, broadcast lokal, dan fragmentasi ke LoRa semua ikut memakai
   // panjang yang sudah dipangkas. Lihat nusaStripPadding() di nusa_appproto.h.
   len = nusaStripPadding(pkt, len);
+
+  // Uji QoS: ganti SF dari app. HANYA diterima saat mode uji jarak aktif (tombol
+  // BOOT di node ditekan) — tanpa itu siapa pun yang tersambung BLE bisa
+  // memutus backbone (node beda SF tak saling dengar). Tidak disebar/di-LoRa-kan.
+  if (len >= 25 && pkt[1] == APP_TYPE_RADIO_CFG) {
+    size_t off = ((pkt[0] >= 2) ? 16 : 14) + 8 + ((pkt[11] & 0x01) ? 8 : 0);
+    uint8_t sf = (len > off) ? pkt[off] : 0;
+    if (!s_rangeTest) {
+      Serial.printf("[NODE] permintaan ganti SF%u DITOLAK: mode uji jarak mati (tekan BOOT)\n", sf);
+    } else if (NusaRadio::requestSpreadingFactor(sf)) {
+      Serial.printf("[NODE] SF akan diganti ke SF%u (permintaan HP #%u)\n", sf, clientId);
+    } else {
+      Serial.printf("[NODE] permintaan SF%u tidak sah (harus 7..12)\n", sf);
+    }
+    return;
+  }
 
   // Mobility: NODE_REGISTER hanya urusan node ini — jangan disebar/di-LoRa-kan.
   if (len >= 25 && pkt[1] == APP_TYPE_NODE_REGISTER) {
@@ -385,6 +415,8 @@ static void onPacketComplete(uint64_t msgId, uint8_t hop,
                   nusaTypeName(h.type), (unsigned)len, hop);
   }
 
+  sendRxMeta(pkt, len, msgId, hop);
+
   // Antarkan ke semua user lokal.
   UserLink::broadcast(pkt, len);
   s_toUsers++;
@@ -546,7 +578,7 @@ void setup() {
 
   char l1[24], l2[24];
   snprintf(l1, sizeof(l1), "%s (%s)", NODE_NAME, USER_LINK_BLE ? "BLE" : "WiFi");
-  snprintf(l2, sizeof(l2), "SF%d  %.1f MHz", LORA_SF, LORA_FREQ);
+  snprintf(l2, sizeof(l2), "SF%d  %.1f MHz", NusaRadio::spreadingFactor(), LORA_FREQ);
   NusaUI::showBoot(l1, l2);
 
   Serial.printf("[NODE] siap. Hop LoRa maks %d, batas airtime %s\n",
@@ -672,7 +704,8 @@ void loop() {
     size_t healthLen = nusaBuildLoraHealth(healthBuf, sizeof(healthBuf),
                                            (uint8_t)neighborCount(),
                                            hasBest, bestRssi, bestSnr,
-                                           UserLink::clientCount(), USER_MAX_CLIENTS);
+                                           UserLink::clientCount(), USER_MAX_CLIENTS,
+                                           NusaRadio::spreadingFactor(), s_rangeTest);
     if (healthLen) UserLink::broadcast(healthBuf, healthLen);
   }
 }

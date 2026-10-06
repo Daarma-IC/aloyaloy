@@ -224,7 +224,7 @@ class NodeQueueTest {
 
     @Test
     fun shortTextsBurstThenPaceAtNodeRateLimit() = kotlinx.coroutines.test.runTest {
-        val q = NodeQueue(me) { testScheduler.currentTime }
+        val q = NodeQueue(me, now = { testScheduler.currentTime })
         val sentAt = mutableListOf<Long>()
         q.start(backgroundScope)
         repeat(3) { i -> q.offer(pkt(0x04, 0x11, i)) { sentAt += testScheduler.currentTime; true } }

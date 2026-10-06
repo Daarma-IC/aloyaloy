@@ -28,6 +28,8 @@
 
 #define APP_TYPE_ANNOUNCE     0x01
 #define APP_TYPE_LORA_HEALTH  0x18   // lapor jumlah tetangga LoRa ke HP (lokal BLE saja)
+#define APP_TYPE_RX_META      0x19   // node → HP: RSSI/SNR/SF paket LoRa yang baru diantar (lokal BLE)
+#define APP_TYPE_RADIO_CFG    0x1A   // HP → node: ganti SF (hanya saat mode uji jarak aktif)
 
 // Nama tipe paket NusaMesh untuk log serial (isi payload tetap terenkripsi).
 static inline const char* nusaTypeName(uint8_t t) {
@@ -44,6 +46,8 @@ static inline const char* nusaTypeName(uint8_t t) {
     case 0x12: return "NOISE-ENC";
     case 0x13: return "NOISE-ID";
     case 0x18: return "LORA-HEALTH";
+    case 0x19: return "RX-META";
+    case 0x1A: return "RADIO-CFG";
     case 0x22: return "FILE";
     case 0x30: return "HEALTH";
     case 0x31: return "TOPOLOGY";
@@ -146,14 +150,17 @@ static inline size_t nusaBuildAnnounce(uint8_t* out, size_t cap) {
 //  0.5dB][userCount][userMax]. rssi/snr diisi -128 (sentinel) kalau
 //  hasBestNeighbor false. userCount/userMax = HP yang sedang connect langsung
 //  ke node ini / batas slotnya (mis. 1/3) — app menampilkannya di NusaNodeSheet.
+//  Byte 6–7 (tambahan uji QoS): [sf aktif][mode uji jarak 0/1]. App lama
+//  hanya membaca 5 byte pertama, jadi tetap kompatibel.
 //  @return panjang byte, atau 0 bila buffer terlalu kecil / jam belum sinkron.
 // ---------------------------------------------------------------------------
 static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neighborCount,
                                           bool hasBestNeighbor, float bestRssi, float bestSnr,
-                                          uint8_t userCount, uint8_t userMax) {
+                                          uint8_t userCount, uint8_t userMax,
+                                          uint8_t sf, bool testMode) {
   if (!g_clockSynced) return 0;
 
-  const size_t payloadLen = 5;
+  const size_t payloadLen = 7;
   const size_t total = 16 + 8 + payloadLen;   // header v2 + senderID + payload
   if (cap < total) return 0;
 
@@ -196,6 +203,53 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
   out[i++] = (uint8_t)snrByte;
   out[i++] = userCount;
   out[i++] = userMax;
+  out[i++] = sf;
+  out[i++] = testMode ? 1 : 0;
+
+  return i;
+}
+
+// ---------------------------------------------------------------------------
+//  Bangun paket RX-META: dikirim ke HP TEPAT SEBELUM paket app hasil LoRa yang
+//  dijelaskannya, supaya app bisa mencatat daya terima per pesan (uji QoS:
+//  RSSI vs jarak, PSP vs jarak per SF). Lokal BLE saja (TTL 1), tidak pernah
+//  ke LoRa. RSSI/SNR = frame LoRa TERAKHIR yang melengkapi paket itu.
+//  Payload 18 byte: [ver=1][msgId u64 BE][rssi int16 BE, x10 dBm]
+//  [snr int16 BE, x10 dB][sf][bw u16 BE, x10 kHz][hop tersisa][txPower dBm int8]
+// ---------------------------------------------------------------------------
+static inline size_t nusaBuildRxMeta(uint8_t* out, size_t cap, uint64_t msgId,
+                                     float rssi, float snr, uint8_t sf, uint8_t hop) {
+  if (!g_clockSynced) return 0;
+
+  const size_t payloadLen = 18;
+  const size_t total = 16 + 8 + payloadLen;
+  if (cap < total) return 0;
+
+  uint64_t ts = nusaNowEpochMs();
+  uint8_t peer[8];
+  nusaNodePeerId(peer);
+
+  size_t i = 0;
+  out[i++] = 0x02;
+  out[i++] = APP_TYPE_RX_META;
+  out[i++] = 0x01;                        // ttl 1: hanya HP yang tersambung ke node ini
+  for (int b = 7; b >= 0; b--) out[i++] = (uint8_t)(ts >> (8 * b));
+  out[i++] = 0x00;
+  out[i++] = 0; out[i++] = 0; out[i++] = 0; out[i++] = (uint8_t)payloadLen;
+  memcpy(out + i, peer, 8); i += 8;
+
+  long r = (long)(rssi * 10.0f + (rssi >= 0 ? 0.5f : -0.5f));
+  long s = (long)(snr * 10.0f + (snr >= 0 ? 0.5f : -0.5f));
+  uint16_t bw10 = (uint16_t)(LORA_BW * 10.0f + 0.5f);
+
+  out[i++] = 1;                           // versi payload
+  for (int b = 7; b >= 0; b--) out[i++] = (uint8_t)(msgId >> (8 * b));
+  out[i++] = (uint8_t)((uint16_t)(int16_t)r >> 8); out[i++] = (uint8_t)(int16_t)r;
+  out[i++] = (uint8_t)((uint16_t)(int16_t)s >> 8); out[i++] = (uint8_t)(int16_t)s;
+  out[i++] = sf;
+  out[i++] = (uint8_t)(bw10 >> 8); out[i++] = (uint8_t)bw10;
+  out[i++] = hop;
+  out[i++] = (uint8_t)(int8_t)LORA_POWER;
 
   return i;
 }
