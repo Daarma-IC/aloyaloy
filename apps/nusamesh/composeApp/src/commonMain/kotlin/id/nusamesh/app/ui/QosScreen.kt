@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import id.nusamesh.app.domain.AppUiState
+import id.nusamesh.app.media.ChatMediaActions
+import id.nusamesh.app.media.SrSpeed
+import androidx.compose.runtime.LaunchedEffect
 import id.nusamesh.app.mesh.core.NodeQueue
 
 /** Aksi uji QoS (diteruskan ke AppController / pemilih file). */
@@ -145,5 +148,52 @@ private fun QosField(placeholder: String, value: String, numeric: Boolean = fals
             keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+/**
+ * Uji kecepatan AI super-resolution di HP ini: tiap model dijalankan pada gambar 128×128 (median 3 kali).
+ * Hasilnya juga menentukan model yang dipakai tombol "Perjelas (AI)". Data waktu nyata per HP untuk TA.
+ */
+@Composable
+fun SrBenchmarkDialog(media: ChatMediaActions, onDismiss: () -> Unit) {
+    var results by remember { mutableStateOf<List<SrSpeed>?>(null) }
+    var chosen by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        media.benchmarkSuperResolution({ speeds, pick -> results = speeds; chosen = pick }, { error = it })
+    }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(20.dp)).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Uji kecepatan AI (HP ini)", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Perjelas gambar LoRa 128 → 512 px, 4 thread CPU, median 3 kali.", color = Slate, fontSize = 11.sp)
+            when {
+                error != null -> Text(error!!, color = Danger, fontSize = 12.sp)
+                results == null -> Text("Mengukur… (bisa beberapa detik di HP lambat)", color = Ink, fontSize = 12.sp)
+                else -> {
+                    results!!.forEach { r ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                r.model + if (r.model == chosen) "  ✓ dipakai" else "",
+                                color = Ink, fontSize = 13.sp,
+                                fontWeight = if (r.model == chosen) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(r.millis?.let { "$it ms" } ?: "gagal", color = if (r.millis == null) Danger else Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text("  ${r.sizeKb} KB", color = Slate, fontSize = 11.sp)
+                        }
+                        r.error?.let { Text(it, color = Danger, fontSize = 10.sp) }
+                    }
+                    Text(
+                        "Model terbaik yang ≤ 1,5 dtk dipilih otomatis untuk tombol \"Perjelas (AI)\".",
+                        color = Slate, fontSize = 10.sp,
+                    )
+                }
+            }
+            Button(onClick = onDismiss) { Text("Tutup") }
+        }
     }
 }

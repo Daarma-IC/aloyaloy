@@ -67,6 +67,7 @@ import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.domain.ChatPreview
 import id.nusamesh.app.AppController
 import id.nusamesh.app.domain.DeliveryPath
+import id.nusamesh.app.media.EnhancedImage
 import id.nusamesh.app.domain.DeliveryState
 import id.nusamesh.app.domain.FieldChannels
 import id.nusamesh.app.mesh.protocol.ImportantMessage
@@ -238,6 +239,8 @@ private fun GlobalConversationScreen(
 ) {
     var qosOpen by remember { mutableStateOf(false) }
     if (qosOpen) QosDialog(state, qos) { qosOpen = false }
+    var srOpen by remember { mutableStateOf(false) }
+    if (srOpen) SrBenchmarkDialog(mediaActions) { srOpen = false }
     var message by remember { mutableStateOf("") }
     var important by remember { mutableStateOf(false) }
     var attachmentOpen by remember { mutableStateOf(false) }
@@ -268,7 +271,7 @@ private fun GlobalConversationScreen(
             item { GlobalWelcomeCard() }
             items(messages, key = { it.id }) { message ->
                 if (message.viaName == AppController.SYSTEM) SystemCard(message.body)
-                else Bubble(message, playback.takeIf { it?.id == message.id }) {
+                else Bubble(message, playback.takeIf { it?.id == message.id }, onEnhance = mediaActions::enhanceImage) {
                     val audio = message.attachmentData
                     when {
                         playback?.id == message.id -> { mediaActions.stopVoicePlayback(); playback = null }
@@ -302,6 +305,7 @@ private fun GlobalConversationScreen(
                 )
             },
             onQos = { attachmentOpen = false; qosOpen = true },
+            onSrBenchmark = { attachmentOpen = false; srOpen = true },
             onFile = {
                 mediaActions.pickFile(
                     onPicked = { attachmentOpen = false; onSendAttachment(it) },
@@ -411,7 +415,12 @@ private fun GlobalWelcomeCard() {
 }
 
 @Composable
-private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: () -> Unit) {
+private fun Bubble(
+    message: ChatMessage,
+    playback: VoicePlayback?,
+    onEnhance: Enhancer? = null,
+    onPlayVoice: () -> Unit,
+) {
     // Geser gelembung ke samping untuk membuka/menutup data ukur penerimaan (uji QoS).
     var dragX by remember { mutableFloatStateOf(0f) }
     var showRx by remember(message.id) { mutableStateOf(false) }
@@ -473,7 +482,7 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                             fontWeight = if (status != null || important) FontWeight.Bold else null,
                         )
                     }
-                    ChatMessageKind.Image -> ImagePreview(message)
+                    ChatMessageKind.Image -> ImagePreview(message, onEnhance)
                     ChatMessageKind.Voice -> VoicePreview(message.durationSeconds, message.outgoing, playback, onPlayVoice)
                     ChatMessageKind.File -> AttachmentPreview(IconKind.File, message.attachmentName ?: "File", message.attachmentBytes, message.outgoing)
                 }
@@ -503,6 +512,9 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
         }
     }
 }
+
+/** Pemanggil AI super-resolution: (gambar, progres(selesai, total), hasil, error). */
+private typealias Enhancer = (ByteArray, (Int, Int) -> Unit, (EnhancedImage) -> Unit, (String) -> Unit) -> Unit
 
 /** Data ukur satu pesan: dibuka dengan menggeser gelembung (bahan uji QoS TA). */
 @Composable
@@ -577,7 +589,7 @@ private fun DeliveryStatus(message: ChatMessage) {
 }
 
 @Composable
-private fun ImagePreview(message: ChatMessage) {
+private fun ImagePreview(message: ChatMessage, onEnhance: Enhancer? = null) {
     val bitmap = remember(message.id) {
         message.attachmentData?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() }
     }
@@ -585,18 +597,31 @@ private fun ImagePreview(message: ChatMessage) {
         AttachmentPreview(IconKind.Image, "Gambar", message.attachmentBytes, message.outgoing)
         return
     }
+    // AI super-resolution: hanya untuk gambar kecil (profil LoRa 128 px), atas permintaan, gambar asli tetap ada.
+    var enhanced by remember(message.id) { mutableStateOf<EnhancedImage?>(null) }
+    var showAi by remember(message.id) { mutableStateOf(false) }
+    var busy by remember(message.id) { mutableStateOf(false) }
+    var progress by remember(message.id) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var aiError by remember(message.id) { mutableStateOf<String?>(null) }
+    val aiBitmap = remember(enhanced) { enhanced?.bytes?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() } }
+    // Hanya gambar kecil (profil LoRa): gambar BLE ±960 px sudah tajam, AI justru mengarang detail (terbukti di HP).
+    val canEnhance = onEnhance != null && message.attachmentData != null && maxOf(bitmap.width, bitmap.height) <= 256
+    val shown = if (showAi && aiBitmap != null) aiBitmap else bitmap
+    val subtle = if (message.outgoing) Color.White.copy(alpha = .8f) else Slate
     var fullscreen by remember { mutableStateOf(false) }
     if (fullscreen) {
-        ImageViewer(bitmap, "${message.senderName} · ${message.time} · ${formatBytes(message.attachmentBytes)}") { fullscreen = false }
+        val caption = if (shown === aiBitmap) "Diperjelas AI (${enhanced?.model}) · detail bisa hasil tebakan model"
+        else "${message.senderName} · ${message.time} · ${formatBytes(message.attachmentBytes)}"
+        ImageViewer(shown, caption) { fullscreen = false }
     }
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Image(
-            bitmap = bitmap,
+            bitmap = shown,
             contentDescription = "Gambar dari ${message.senderName}",
             contentScale = ContentScale.Fit,
             // Gambar profil LoRa hanya 128 px: tampil lebih besar dengan filter halus.
             filterQuality = FilterQuality.Medium,
-            modifier = Modifier.widthIn(min = 150.dp, max = 230.dp).aspectRatio(bitmap.width.toFloat() / bitmap.height.coerceAtLeast(1))
+            modifier = Modifier.widthIn(min = 150.dp, max = 230.dp).aspectRatio(shown.width.toFloat() / shown.height.coerceAtLeast(1))
                 .clip(RoundedCornerShape(12.dp)).pressableClick { fullscreen = true },
         )
         if (message.attachmentName?.startsWith("lora_") == true) {
@@ -605,6 +630,43 @@ private fun ImagePreview(message: ChatMessage) {
                 color = if (message.outgoing) Color.White.copy(alpha = .75f) else Slate,
                 fontSize = 7.sp,
             )
+        }
+        if (canEnhance) {
+            val label = when {
+                busy -> "Memperjelas dengan AI…" + (progress?.takeIf { it.second > 1 }?.let { " ${it.first}/${it.second}" } ?: "")
+                aiBitmap == null -> "✦ Perjelas (AI)"
+                showAi -> "Lihat gambar asli"
+                else -> "Lihat hasil AI"
+            }
+            Text(
+                label,
+                color = if (message.outgoing) Color.White else Brand,
+                fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .background(if (message.outgoing) Color.White.copy(alpha = .18f) else BrandTint, RoundedCornerShape(10.dp))
+                    .pressableClick {
+                        when {
+                            busy -> Unit
+                            aiBitmap != null -> showAi = !showAi
+                            else -> {
+                                busy = true
+                                aiError = null
+                                progress = null
+                                onEnhance!!.invoke(message.attachmentData!!, { done, total -> progress = done to total }, { result ->
+                                    enhanced = result; showAi = true; busy = false
+                                }, { error -> aiError = error; busy = false })
+                            }
+                        }
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+            if (showAi && enhanced != null) {
+                Text(
+                    "Diperjelas AI · ${enhanced!!.model} · ${enhanced!!.millis} ms · detail bisa hasil tebakan",
+                    color = subtle, fontSize = 7.sp,
+                )
+            }
+            aiError?.let { Text(it, color = if (message.outgoing) Color(0xFFFECACA) else Danger, fontSize = 7.sp) }
         }
     }
 }
@@ -674,6 +736,7 @@ private fun Composer(
     onImage: () -> Unit,
     onFile: () -> Unit,
     onQos: () -> Unit,
+    onSrBenchmark: () -> Unit,
     onVoice: () -> Unit,
     onSend: () -> Unit,
     important: Boolean = false,
@@ -697,6 +760,7 @@ private fun Composer(
                 AttachmentAction(IconKind.Image, "Gambar", onImage)
                 AttachmentAction(IconKind.File, "File", onFile)
                 AttachmentAction(IconKind.Signal, "Uji QoS", onQos)
+                AttachmentAction(IconKind.Image, "Uji AI", onSrBenchmark)
             }
         }
         if (recording) {

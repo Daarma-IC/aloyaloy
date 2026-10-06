@@ -1,0 +1,8 @@
+numpy
+pillow
+scikit-image
+opencv-contrib-python-headless
+ai-edge-litert
+# LPIPS (metrik persepsi) — opsional; tanpa ini kolom LPIPS dikosongkan
+torch
+lpips

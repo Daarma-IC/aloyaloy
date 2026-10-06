@@ -32,6 +32,9 @@ import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.media.ChatMediaActions
 import id.nusamesh.app.media.AndroidCodec2
 import id.nusamesh.app.media.DocumentActions
+import id.nusamesh.app.media.EnhancedImage
+import id.nusamesh.app.media.SrSpeed
+import id.nusamesh.app.media.SuperResolution
 import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.OfflineTileStore
 import id.nusamesh.app.media.LoraImageCodec
@@ -398,6 +401,46 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun stopVoicePlayback() = releasePlayer()
 
+    // ---- AI super-resolution: satu thread latar (interpreter TFLite tidak thread-safe) ----
+    private val superResolution by lazy { SuperResolution(applicationContext) }
+    private val srExecutor by lazy { java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "NusaMesh-sr").apply { priority = Thread.NORM_PRIORITY - 1 } } }
+
+    override fun enhanceImage(
+        bytes: ByteArray,
+        onProgress: (Int, Int) -> Unit,
+        onResult: (EnhancedImage) -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        srExecutor.execute {
+            runCatching {
+                val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: error("Gambar tidak dapat dibaca")
+                val (model, _) = superResolution.chosenModel()
+                val start = System.nanoTime()
+                val out = superResolution.enhance(source, model) { done, total -> runOnUiThread { onProgress(done, total) } }
+                val ms = (System.nanoTime() - start) / 1_000_000
+                // Hasil >512 px (input 129–256 px) disimpan JPEG supaya hemat memori; hasil LoRa 512 px tetap PNG.
+                val big = maxOf(out.width, out.height) > 512
+                val encoded = java.io.ByteArrayOutputStream().also {
+                    out.compress(if (big) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG, if (big) 92 else 100, it)
+                }.toByteArray()
+                out.recycle()
+                EnhancedImage(encoded, model.label, ms)
+            }.onSuccess { runOnUiThread { onResult(it) } }
+                .onFailure { runOnUiThread { onError(it.message ?: "AI gagal memperjelas gambar") } }
+        }
+    }
+
+    override fun benchmarkSuperResolution(onResult: (List<SrSpeed>, String) -> Unit, onError: (String) -> Unit) {
+        srExecutor.execute {
+            runCatching {
+                val results = superResolution.benchmark()
+                val chosen = superResolution.choose(results)
+                results.map { (model, r) -> SrSpeed(model.label, r.getOrNull(), superResolution.assetSizeKb(model), r.exceptionOrNull()?.message) } to chosen.label
+            }.onSuccess { (speeds, chosen) -> runOnUiThread { onResult(speeds, chosen) } }
+                .onFailure { runOnUiThread { onError(it.message ?: "Uji AI gagal") } }
+        }
+    }
+
     private fun requestAudioFocus() {
         val audio = getSystemService(AudioManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -587,5 +630,3 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         return "lampiran-${System.currentTimeMillis()}"
     }
 }
-
-
