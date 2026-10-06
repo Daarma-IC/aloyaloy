@@ -96,8 +96,12 @@ static void refillBudget() {
   s_lastRefill = now;
 
 #if DUTY_ENABLED
+  // Batas tabungan minimal satu frame penuh (+10%) pada SF aktif. Tanpa ini, di SF12 (frame 255 B
+  // = ±9 s) anggaran tak pernah cukup (maks 8 s) → frame itu tertahan selamanya & node bisu.
+  float cap = NusaRadio::airtimeMs(NUSA_FRAME_MAX) * 1.1f;
+  if (cap < DUTY_BUDGET_MAX_MS) cap = DUTY_BUDGET_MAX_MS;
   s_budget += dt * DUTY_RATIO;
-  if (s_budget > DUTY_BUDGET_MAX_MS) s_budget = DUTY_BUDGET_MAX_MS;
+  if (s_budget > cap) s_budget = cap;
 #endif
 }
 

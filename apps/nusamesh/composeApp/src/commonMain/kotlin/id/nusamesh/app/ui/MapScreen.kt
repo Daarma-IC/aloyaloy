@@ -228,8 +228,11 @@ fun MapScreen(
 
                 SectionTitle("Peta offline")
                 Text(
-                    offlinePack?.let { "Paket: ${it.name} · zoom ${it.minZoom}–${it.maxZoom} · ${it.sizeBytes / (1024 * 1024)} MB" }
-                        ?: "Belum ada paket peta. Impor file MBTiles (raster) dari posko.",
+                    offlinePack?.let { pack ->
+                        (if (pack.builtIn) "Peta bawaan: " else "Paket: ") + "${pack.name} · zoom ${pack.minZoom}–${pack.maxZoom}" +
+                            (if (pack.sizeBytes > 0) " · ${pack.sizeBytes / (1024 * 1024)} MB" else "") +
+                            (if (pack.builtIn) " · siap offline tanpa impor" else "")
+                    } ?: "Belum ada paket peta. Impor file MBTiles (raster) dari posko.",
                     color = Ink, fontSize = 12.sp,
                 )
                 if (offlineSummary.isNotBlank()) Text(offlineSummary, color = Slate, fontSize = 11.sp)
@@ -238,8 +241,10 @@ fun MapScreen(
                     color = Slate, fontSize = 11.sp,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = actions.importOfflineMap) { Text(if (offlinePack == null) "Impor MBTiles" else "Ganti paket") }
-                    if (offlinePack != null) DeleteButton(actions.removeOfflineMap)
+                    OutlinedButton(onClick = actions.importOfflineMap) {
+                        Text(if (offlinePack == null || offlinePack.builtIn) "Tambah wilayah (MBTiles)" else "Ganti paket")
+                    }
+                    if (offlinePack != null && !offlinePack.builtIn) DeleteButton(actions.removeOfflineMap)
                 }
 
                 SectionTitle("Data operasi")

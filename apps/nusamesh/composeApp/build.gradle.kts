@@ -74,6 +74,10 @@ android {
         }
     }
 
+    // Peta offline bawaan (dibuat tools/offline-map, di-gitignore): ikut APK supaya langsung tersedia
+    // tanpa impor. Bila folder tidak ada, APK tetap jadi — hanya tanpa peta bawaan.
+    sourceSets.getByName("main").assets.srcDir("offline-maps")
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

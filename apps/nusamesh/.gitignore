@@ -7,3 +7,6 @@ iosApp/*.xcodeproj/
 iosApp/DerivedData/
 *.xcuserstate
 
+
+# Peta offline bawaan (±97 MB): dibuat ulang dengan tools/offline-map, tidak disimpan di git
+composeApp/offline-maps/
