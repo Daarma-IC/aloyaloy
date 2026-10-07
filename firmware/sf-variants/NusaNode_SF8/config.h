@@ -1,3 +1,7 @@
+// VARIAN SF8 — dibuat otomatis oleh firmware/make-sf-variants.sh dari NusaNode/.
+// SF dikunci: tidak bisa diganti dari app, SF lama di memori node diabaikan.
+#define LORA_SF        8
+#define LORA_SF_FIXED  1
 // ============================================================================
 //  NusaOS — Konfigurasi Nusa Node
 //  Board: LILYGO LoRa32 T3 v1.6.1 (ESP32 + Semtech SX1276), 923 MHz
