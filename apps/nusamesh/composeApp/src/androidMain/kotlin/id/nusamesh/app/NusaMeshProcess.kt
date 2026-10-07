@@ -23,6 +23,8 @@ object NusaMeshProcess {
         val runtime = AppRuntime(
             link, AndroidKeyValueStore(context.applicationContext), location.location, emergency,
             batteryLevel = { battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.takeIf { it in 0..100 } },
+            // Graf jalan offline (tools/offline-map/build_graph.py), ikut APK bersama peta bawaan.
+            roadGraph = { runCatching { context.applicationContext.assets.open("routing/bandung.nmrg").use { it.readBytes() } }.getOrNull() },
         )
     }
 

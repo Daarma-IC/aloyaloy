@@ -24,6 +24,9 @@ import id.nusamesh.app.domain.RouteKind
 import id.nusamesh.app.domain.SharedRoute
 import id.nusamesh.app.domain.TrackedUser
 import id.nusamesh.app.domain.QosRun
+import id.nusamesh.app.domain.RoadRouteInfo
+import id.nusamesh.app.routing.RoadGraph
+import id.nusamesh.app.routing.TravelMode
 import id.nusamesh.app.domain.QosSample
 import id.nusamesh.app.domain.QosSending
 import id.nusamesh.app.domain.RxMeasurement
@@ -59,6 +62,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 class AppController(
@@ -68,6 +72,8 @@ class AppController(
     initialConversationId: String? = null,
     /** Persen baterai HP ini (ikut telemetri lokasi & SOS); null bila platform tidak menyediakan. */
     private val batteryLevel: () -> Int? = { null },
+    /** Isi file graf jalan offline (dibaca sekali saat rute pertama diminta); null = tidak tersedia. */
+    private val roadGraph: () -> ByteArray? = { null },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val _state = MutableStateFlow(
@@ -714,8 +720,82 @@ class AppController(
         lastTrackFlushAt = now
     }
 
-    fun startRouteDraft() = _state.update { it.copy(routeDraft = emptyList(), pickedPoint = null) }
-    fun cancelRouteDraft() = _state.update { it.copy(routeDraft = null) }
+    fun startRouteDraft() = _state.update { it.copy(routeDraft = emptyList(), pickedPoint = null, roadRoute = null) }
+    fun cancelRouteDraft() = _state.update { it.copy(routeDraft = null, roadRoute = null) }
+
+    // ------------------------------------------------------------------------------------------
+    //  Rute jalan otomatis (offline): A* di graf jalan OSM yang ikut APK
+    // ------------------------------------------------------------------------------------------
+    private var graph: RoadGraph? = null
+    private var graphLoadFailed = false
+
+    /**
+     * Cari rute mengikuti jalan dari posisi sendiri ke titik yang diketuk di peta, atau ke tujuan navigasi
+     * aktif (unit/titik). Hasilnya jadi draft rute: bisa diikuti (kompas per titik) atau dikirim ke tim.
+     */
+    fun planRoadRoute(mode: TravelMode) {
+        val current = _state.value
+        if (current.routing) return
+        val own = current.trackedUsers.firstOrNull { it.own } ?: return showNotice("Menunggu GPS untuk titik awal rute")
+        val target = current.pickedPoint
+            ?: current.waypoints.firstOrNull { it.id == current.selectedWaypointId }?.point
+            ?: current.trackedUsers.firstOrNull { it.peerId == current.selectedTargetPeerId }?.let { GeoPoint(it.latitude, it.longitude) }
+            ?: return showNotice("Ketuk tujuan di peta (atau pilih titik/unit untuk diarahkan) dulu")
+        if (graphLoadFailed) return showNotice("Data jalan offline tidak tersedia di aplikasi ini")
+        _state.update { it.copy(routing = true) }
+        scope.launch {
+            val result = withContext(Dispatchers.Default) {
+                runCatching {
+                    val g = graph ?: roadGraph()?.let(RoadGraph::parse)?.also { graph = it }
+                        ?: error("Data jalan offline tidak tersedia di aplikasi ini")
+                    g.route(GeoPoint(own.latitude, own.longitude), target, mode)
+                }
+            }
+            result.exceptionOrNull()?.let { graphLoadFailed = graph == null }
+            val route = result.getOrNull()
+            _state.update { state ->
+                if (route == null) state.copy(routing = false)
+                else state.copy(
+                    routing = false,
+                    pickedPoint = null,
+                    routeDraft = simplifyForSharing(route.points),
+                    roadRoute = RoadRouteInfo(route.distanceMeters, route.durationSeconds, route.mode.label, route.offRoadMeters),
+                )
+            }
+            when {
+                result.isFailure -> showNotice(result.exceptionOrNull()?.message ?: "Gagal menghitung rute")
+                route == null -> showNotice("Rute tidak ditemukan: titik terlalu jauh dari jalan (>2 km) atau jalan tidak terhubung")
+            }
+        }
+    }
+
+    /** Rute jalan bisa ribuan titik; disederhanakan (mulai 3 m) supaya muat dikirim lewat LoRa & ringan diikuti. */
+    private fun simplifyForSharing(points: List<GeoPoint>): List<GeoPoint> {
+        var tolerance = 3.0
+        var out = RoutePolyline.simplify(points, tolerance)
+        while (out.size > MAX_SHARED_POINTS) {
+            tolerance *= 2
+            out = RoutePolyline.simplify(points, tolerance)
+        }
+        return out
+    }
+
+    /** Simpan draft (mis. rute jalan) sebagai rute sendiri lalu langsung ikuti — tanpa mengirim ke tim. */
+    fun followRouteDraft(name: String) {
+        val draft = _state.value.routeDraft ?: return
+        if (draft.size < 2) return
+        val id = newTelemetryId()
+        val title = name.trim().ifBlank { _state.value.roadRoute?.let { "Rute ${it.modeLabel.lowercase()}" } ?: "Rute ${repository.nickname}" }
+        val route = SharedRoute(id, repository.myPeerId, repository.nickname, title, RouteKind.Plan, mapOf(0 to draft), currentEpochMillis(), own = true, verified = hasKey)
+        _state.update {
+            it.copy(
+                routeDraft = null, roadRoute = null,
+                routes = (it.routes + route).takeLast(MAX_ROUTES),
+                followedRouteId = id, selectedTargetPeerId = null, selectedWaypointId = null,
+            )
+        }
+        showNotice("Mengikuti \"$title\". Bagikan ke tim lewat tombol Bagikan bila perlu.")
+    }
     fun undoRouteDraftPoint() = _state.update { it.copy(routeDraft = it.routeDraft?.dropLast(1)) }
 
     fun sendRouteDraft(name: String) {
@@ -726,7 +806,7 @@ class AppController(
         val title = name.trim().ifBlank { "Rute ${repository.nickname}" }
         repository.sendTelemetry(RouteTelemetry(id, RouteTelemetry.Kind.Plan, title, draft).encode())
         val route = SharedRoute(id, repository.myPeerId, repository.nickname, title, RouteKind.Plan, mapOf(0 to draft), currentEpochMillis(), own = true, verified = hasKey)
-        _state.update { it.copy(routeDraft = null, routes = (it.routes + route).takeLast(MAX_ROUTES)) }
+        _state.update { it.copy(routeDraft = null, roadRoute = null, routes = (it.routes + route).takeLast(MAX_ROUTES)) }
         showNotice("Rute \"$title\" dikirim (${formatDistance(RoutePolyline.lengthMeters(draft))})")
     }
 
@@ -734,7 +814,8 @@ class AppController(
     fun onMapTap(point: GeoPoint) {
         if (!point.valid) return
         _state.update { current ->
-            if (current.routeDraft != null) current.copy(routeDraft = (current.routeDraft + point).takeLast(MAX_DRAFT_POINTS))
+            // Rute jalan otomatis tidak ditambah titik manual; ketukan baru = tujuan baru.
+            if (current.routeDraft != null && current.roadRoute == null) current.copy(routeDraft = (current.routeDraft + point).takeLast(MAX_DRAFT_POINTS))
             else current.copy(pickedPoint = point)
         }
     }

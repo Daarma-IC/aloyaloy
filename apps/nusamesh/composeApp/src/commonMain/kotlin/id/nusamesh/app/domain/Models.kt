@@ -85,6 +85,9 @@ data class TrackedUser(
     val verified: Boolean = false,
 )
 
+/** Ringkasan rute jalan otomatis (router offline A*). */
+data class RoadRouteInfo(val distanceMeters: Double, val durationSeconds: Double, val modeLabel: String, val offRoadMeters: Double)
+
 /** Status cepat terakhir dari sebuah unit (lihat [QuickStatus]). */
 data class UnitStatus(val status: QuickStatus, val atMs: Long, val name: String)
 
@@ -165,6 +168,10 @@ data class AppUiState(
     val team: String? = null,
     /** Sesi uji QoS yang diterima HP ini (per pengirim & run). */
     val qosRuns: List<QosRun> = emptyList(),
+    /** Info rute jalan otomatis yang sedang ada di draft (jarak, waktu, mode). */
+    val roadRoute: RoadRouteInfo? = null,
+    /** Sedang menghitung rute jalan. */
+    val routing: Boolean = false,
     val qosSending: QosSending? = null,
     /** Nama HP yang mengonfirmasi menerima SOS kita (direset tiap SOS dinyalakan). */
     val sosAckedBy: List<String> = emptyList(),

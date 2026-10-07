@@ -27,8 +27,9 @@ class AppRuntime(
     initialPage: AppPage = AppPage.Home,
     initialConversationId: String? = null,
     batteryLevel: () -> Int? = { null },
+    roadGraph: () -> ByteArray? = { null },
 ) {
-    private val container = AppContainer(link, store, initialPage, initialConversationId, batteryLevel)
+    private val container = AppContainer(link, store, initialPage, initialConversationId, batteryLevel, roadGraph)
     val controller: AppController = container.appController
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 

@@ -54,6 +54,8 @@ import id.nusamesh.app.mesh.protocol.Triage
 import id.nusamesh.app.mesh.protocol.VictimInfo
 import id.nusamesh.app.mesh.protocol.VictimNeed
 import id.nusamesh.app.mesh.protocol.WaypointType
+import id.nusamesh.app.domain.RoadRouteInfo
+import id.nusamesh.app.routing.TravelMode
 
 /** Aksi layar peta (diteruskan ke AppController). */
 class MapActions(
@@ -79,6 +81,8 @@ class MapActions(
     val importGpx: () -> Unit = {},
     val importOfflineMap: () -> Unit = {},
     val removeOfflineMap: () -> Unit = {},
+    val planRoadRoute: (TravelMode) -> Unit = {},
+    val followDraft: (String) -> Unit = {},
 )
 
 @Composable
@@ -91,13 +95,15 @@ fun MapScreen(
 ) {
     var sheetFraction by remember { mutableFloatStateOf(0.45f) }
     var markingOpen by remember { mutableStateOf(false) }
+    var roadOpen by remember { mutableStateOf(false) }
     /** Titik yang sedang diperbarui lewat panel tandai (null = membuat titik baru). */
     var editingWaypointId by remember { mutableStateOf<String?>(null) }
     var coordinateFormat by remember { mutableStateOf(CoordinateFormat.Utm) }
     // Back menutup panel yang sedang terbuka dulu, bukan langsung meninggalkan peta.
-    PlatformBackHandler(enabled = markingOpen || editingWaypointId != null || state.routeDraft != null) {
+    PlatformBackHandler(enabled = markingOpen || roadOpen || editingWaypointId != null || state.routeDraft != null) {
         when {
             markingOpen || editingWaypointId != null -> { markingOpen = false; editingWaypointId = null; actions.clearPicked() }
+            roadOpen && state.routeDraft == null -> { roadOpen = false; actions.clearPicked() }
             else -> actions.cancelDraft()
         }
     }
@@ -110,7 +116,7 @@ fun MapScreen(
         routes = state.routes,
         waypoints = state.waypoints,
         draft = state.routeDraft,
-        picked = state.pickedPoint.takeIf { markingOpen },
+        picked = state.pickedPoint.takeIf { markingOpen || roadOpen },
         guide = if (here != null && target != null) here to target.point else null,
         guideLabel = target?.title,
         focusKey = state.selectedTargetPeerId ?: state.selectedWaypointId ?: state.followedRouteId,
@@ -174,9 +180,15 @@ fun MapScreen(
 
                 TrailActions(state, markingOpen, onToggleMarking = {
                     markingOpen = !markingOpen
+                    roadOpen = false
                     if (!markingOpen) actions.clearPicked()
-                }, actions)
-                state.routeDraft?.let { draft -> DraftPanel(draft, actions) }
+                }, onToggleRoad = {
+                    roadOpen = !roadOpen
+                    markingOpen = false
+                    if (!roadOpen) actions.clearPicked()
+                }, roadOpen, actions)
+                if (roadOpen && state.routeDraft == null) RoadRoutePanel(state, actions)
+                state.routeDraft?.let { draft -> DraftPanel(draft, state.roadRoute, actions, onClosed = { roadOpen = false }) }
                 val editing = editingWaypointId?.let { id -> state.waypoints.firstOrNull { it.id == id } }
                 if (markingOpen || editing != null) {
                     WaypointPanel(
@@ -339,7 +351,14 @@ private fun lastSeenLabel(unit: TrackedUser): String {
 }
 
 @Composable
-private fun TrailActions(state: AppUiState, markingOpen: Boolean, onToggleMarking: () -> Unit, actions: MapActions) {
+private fun TrailActions(
+    state: AppUiState,
+    markingOpen: Boolean,
+    onToggleMarking: () -> Unit,
+    onToggleRoad: () -> Unit,
+    roadOpen: Boolean,
+    actions: MapActions,
+) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         val recording = state.recordingTrackId != null
         if (recording) {
@@ -351,27 +370,71 @@ private fun TrailActions(state: AppUiState, markingOpen: Boolean, onToggleMarkin
         } else {
             Button(onClick = actions.startTrack, colors = ButtonDefaults.buttonColors(containerColor = Accent)) { Text("Rekam jejak") }
         }
-        if (state.routeDraft == null) OutlinedButton(onClick = actions.startDraft) { Text("Gambar rute") }
+        if (state.routeDraft == null) {
+            OutlinedButton(onClick = onToggleRoad) { Text(if (roadOpen) "Tutup rute jalan" else "Rute jalan") }
+            OutlinedButton(onClick = actions.startDraft) { Text("Gambar rute") }
+        }
         OutlinedButton(onClick = onToggleMarking) { Text(if (markingOpen) "Tutup tandai" else "Tandai titik") }
     }
 }
 
 @Composable
-private fun DraftPanel(draft: List<GeoPoint>, actions: MapActions) {
+private fun DraftPanel(draft: List<GeoPoint>, road: RoadRouteInfo?, actions: MapActions, onClosed: () -> Unit) {
     var name by remember { mutableStateOf("") }
     Column(
         Modifier.fillMaxWidth().background(AccentTint, RoundedCornerShape(16.dp)).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("Ketuk peta untuk menambah titik rute", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Text("${draft.size} titik | ${AppController.formatDistance(RoutePolyline.lengthMeters(draft))}", color = Slate, fontSize = 12.sp)
+        if (road == null) {
+            Text("Ketuk peta untuk menambah titik rute", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text("${draft.size} titik | ${AppController.formatDistance(RoutePolyline.lengthMeters(draft))}", color = Slate, fontSize = 12.sp)
+        } else {
+            Text(
+                "Rute ${road.modeLabel.lowercase()}: ${AppController.formatDistance(road.distanceMeters)} | ±${formatDuration(road.durationSeconds)}",
+                color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            )
+            val offRoad = if (road.offRoadMeters >= 30) " Termasuk ${AppController.formatDistance(road.offRoadMeters)} di luar jalan (ke/dari jalan terdekat)." else ""
+            Text("Mengikuti jalan dari data OSM offline; kondisi lapangan (longsor, banjir) tidak diketahui.$offRoad", color = Slate, fontSize = 12.sp)
+        }
         InputField(name, "Nama rute (mis. Jalur evakuasi utara)") { name = it.take(40) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = actions.undoDraft, enabled = draft.isNotEmpty()) { Text("Undo") }
-            OutlinedButton(onClick = actions.cancelDraft) { Text("Batal") }
-            Button(onClick = { actions.sendDraft(name) }, enabled = draft.size >= 2) { Text("Kirim") }
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (road == null) OutlinedButton(onClick = actions.undoDraft, enabled = draft.isNotEmpty()) { Text("Undo") }
+            OutlinedButton(onClick = { actions.cancelDraft(); onClosed() }) { Text("Batal") }
+            if (road != null) OutlinedButton(onClick = { actions.followDraft(name); onClosed() }) { Text("Ikuti") }
+            Button(onClick = { actions.sendDraft(name); onClosed() }, enabled = draft.size >= 2) { Text(if (road == null) "Kirim" else "Kirim ke tim") }
         }
     }
+}
+
+/** Cari rute mengikuti jalan (offline) dari posisi sendiri ke titik yang diketuk / tujuan arahan aktif. */
+@Composable
+private fun RoadRoutePanel(state: AppUiState, actions: MapActions) {
+    var mode by remember { mutableStateOf(TravelMode.Foot) }
+    val target = state.pickedPoint
+    val fallback = navigationTarget(state).takeIf { state.selectedTargetPeerId != null || state.selectedWaypointId != null }
+    Column(
+        Modifier.fillMaxWidth().background(AccentTint, RoundedCornerShape(16.dp)).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            when {
+                target != null -> "Tujuan: ${formatCoordinate(target, CoordinateFormat.Decimal)}"
+                fallback != null -> "Tujuan: ${fallback.title} (atau ketuk peta untuk tujuan lain)"
+                else -> "Ketuk tujuan di peta"
+            },
+            color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+        )
+        ChipRow(TravelMode.entries, { it == mode }, { it.label }) { mode = it }
+        Button(
+            onClick = { actions.planRoadRoute(mode) },
+            enabled = !state.routing && (target != null || fallback != null),
+        ) { Text(if (state.routing) "Menghitung..." else "Cari rute") }
+    }
+}
+
+private fun formatDuration(seconds: Double): String {
+    val minutes = (seconds / 60).toInt().coerceAtLeast(1)
+    return if (minutes < 60) "$minutes mnt" else "${minutes / 60} j ${minutes % 60} mnt"
 }
 
 @Composable

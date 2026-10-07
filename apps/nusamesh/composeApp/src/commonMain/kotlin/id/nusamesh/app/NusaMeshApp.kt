@@ -213,6 +213,8 @@ fun NusaMeshApp(
                             },
                             importOfflineMap = { offlineMaps.importPack(controller::showNotice) },
                             removeOfflineMap = { offlineMaps.removePack(controller::showNotice) },
+                            planRoadRoute = controller::planRoadRoute,
+                            followDraft = controller::followRouteDraft,
                             importGpx = {
                                 // Banyak pengelola file memberi GPX tipe octet-stream/xml, jadi terima semua lalu validasi isinya.
                                 documentActions.openDocument(listOf("*/*"), controller::importGpx, controller::showNotice)
