@@ -704,7 +704,7 @@ private fun <T> ChipRow(
     options: List<T>,
     selected: (T) -> Boolean,
     label: (T) -> String,
-    color: (T) -> Color = { Brand },
+    color: (T) -> Color = { BrandDeep },
     onClick: (T) -> Unit,
 ) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

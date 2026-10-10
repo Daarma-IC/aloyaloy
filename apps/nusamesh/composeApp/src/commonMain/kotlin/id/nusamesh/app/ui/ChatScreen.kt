@@ -187,7 +187,7 @@ private fun EmptyChat(modifier: Modifier, onCreateGlobal: () -> Unit) {
         Text("Semua HP di jaringan mesh, termasuk\nyang lewat Nusa Node, menerima pesan global.", color = Slate, fontSize = 11.sp, lineHeight = 17.sp)
         Spacer(Modifier.height(20.dp))
         Row(
-            Modifier.height(42.dp).background(Brand, RoundedCornerShape(21.dp)).padding(horizontal = 20.dp).pressableClick(onCreateGlobal),
+            Modifier.height(42.dp).background(BrandDeep, RoundedCornerShape(21.dp)).padding(horizontal = 20.dp).pressableClick(onCreateGlobal),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -206,7 +206,7 @@ private fun ChatRow(chat: ChatPreview, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(44.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).background(BrandDeep, CircleShape), contentAlignment = Alignment.Center) {
             AppIcon(IconKind.Mesh, Color.White, Modifier.size(22.dp))
             Box(Modifier.align(Alignment.BottomEnd).size(11.dp).background(Success, CircleShape).border(2.dp, Color.White, CircleShape))
         }
@@ -217,7 +217,7 @@ private fun ChatRow(chat: ChatPreview, onClick: () -> Unit) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(chat.message, color = Slate, fontSize = 9.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                if (chat.unread > 0) Box(Modifier.size(20.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
+                if (chat.unread > 0) Box(Modifier.size(20.dp).background(BrandDeep, CircleShape), contentAlignment = Alignment.Center) {
                     Text(chat.unread.toString(), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Medium)
                 }
             }
@@ -348,7 +348,7 @@ private fun ConversationHeader(state: AppUiState, onBack: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         RoundIconButton(IconKind.Back, onBack, background = Color(0xFFF1F5F9), tint = Ink, size = 38.dp)
-        Box(Modifier.size(40.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).background(BrandDeep, CircleShape), contentAlignment = Alignment.Center) {
             AppIcon(IconKind.Mesh, Color.White, Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -458,7 +458,7 @@ private fun Bubble(
                 Modifier.widthIn(max = 280.dp)
                     .shadow(if (message.outgoing) 8.dp else 3.dp, bubbleShape, ambientColor = (if (message.outgoing) Brand else Ink).copy(alpha = .18f), spotColor = (if (message.outgoing) Brand else Ink).copy(alpha = .18f))
                     .background(
-                        if (message.outgoing) Brush.linearGradient(listOf(Brand, BrandBright)) else Brush.linearGradient(listOf(Color.White, Color.White)),
+                        if (message.outgoing) Brush.linearGradient(listOf(BrandDeep, Brand)) else Brush.linearGradient(listOf(Color.White, Color.White)),
                         bubbleShape,
                     ).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp),
@@ -799,7 +799,7 @@ private fun Composer(
                 RoundIconButton(
                     if (message.isBlank()) IconKind.Mic else IconKind.Send,
                     if (message.isBlank()) onVoice else onSend,
-                    background = Brand,
+                    background = BrandDeep,
                     tint = Color.White,
                     size = 42.dp,
                 )

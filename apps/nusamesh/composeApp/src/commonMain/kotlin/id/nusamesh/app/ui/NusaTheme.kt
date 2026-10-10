@@ -35,7 +35,8 @@ val Danger = Color(0xFFE11D48)
 val DangerTint = Color(0xFFFFEEF2)
 
 private val colors = lightColorScheme(
-    primary = Brand,
+    // Tombol isi (Button bawaan) pakai biru tegas supaya tulisan putih terbaca; #74B9FF untuk aksen/gradasi.
+    primary = BrandDeep,
     onPrimary = Color.White,
     secondary = Accent,
     background = Canvas,

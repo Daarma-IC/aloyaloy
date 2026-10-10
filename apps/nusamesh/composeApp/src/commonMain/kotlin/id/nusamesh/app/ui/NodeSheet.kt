@@ -120,7 +120,7 @@ private fun SpreadingFactorPanel(node: NodeInfo, onSet: (Int) -> Unit) {
                         "SF$sf",
                         color = when { selected -> Color.White; node.testMode -> Brand; else -> Muted },
                         fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.background(if (selected) Brand else Color.White, RoundedCornerShape(12.dp))
+                        modifier = Modifier.background(if (selected) BrandDeep else Color.White, RoundedCornerShape(12.dp))
                             .border(1.dp, BrandSoft, RoundedCornerShape(12.dp))
                             .pressableClick { if (!selected) onSet(sf) }
                             .padding(horizontal = 9.dp, vertical = 6.dp),
@@ -141,7 +141,7 @@ private fun NodeRow(node: NodeInfo, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(40.dp).background(if (active) Brand else Color.White, CircleShape).border(1.dp, BrandSoft, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).background(if (active) BrandDeep else Color.White, CircleShape).border(1.dp, BrandSoft, CircleShape), contentAlignment = Alignment.Center) {
             AppIcon(IconKind.Node, if (active) Color.White else Brand, Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -272,7 +272,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     Row(Modifier.fillMaxWidth().pressableClick { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = Ink, fontSize = 10.sp, modifier = Modifier.weight(1f))
         Box(
-            Modifier.width(38.dp).height(22.dp).background(if (checked) Brand else Color(0xFFCBD5E1), RoundedCornerShape(11.dp)).padding(3.dp),
+            Modifier.width(38.dp).height(22.dp).background(if (checked) BrandDeep else Color(0xFFCBD5E1), RoundedCornerShape(11.dp)).padding(3.dp),
             contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
             Box(Modifier.size(16.dp).background(Color.White, CircleShape))
@@ -283,18 +283,18 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 @Composable
 private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.background(if (selected) Brand else BrandTint, RoundedCornerShape(14.dp)).pressableClick(onClick).padding(horizontal = 12.dp, vertical = 6.dp),
+        Modifier.background(if (selected) BrandDeep else BrandTint, RoundedCornerShape(14.dp)).pressableClick(onClick).padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
-        Text(text, color = if (selected) Color.White else Brand, fontSize = 10.sp)
+        Text(text, color = if (selected) Color.White else BrandDeep, fontSize = 10.sp)
     }
 }
 
 @Composable
 private fun SheetButton(text: String, filled: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(40.dp).background(if (filled) Brand else BrandTint, RoundedCornerShape(20.dp)).pressableClick(onClick),
+        Modifier.fillMaxWidth().height(40.dp).background(if (filled) BrandDeep else BrandTint, RoundedCornerShape(20.dp)).pressableClick(onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = if (filled) Color.White else Brand, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = if (filled) Color.White else BrandDeep, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
