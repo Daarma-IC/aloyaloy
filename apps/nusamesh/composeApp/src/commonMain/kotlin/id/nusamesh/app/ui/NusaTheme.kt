@@ -14,13 +14,13 @@ import nusamesh.composeapp.generated.resources.inter_regular
 import nusamesh.composeapp.generated.resources.inter_semibold
 import org.jetbrains.compose.resources.Font
 
-// Palet Meshta: biru-indigo sebagai merek, teal untuk jalur Nusa Node/LoRa, amber untuk nebeng.
+// Palet Meshta: biru langit (#74B9FF) sebagai merek, teal untuk jalur Nusa Node/LoRa, amber untuk nebeng.
 val Ink = Color(0xFF0F172A)
-val Brand = Color(0xFF3B5BDB)
-val BrandDeep = Color(0xFF2B44B3)
-val BrandBright = Color(0xFF5C7CFA)
-val BrandSoft = Color(0xFFDCE3FF)
-val BrandTint = Color(0xFFEEF2FF)
+val Brand = Color(0xFF74B9FF)
+val BrandDeep = Color(0xFF0984E3)
+val BrandBright = Color(0xFFA6D1FF)
+val BrandSoft = Color(0xFFD6EAFF)
+val BrandTint = Color(0xFFEEF6FF)
 val Accent = Color(0xFF0D9488)
 val AccentTint = Color(0xFFE6F6F4)
 val Warning = Color(0xFFB45309)

@@ -33,12 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.nusamesh.app.domain.AppUiState
 import id.nusamesh.app.domain.MeshStatus
 import id.nusamesh.app.mesh.protocol.QuickStatus
 import id.nusamesh.app.domain.FieldRole
+import id.nusamesh.app.domain.FieldChannels
 import id.nusamesh.app.mesh.engine.LinkState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
@@ -172,35 +174,38 @@ fun HomeScreen(
 /** Peran menentukan channel chat yang terlihat: warga tidak tenggelam di chat tim, dan sebaliknya. */
 @Composable
 private fun RoleCard(role: FieldRole, team: String?, onSet: (FieldRole, String?) -> Unit) {
-    var teamName by remember(team) { mutableStateOf(team.orEmpty()) }
-    // Kolom nama tim muncul begitu "Tim SAR" diketuk, sebelum peran benar-benar berganti.
-    var choosingTeam by remember { mutableStateOf(false) }
+    // Nama tim ditampilkan seperti diketik ("Alfa 2"), bukan slug-nya ("alfa-2").
+    val teamTitle = team?.let { FieldChannels.title(FieldChannels.teamChatId(it), "").removePrefix("Tim ") }
+    var teamName by remember(team) { mutableStateOf(teamTitle.orEmpty()) }
+    // Kolom nama tim muncul begitu "Tim SAR" diketuk (sebelum peran benar-benar berganti) atau saat ganti tim.
+    var editingTeam by remember { mutableStateOf(false) }
+    val shown = if (editingTeam) FieldRole.Tim else role
     Column(
         Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Peran di operasi", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FieldRole.entries.forEach { option ->
-                val selected = option == role || (option == FieldRole.Tim && choosingTeam)
+                val selected = option == shown
                 Text(
                     option.label,
-                    color = if (selected) Color.White else Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.background(if (selected) Brand else BrandTint, RoundedCornerShape(14.dp))
+                    color = if (selected) Color.White else BrandDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center, maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                        .background(if (selected) BrandDeep else BrandTint, RoundedCornerShape(14.dp))
                         .pressableClick {
-                            if (option != FieldRole.Tim) {
-                                choosingTeam = false
-                                onSet(option, null)
-                            } else if (role != FieldRole.Tim) {
-                                choosingTeam = true
+                            when {
+                                option == FieldRole.Tim -> editingTeam = role != FieldRole.Tim || !editingTeam
+                                option == role -> editingTeam = false        // batal memilih tim
+                                else -> { editingTeam = false; onSet(option, null) }
                             }
                         }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(vertical = 9.dp),
                 )
             }
         }
-        if (role == FieldRole.Tim || choosingTeam) {
-            Text("Nama tim", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        if (editingTeam || (role == FieldRole.Tim && team == null)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
                     Modifier.weight(1f).height(38.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(19.dp)).padding(horizontal = 14.dp),
@@ -212,22 +217,32 @@ private fun RoleCard(role: FieldRole, team: String?, onSet: (FieldRole, String?)
                         textStyle = TextStyle(color = Ink, fontSize = 12.sp), modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                val valid = FieldChannels.teamSlug(teamName) != null
                 Text(
-                    "Simpan", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    "Simpan", color = if (valid) BrandDeep else Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.pressableClick {
-                        if (teamName.isNotBlank()) choosingTeam = false
-                        onSet(FieldRole.Tim, teamName)
+                        if (!valid) return@pressableClick
+                        editingTeam = false
+                        if (role != FieldRole.Tim || FieldChannels.teamSlug(teamName) != team) onSet(FieldRole.Tim, teamName)
                     }.padding(8.dp),
+                )
+            }
+        } else if (role == FieldRole.Tim && teamTitle != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Tim $teamTitle", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(
+                    "Ganti tim", color = BrandDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.pressableClick { teamName = teamTitle; editingTeam = true }.padding(8.dp),
                 )
             }
         }
         Text(
             when {
-                choosingTeam && role != FieldRole.Tim -> "Isi nama tim lalu ketuk Simpan. Anggota tim harus memakai nama yang sama."
+                editingTeam -> "Isi nama tim lalu ketuk Simpan. Semua anggota tim harus memakai nama yang sama."
                 else -> when (role) {
-                FieldRole.Warga -> "Hanya chat Global. Chat tim SAR tidak tampil."
-                FieldRole.Tim -> "Chat Global, Operasional SAR, dan Tim ${team.orEmpty()}."
-                FieldRole.Posko -> "Chat Global, Operasional SAR, dan semua tim."
+                    FieldRole.Warga -> "Hanya chat Global. Chat tim SAR tidak tampil."
+                    FieldRole.Tim -> "Chat Global, Operasional SAR, dan Tim ${teamTitle.orEmpty()}."
+                    FieldRole.Posko -> "Chat Global, Operasional SAR, dan semua tim."
                 }
             },
             color = Slate, fontSize = 11.sp,
@@ -265,7 +280,7 @@ private fun OperationKeyCard(
                 color = Slate, fontSize = 11.sp,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(if (revealed) "Sembunyikan" else "Tampilkan kode", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                Text(if (revealed) "Sembunyikan" else "Tampilkan kode", color = BrandDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.pressableClick { revealed = !revealed }.padding(vertical = 4.dp))
                 Text(if (confirmClear) "Yakin hapus?" else "Hapus kunci", color = Danger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.pressableClick { if (confirmClear) { confirmClear = false; onClear() } else confirmClear = true }.padding(vertical = 4.dp))
@@ -286,11 +301,11 @@ private fun OperationKeyCard(
                         textStyle = TextStyle(color = Ink, fontSize = 12.sp), modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Text("Pakai", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                Text("Pakai", color = BrandDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.pressableClick { onEnter(input) }.padding(8.dp))
             }
             if (role == FieldRole.Posko) {
-                Text("Buat kunci baru (posko)", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                Text("Buat kunci baru (posko)", color = BrandDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.pressableClick { revealed = true; onGenerate() }.padding(vertical = 4.dp))
             }
         }

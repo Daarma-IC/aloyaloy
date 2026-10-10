@@ -39,6 +39,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.nusamesh.app.AppController
@@ -94,11 +96,14 @@ fun MapScreen(
     offlineSummary: String = "",
 ) {
     var sheetFraction by remember { mutableFloatStateOf(0.45f) }
+    /** Panel diciutkan: tinggal pegangan + judul, peta hampir layar penuh. */
+    var collapsed by remember { mutableStateOf(false) }
     var markingOpen by remember { mutableStateOf(false) }
     var roadOpen by remember { mutableStateOf(false) }
     /** Titik yang sedang diperbarui lewat panel tandai (null = membuat titik baru). */
     var editingWaypointId by remember { mutableStateOf<String?>(null) }
     var coordinateFormat by remember { mutableStateOf(CoordinateFormat.Utm) }
+    var tab by remember { mutableStateOf(SheetTab.Units) }
     // Back menutup panel yang sedang terbuka dulu, bukan langsung meninggalkan peta.
     PlatformBackHandler(enabled = markingOpen || roadOpen || editingWaypointId != null || state.routeDraft != null) {
         when {
@@ -131,62 +136,91 @@ fun MapScreen(
         val density = LocalDensity.current
         val availablePx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().weight(1f - sheetFraction).background(BrandTint)) {
+            Box(Modifier.fillMaxWidth().weight(if (collapsed) 1f else 1f - sheetFraction).background(BrandTint)) {
                 LeafletMap(Modifier.fillMaxSize(), mapData, actions.mapTap)
             }
             Column(
                 Modifier.fillMaxWidth()
-                .weight(sheetFraction)
+                .then(if (collapsed) Modifier else Modifier.weight(sheetFraction))
                 .background(Color.White, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                 .padding(horizontal = 24.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Seret pegangan: atur tinggi panel; seret ke bawah melewati batas = ciutkan, seret ke atas = buka lagi.
+            // Ketuk pegangan/judul juga membuka-tutup.
             Box(
-                Modifier.fillMaxWidth().height(24.dp).pointerInput(availablePx) {
-                    detectVerticalDragGestures { change, dragAmount ->
-                        change.consume()
-                        sheetFraction = (sheetFraction - dragAmount / availablePx).coerceIn(0.24f, 0.78f)
+                Modifier.fillMaxWidth().height(24.dp)
+                    .pointerInput(availablePx) {
+                        var pulled = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { pulled = 0f },
+                            onDragEnd = {
+                                if (!collapsed && sheetFraction <= COLLAPSE_FRACTION) { collapsed = true; sheetFraction = 0.45f }
+                            },
+                        ) { change, dragAmount ->
+                            change.consume()
+                            if (collapsed) {
+                                pulled += dragAmount
+                                if (pulled < -24f) { collapsed = false; sheetFraction = 0.3f }
+                            } else {
+                                sheetFraction = (sheetFraction - dragAmount / availablePx).coerceIn(COLLAPSE_FRACTION, 0.85f)
+                            }
+                        }
                     }
-                },
+                    .pressableClick { collapsed = !collapsed },
                 contentAlignment = Alignment.TopCenter,
             ) {
                 Box(Modifier.width(48.dp).height(6.dp).background(Color(0xFFCBD5E1), RoundedCornerShape(3.dp)))
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Unit Lapangan", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                StatusPill("${state.trackedUsers.size} Online")
+            Row(
+                Modifier.fillMaxWidth().pressableClick { collapsed = !collapsed },
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Unit Lapangan", color = Ink, fontSize = if (collapsed) 16.sp else 20.sp, fontWeight = FontWeight.SemiBold)
+                    // Saat diciutkan arahan tetap terlihat ringkas.
+                    if (collapsed && guidance != null && target != null) {
+                        Text(
+                            "${guidance.distanceLabel} ${guidance.cardinal} · ${target.title}",
+                            color = BrandDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                val sos = state.trackedUsers.count { it.emergency && !it.own }
+                if (sos > 0) StatusPill("$sos SOS", Danger, DangerTint) else StatusPill("${state.trackedUsers.size} Online")
+                Text(if (collapsed) "Buka ▲" else "Ciutkan ▼", color = Slate, fontSize = 11.sp)
             }
-            Column(
+            if (!collapsed) Column(
                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 CoordinatePanel(here, target?.point, coordinateFormat) { coordinateFormat = it }
                 if (guidance != null && target != null) {
-                    Text(target.title, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        "${guidance.distanceLabel} | bearing ${guidance.bearing.toInt()} deg ${guidance.cardinal}" +
-                            (target.remainingAfterMeters?.let { " | sisa rute ${AppController.formatDistance(it)}" } ?: ""),
-                        color = Color(0xFF2563EB), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(guidance.turnInstruction, color = Ink, fontSize = 13.sp)
-                    Text(
-                        "Arah langsung offline, bukan jaminan jalur aman. Jangan menerobos tebing, sungai, longsor, atau area tertutup.",
-                        color = Color(0xFFB45309), fontSize = 10.sp,
-                    )
-                    OutlinedButton(onClick = {
-                        actions.selectTarget(null); actions.selectWaypoint(null); actions.followRoute(null)
-                    }) { Text("Hentikan arahan") }
+                    GuidanceCard(target, guidance) { actions.selectTarget(null); actions.selectWaypoint(null); actions.followRoute(null) }
                 }
 
-                TrailActions(state, markingOpen, onToggleMarking = {
-                    markingOpen = !markingOpen
-                    roadOpen = false
-                    if (!markingOpen) actions.clearPicked()
-                }, onToggleRoad = {
-                    roadOpen = !roadOpen
+                // Rute / Gambar / Tandai saling eksklusif seperti tab: membuka satu menutup yang lain
+                // (draft yang belum dikirim dibuang), mengetuk yang aktif menutupnya.
+                val mode = when {
+                    markingOpen || editingWaypointId != null -> SheetMode.Mark
+                    state.routeDraft != null && state.roadRoute == null -> SheetMode.Draw
+                    roadOpen || state.roadRoute != null -> SheetMode.Road
+                    else -> null
+                }
+                TrailActions(state, mode, actions) { tapped ->
+                    if (state.routeDraft != null) actions.cancelDraft()
                     markingOpen = false
-                    if (!roadOpen) actions.clearPicked()
-                }, roadOpen, actions)
+                    roadOpen = false
+                    editingWaypointId = null
+                    actions.clearPicked()
+                    when (tapped.takeIf { it != mode }) {
+                        SheetMode.Road -> roadOpen = true
+                        SheetMode.Draw -> actions.startDraft()
+                        SheetMode.Mark -> markingOpen = true
+                        null -> Unit
+                    }
+                }
                 if (roadOpen && state.routeDraft == null) RoadRoutePanel(state, actions)
                 state.routeDraft?.let { draft -> DraftPanel(draft, state.roadRoute, actions, onClosed = { roadOpen = false }) }
                 val editing = editingWaypointId?.let { id -> state.waypoints.firstOrNull { it.id == id } }
@@ -198,99 +232,38 @@ fun MapScreen(
                     )
                 }
 
-                if (state.routes.isNotEmpty()) {
-                    SectionTitle("Jalur")
-                    state.routes.asReversed().forEach { route ->
-                        RouteRow(
-                            route,
-                            trust = trustLabel(route.own, route.verified, state.operationCode != null),
-                            followed = route.id == state.followedRouteId,
-                            onFollow = { actions.followRoute(if (route.id == state.followedRouteId) null else route.id) },
-                            onDelete = if (route.id == state.recordingTrackId) null else ({ actions.deleteRoute(route.id) }),
-                            onShare = if (route.own && route.id != state.recordingTrackId) ({ actions.shareRoute(route.id) }) else null,
-                        )
-                    }
-                }
-                if (state.waypoints.isNotEmpty()) {
-                    SectionTitle("Titik penting")
-                    state.waypoints.asReversed().forEach { wp ->
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            WaypointBadge(wp.type, wp.victim)
-                            Text(
-                                "${wp.type.label}: " + listOfNotNull(wp.victim?.summary(), wp.label.ifBlank { null }).joinToString(" · ") +
-                                    " | ${if (wp.own) "Anda" else wp.ownerName}" +
-                                    (wp.updatedBy?.let { " (diperbarui $it)" } ?: "") +
-                                    trustLabel(wp.own, wp.verified, state.operationCode != null) +
-                                    (if (wp.ackedBy.isNotEmpty()) " | ${ackLabel(wp.ackedBy)}" else "") +
-                                    (here?.let { " | ${AppController.formatDistance(RoutePolyline.distanceMeters(it, wp.point))}" } ?: ""),
-                                color = Slate, fontSize = 12.sp, modifier = Modifier.weight(1f),
+                SheetTabs(tab, state) { tab = it }
+                when (tab) {
+                    SheetTab.Units -> UnitList(state, here, actions)
+                    SheetTab.Routes -> {
+                        if (state.routes.isEmpty()) EmptyHint("Belum ada jalur. Rekam jejak, cari rute jalan, atau gambar rute di peta.")
+                        state.routes.asReversed().forEach { route ->
+                            RouteRow(
+                                route,
+                                trust = trustLabel(route.own, route.verified, state.operationCode != null),
+                                followed = route.id == state.followedRouteId,
+                                onFollow = { actions.followRoute(if (route.id == state.followedRouteId) null else route.id) },
+                                onDelete = if (route.id == state.recordingTrackId) null else ({ actions.deleteRoute(route.id) }),
+                                onShare = if (route.own && route.id != state.recordingTrackId) ({ actions.shareRoute(route.id) }) else null,
                             )
-                            Button(onClick = { actions.selectWaypoint(if (wp.id == state.selectedWaypointId) null else wp.id) }) {
-                                Text(if (wp.id == state.selectedWaypointId) "Dipilih" else "Arahkan")
-                            }
-                            if (wp.type == WaypointType.Korban) {
-                                OutlinedButton(onClick = { markingOpen = false; editingWaypointId = wp.id }) { Text("Perbarui") }
-                            } else if (wp.own) {
-                                OutlinedButton(onClick = { actions.shareWaypoint(wp.id) }) { Text("Bagikan") }
-                            }
-                            DeleteButton { actions.deleteWaypoint(wp.id) }
                         }
                     }
-                }
-
-                SectionTitle("Peta offline")
-                Text(
-                    offlinePack?.let { pack ->
-                        (if (pack.builtIn) "Peta bawaan: " else "Paket: ") + "${pack.name} · zoom ${pack.minZoom}–${pack.maxZoom}" +
-                            (if (pack.sizeBytes > 0) " · ${pack.sizeBytes / (1024 * 1024)} MB" else "") +
-                            (if (pack.builtIn) " · siap offline tanpa impor" else "")
-                    } ?: "Belum ada paket peta. Impor file MBTiles (raster) dari posko.",
-                    color = Ink, fontSize = 12.sp,
-                )
-                if (offlineSummary.isNotBlank()) Text(offlineSummary, color = Slate, fontSize = 11.sp)
-                Text(
-                    "Peta yang pernah dilihat saat ada internet tersimpan otomatis. Sebelum berangkat, jelajahi area operasi (geser & zoom) di posko.",
-                    color = Slate, fontSize = 11.sp,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = actions.importOfflineMap) {
-                        Text(if (offlinePack == null || offlinePack.builtIn) "Tambah wilayah (MBTiles)" else "Ganti paket")
-                    }
-                    if (offlinePack != null && !offlinePack.builtIn) DeleteButton(actions.removeOfflineMap)
-                }
-
-                SectionTitle("Data operasi")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = actions.exportGpx) { Text("Ekspor GPX") }
-                    OutlinedButton(onClick = actions.importGpx) { Text("Impor GPX") }
-                }
-
-                SectionTitle("Unit")
-                if (state.trackedUsers.isEmpty()) {
-                    Text("Belum ada unit dengan koordinat yang diterima.", color = Slate, fontSize = 12.sp)
-                }
-                state.trackedUsers.forEach { unit ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "${if (unit.emergency) "SOS - " else ""}${if (unit.own) "Anda" else unit.name}${if (unit.verified && !unit.own) " ✓" else ""} | ${unit.rssi?.let { "$it dBm" } ?: "RSSI relay"} | +/-${unit.accuracyMeters.toInt()} m" +
-                                lastSeenLabel(unit) +
-                                (unit.batteryPercent?.let { " | baterai $it%" } ?: "") +
-                                (state.unitStatuses[unit.peerId]?.let { " | ${it.status.label}" } ?: ""),
-                            color = when {
-                                unit.emergency -> Danger
-                                (unit.batteryPercent ?: 100) <= LOW_BATTERY_PERCENT || state.unitStatuses[unit.peerId]?.status?.urgent == true -> Warning
-                                else -> Slate
-                            },
-                            fontWeight = if (unit.emergency) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 12.sp, modifier = Modifier.weight(1f),
-                        )
-                        if (!unit.own) {
-                            Button(onClick = { actions.selectTarget(unit.peerId) }) {
-                                Text(if (unit.peerId == state.selectedTargetPeerId) "Dipilih" else "Arahkan")
-                            }
+                    SheetTab.Points -> {
+                        if (state.waypoints.isEmpty()) EmptyHint("Belum ada titik. Ketuk \"Tandai titik\" untuk menandai korban, bahaya, posko, dll.")
+                        state.waypoints.asReversed().forEach { wp ->
+                            WaypointRow(
+                                wp, here, state,
+                                onSelect = { actions.selectWaypoint(if (wp.id == state.selectedWaypointId) null else wp.id) },
+                                onEdit = if (wp.type == WaypointType.Korban) ({
+                                    if (state.routeDraft != null) actions.cancelDraft()
+                                    markingOpen = false; roadOpen = false; editingWaypointId = wp.id
+                                }) else null,
+                                onShare = if (wp.type != WaypointType.Korban && wp.own) ({ actions.shareWaypoint(wp.id) }) else null,
+                                onDelete = { actions.deleteWaypoint(wp.id) },
+                            )
                         }
-                        if (unit.emergency && !unit.own) ResolveButton { actions.resolveEmergency(unit.peerId) }
                     }
+                    SheetTab.More -> MoreTab(offlinePack, offlineSummary, actions)
                 }
             }
             }
@@ -299,6 +272,7 @@ fun MapScreen(
 }
 
 private const val LOW_BATTERY_PERCENT = 20
+private const val COLLAPSE_FRACTION = 0.16f
 
 /**
  * Hanya bermakna bila kita punya kunci operasi: tanpa kunci tidak ada yang bisa diverifikasi, jadi tidak
@@ -310,37 +284,258 @@ internal fun trustLabel(own: Boolean, verified: Boolean, haveKey: Boolean) = whe
     else -> " | belum terverifikasi"
 }
 
-/** Posisi sendiri (dan tujuan) dalam format pilihan, siap dibacakan lewat HT atau disalin. */
+/** Posisi sendiri (dan tujuan) dalam format pilihan, siap dibacakan lewat HT atau disalin. Ketuk format untuk ganti. */
 @Composable
 private fun CoordinatePanel(here: GeoPoint?, target: GeoPoint?, format: CoordinateFormat, onFormat: (CoordinateFormat) -> Unit) {
     val clipboard = LocalClipboardManager.current
     Column(
-        Modifier.fillMaxWidth().background(BrandTint, RoundedCornerShape(16.dp)).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        Modifier.fillMaxWidth().background(BrandTint, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Koordinat", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            CoordinateFormat.entries.forEach { option ->
-                val selected = option == format
-                Text(
-                    option.label, color = if (selected) Color.White else Brand, fontSize = 11.sp,
-                    modifier = Modifier.background(if (selected) Brand else Color.White, RoundedCornerShape(12.dp))
-                        .pressableClick { onFormat(option) }.padding(horizontal = 10.dp, vertical = 5.dp),
-                )
-            }
+        if (here == null) {
+            Text("Menunggu GPS...", color = Slate, fontSize = 12.sp)
+            return@Column
         }
-        listOfNotNull(here?.let { "Anda" to it }, target?.let { "Tujuan" to it }).forEach { (label, point) ->
+        listOfNotNull("Anda" to here, target?.let { "Tujuan" to it }).forEachIndexed { index, (label, point) ->
             val text = formatCoordinate(point, format)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("$label: $text", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                Text(
-                    "Salin", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.pressableClick { clipboard.setText(AnnotatedString(text)) }.padding(6.dp),
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(label, color = Slate, fontSize = 11.sp, modifier = Modifier.width(44.dp))
+                Text(text, color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                if (index == 0) {
+                    val next = CoordinateFormat.entries[(format.ordinal + 1) % CoordinateFormat.entries.size]
+                    SmallAction(format.label) { onFormat(next) }
+                }
+                SmallAction("Salin") { clipboard.setText(AnnotatedString(text)) }
             }
         }
-        if (here == null) Text("Menunggu GPS...", color = Slate, fontSize = 12.sp)
     }
+}
+
+/** Arahan ke unit/titik/rute: jarak besar di kiri, arah & instruksi di kanan. */
+@Composable
+private fun GuidanceCard(target: NavigationTarget, guidance: OfflineGuidance, onStop: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().background(BrandSoft, RoundedCornerShape(16.dp)).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(guidance.distanceLabel, color = BrandDeep, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Column(Modifier.weight(1f)) {
+                Text(target.title, color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${guidance.cardinal} ${guidance.bearing.toInt()}°" +
+                        (target.remainingAfterMeters?.let { " · sisa rute ${AppController.formatDistance(it)}" } ?: ""),
+                    color = Slate, fontSize = 12.sp,
+                )
+            }
+            Box(Modifier.size(32.dp).background(Color.White, CircleShape).pressableClick(onStop), contentAlignment = Alignment.Center) {
+                AppIcon(IconKind.Close, Slate, Modifier.size(12.dp))
+            }
+        }
+        Text(guidance.turnInstruction, color = Ink, fontSize = 13.sp)
+        Text(
+            "Arah langsung, bukan jaminan jalur aman. Hindari tebing, sungai, longsor, dan area tertutup.",
+            color = Warning, fontSize = 10.sp, lineHeight = 13.sp,
+        )
+    }
+}
+
+private enum class SheetTab(val label: String) { Units("Unit"), Routes("Jalur"), Points("Titik"), More("Lainnya") }
+
+@Composable
+private fun SheetTabs(selected: SheetTab, state: AppUiState, onSelect: (SheetTab) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().background(Canvas, RoundedCornerShape(14.dp)).padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        SheetTab.entries.forEach { option ->
+            val count = when (option) {
+                SheetTab.Units -> state.trackedUsers.size
+                SheetTab.Routes -> state.routes.size
+                SheetTab.Points -> state.waypoints.size
+                SheetTab.More -> 0
+            }
+            val on = option == selected
+            Text(
+                option.label + if (count > 0) " $count" else "",
+                color = if (on) Ink else Slate, fontSize = 12.sp,
+                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                textAlign = TextAlign.Center, maxLines = 1,
+                modifier = Modifier.weight(1f)
+                    .background(if (on) Color.White else Color.Transparent, RoundedCornerShape(11.dp))
+                    .pressableClick { onSelect(option) }
+                    .padding(vertical = 8.dp),
+            )
+        }
+    }
+}
+
+/** SOS dulu, lalu diri sendiri, lalu yang terdekat. */
+@Composable
+private fun UnitList(state: AppUiState, here: GeoPoint?, actions: MapActions) {
+    if (state.trackedUsers.isEmpty()) return EmptyHint("Belum ada unit dengan koordinat yang diterima.")
+    val sorted = state.trackedUsers.sortedWith(
+        compareByDescending<TrackedUser> { it.emergency && !it.own }
+            .thenByDescending { it.own }
+            .thenBy { unit -> here?.let { RoutePolyline.distanceMeters(it, GeoPoint(unit.latitude, unit.longitude)) } ?: 0.0 },
+    )
+    sorted.forEach { unit -> UnitRow(unit, here, state, actions) }
+}
+
+@Composable
+private fun UnitRow(unit: TrackedUser, here: GeoPoint?, state: AppUiState, actions: MapActions) {
+    val sos = unit.emergency && !unit.own
+    val status = state.unitStatuses[unit.peerId]?.status
+    val lowBattery = (unit.batteryPercent ?: 100) <= LOW_BATTERY_PERCENT
+    val name = if (unit.own) "Anda" else unit.name
+    val meta = listOfNotNull(
+        here?.takeIf { !unit.own }?.let { AppController.formatDistance(RoutePolyline.distanceMeters(it, GeoPoint(unit.latitude, unit.longitude))) },
+        if (unit.own) null else unit.rssi?.let { "$it dBm" } ?: "via relay",
+        "±${unit.accuracyMeters.toInt()} m",
+        unit.batteryPercent?.let { "baterai $it%" },
+    ).joinToString(" · ") + lastSeenLabel(unit).replace(" | ", " · ")
+    ItemCard(tint = if (sos) DangerTint else Color(0xFFF8FAFC)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Avatar(name.take(1).uppercase(), if (sos) Danger else if (unit.own) BrandDeep else Accent)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        (if (sos) "SOS · " else "") + name + if (unit.verified && !unit.own) " ✓" else "",
+                        color = if (sos) Danger else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                    )
+                    status?.let { Tag(it.label, if (it.urgent) Warning else Slate) }
+                }
+                Text(meta, color = if (lowBattery) Warning else Slate, fontSize = 11.sp, lineHeight = 14.sp)
+            }
+            if (!unit.own) {
+                val selected = unit.peerId == state.selectedTargetPeerId
+                PillButton(if (selected) "Dipilih" else "Arahkan", filled = selected) { actions.selectTarget(if (selected) null else unit.peerId) }
+            }
+        }
+        if (sos) ItemActions { ResolveButton { actions.resolveEmergency(unit.peerId) } }
+    }
+}
+
+@Composable
+private fun WaypointRow(
+    wp: MapWaypoint,
+    here: GeoPoint?,
+    state: AppUiState,
+    onSelect: () -> Unit,
+    onEdit: (() -> Unit)?,
+    onShare: (() -> Unit)?,
+    onDelete: () -> Unit,
+) {
+    val meta = listOfNotNull(
+        if (wp.own) "Anda" else wp.ownerName,
+        here?.let { AppController.formatDistance(RoutePolyline.distanceMeters(it, wp.point)) },
+        wp.updatedBy?.let { "diperbarui $it" },
+        wp.ackedBy.takeIf { it.isNotEmpty() }?.let(::ackLabel),
+    ).joinToString(" · ") + trustLabel(wp.own, wp.verified, state.operationCode != null).replace(" | ", " · ")
+    ItemCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            WaypointBadge(wp.type, wp.victim)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    listOfNotNull(wp.type.label, wp.label.ifBlank { null }).joinToString(": "),
+                    color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+                wp.victim?.summary()?.takeIf { it.isNotBlank() }?.let { Text(it, color = Ink, fontSize = 12.sp) }
+                Text(meta, color = Slate, fontSize = 11.sp, lineHeight = 14.sp)
+            }
+            val selected = wp.id == state.selectedWaypointId
+            PillButton(if (selected) "Dipilih" else "Arahkan", filled = selected, onClick = onSelect)
+        }
+        ItemActions {
+            onEdit?.let { SmallAction("Perbarui", onClick = it) }
+            onShare?.let { SmallAction("Bagikan", onClick = it) }
+            DeleteButton(onDelete)
+        }
+    }
+}
+
+@Composable
+private fun MoreTab(offlinePack: OfflinePackInfo?, offlineSummary: String, actions: MapActions) {
+    ItemCard {
+        Text("Peta offline", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            offlinePack?.let { pack ->
+                (if (pack.builtIn) "Bawaan: " else "Paket: ") + "${pack.name} · zoom ${pack.minZoom}–${pack.maxZoom}" +
+                    (if (pack.sizeBytes > 0) " · ${pack.sizeBytes / (1024 * 1024)} MB" else "")
+            } ?: "Belum ada paket peta. Impor file MBTiles (raster) dari posko.",
+            color = Ink, fontSize = 12.sp,
+        )
+        if (offlineSummary.isNotBlank()) Text(offlineSummary, color = Slate, fontSize = 11.sp)
+        Text("Peta yang pernah dilihat saat online ikut tersimpan otomatis.", color = Slate, fontSize = 11.sp)
+        ItemActions {
+            SmallAction(if (offlinePack == null || offlinePack.builtIn) "Tambah wilayah (MBTiles)" else "Ganti paket", onClick = actions.importOfflineMap)
+            if (offlinePack != null && !offlinePack.builtIn) DeleteButton(actions.removeOfflineMap)
+        }
+    }
+    ItemCard {
+        Text("Data operasi (GPX)", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text("Jalur & titik untuk dibuka di aplikasi lain atau dibagikan ke posko.", color = Slate, fontSize = 11.sp)
+        ItemActions {
+            SmallAction("Impor", onClick = actions.importGpx)
+            SmallAction("Ekspor", onClick = actions.exportGpx)
+        }
+    }
+}
+
+@Composable
+private fun ItemCard(tint: Color = Color(0xFFF8FAFC), content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().background(tint, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) { content() }
+}
+
+/** Aksi sekunder kecil, rata kanan di bawah isi kartu. */
+@Composable
+private fun ItemActions(content: @Composable () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+    ) { content() }
+}
+
+@Composable
+private fun PillButton(text: String, filled: Boolean = false, color: Color = BrandDeep, onClick: () -> Unit) {
+    Text(
+        text, color = if (filled) Color.White else color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+        modifier = Modifier.background(if (filled) color else color.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
+            .pressableClick(onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+    )
+}
+
+@Composable
+private fun SmallAction(text: String, color: Color = BrandDeep, onClick: () -> Unit) {
+    Text(
+        text, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+        modifier = Modifier.pressableClick(onClick).padding(horizontal = 8.dp, vertical = 6.dp),
+    )
+}
+
+@Composable
+private fun Tag(text: String, color: Color) {
+    Text(
+        text, color = color, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+        modifier = Modifier.background(color.copy(alpha = 0.12f), RoundedCornerShape(8.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+@Composable
+private fun Avatar(letter: String, color: Color) {
+    Box(Modifier.size(36.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
+        Text(letter, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun EmptyHint(text: String) {
+    Text(text, color = Slate, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), textAlign = TextAlign.Center)
 }
 
 /** Korban SOS tetap tampil walau tak ada kabar: beri tahu seberapa lama posisinya tidak diperbarui. */
@@ -350,31 +545,34 @@ private fun lastSeenLabel(unit: TrackedUser): String {
     return if (minutes < 1) " | baru saja" else " | terakhir terlihat $minutes mnt lalu"
 }
 
+private enum class SheetMode { Road, Draw, Mark }
+
+/** Empat aksi utama sebagai ubin sejajar; ubin mode yang sedang terbuka diberi warna penuh. */
 @Composable
-private fun TrailActions(
-    state: AppUiState,
-    markingOpen: Boolean,
-    onToggleMarking: () -> Unit,
-    onToggleRoad: () -> Unit,
-    roadOpen: Boolean,
-    actions: MapActions,
-) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val recording = state.recordingTrackId != null
-        if (recording) {
+private fun TrailActions(state: AppUiState, mode: SheetMode?, actions: MapActions, onMode: (SheetMode) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val tile = Modifier.weight(1f)
+        if (state.recordingTrackId != null) {
             val points = state.routes.firstOrNull { it.id == state.recordingTrackId }?.points.orEmpty()
-            Button(
-                onClick = actions.stopTrack,
-                colors = ButtonDefaults.buttonColors(containerColor = Danger),
-            ) { Text("Stop rekam (${AppController.formatDistance(RoutePolyline.lengthMeters(points))})") }
+            ActionTile("Stop rekam", AppController.formatDistance(RoutePolyline.lengthMeters(points)), true, Danger, tile, actions.stopTrack)
         } else {
-            Button(onClick = actions.startTrack, colors = ButtonDefaults.buttonColors(containerColor = Accent)) { Text("Rekam jejak") }
+            ActionTile("Rekam", "jejak", false, Accent, tile, actions.startTrack)
         }
-        if (state.routeDraft == null) {
-            OutlinedButton(onClick = onToggleRoad) { Text(if (roadOpen) "Tutup rute jalan" else "Rute jalan") }
-            OutlinedButton(onClick = actions.startDraft) { Text("Gambar rute") }
-        }
-        OutlinedButton(onClick = onToggleMarking) { Text(if (markingOpen) "Tutup tandai" else "Tandai titik") }
+        ActionTile("Rute", "jalan", mode == SheetMode.Road, BrandDeep, tile) { onMode(SheetMode.Road) }
+        ActionTile("Gambar", "rute", mode == SheetMode.Draw, BrandDeep, tile) { onMode(SheetMode.Draw) }
+        ActionTile("Tandai", "titik", mode == SheetMode.Mark, Warning, tile) { onMode(SheetMode.Mark) }
+    }
+}
+
+@Composable
+private fun ActionTile(title: String, subtitle: String, active: Boolean, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.background(if (active) color else color.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
+            .pressableClick(onClick).padding(vertical = 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(title, color = if (active) Color.White else color, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(subtitle, color = if (active) Color.White.copy(alpha = 0.85f) else color.copy(alpha = 0.8f), fontSize = 11.sp, maxLines = 1)
     }
 }
 
@@ -534,15 +732,34 @@ private fun RouteRow(route: SharedRoute, trust: String, followed: Boolean, onFol
         RouteKind.Track -> "jejak"
         RouteKind.Plan -> "rencana"
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            "${route.name} | ${if (route.own) "Anda" else route.ownerName} | $kind | ${AppController.formatDistance(RoutePolyline.lengthMeters(points))}$trust",
-            color = if (route.kind == RouteKind.LiveTrack || trust.contains("belum")) Warning else Slate,
-            fontSize = 12.sp, modifier = Modifier.weight(1f),
-        )
-        if (points.size >= 2) Button(onClick = onFollow) { Text(if (followed) "Diikuti" else "Ikuti") }
-        if (points.size >= 2) onShare?.let { OutlinedButton(onClick = it) { Text("Bagikan") } }
-        onDelete?.let { DeleteButton(it) }
+    // Warna sama dengan garis di peta: rencana biru, jejak sendiri teal, jejak tim oranye.
+    val color = when {
+        route.kind == RouteKind.Plan -> BrandDeep
+        route.own -> Color(0xFF0F766E)
+        else -> Color(0xFFEA580C)
+    }
+    ItemCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(36.dp).background(color.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.width(16.dp).height(4.dp).background(color, RoundedCornerShape(2.dp)))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(route.name, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${AppController.formatDistance(RoutePolyline.lengthMeters(points))} · $kind · ${if (route.own) "Anda" else route.ownerName}" +
+                        trust.replace(" | ", " · "),
+                    color = if (route.kind == RouteKind.LiveTrack || trust.contains("belum")) Warning else Slate,
+                    fontSize = 11.sp, lineHeight = 14.sp,
+                )
+            }
+            if (points.size >= 2) PillButton(if (followed) "Diikuti" else "Ikuti", filled = followed, onClick = onFollow)
+        }
+        if ((points.size >= 2 && onShare != null) || onDelete != null) {
+            ItemActions {
+                if (points.size >= 2) onShare?.let { SmallAction("Bagikan", onClick = it) }
+                onDelete?.let { DeleteButton(it) }
+            }
+        }
     }
 }
 
@@ -550,8 +767,8 @@ private fun RouteRow(route: SharedRoute, trust: String, followed: Boolean, onFol
 @Composable
 private fun ResolveButton(onConfirm: () -> Unit) {
     var confirming by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { if (confirming) { confirming = false; onConfirm() } else confirming = true }) {
-        Text(if (confirming) "Yakin?" else "Ditangani", color = if (confirming) Danger else Success, fontSize = 12.sp)
+    PillButton(if (confirming) "Yakin sudah ditangani?" else "Tandai ditangani", filled = confirming, color = if (confirming) Danger else Success) {
+        if (confirming) { confirming = false; onConfirm() } else confirming = true
     }
 }
 
@@ -586,8 +803,8 @@ private fun WaypointBadge(type: WaypointType, victim: VictimInfo? = null) {
         letter = victim.count.toString()
         color = if (victim.evacuated) Muted else victim.triage?.let(::triageColor) ?: color
     }
-    Box(Modifier.size(24.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
-        Text(letter, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    Box(Modifier.size(36.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
+        Text(letter, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 

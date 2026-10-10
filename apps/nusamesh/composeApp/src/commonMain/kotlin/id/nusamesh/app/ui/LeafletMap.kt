@@ -167,7 +167,7 @@ internal val leafletHtml = """
     #clear { width:20px; height:20px; border:0; outline:0; border-radius:10px; color:white; background:#94a3b8; padding:0; cursor:pointer; line-height:18px; transition:transform 90ms ease,background 90ms ease; }
     #clear:active { transform:scale(.88); background:#64748b; }
     .leaflet-control-zoom a { transition:transform 90ms ease,background 90ms ease; }
-    .leaflet-control-zoom a:active { transform:scale(.92); background:#EEF2FF !important; }
+    .leaflet-control-zoom a:active { transform:scale(.92); background:#EEF6FF !important; }
     #error { position:absolute; z-index:1000; top:88px; left:16px; right:16px; color:#ef4444; font:11px system-ui,sans-serif; pointer-events:none; }
     #offline { display:none; position:absolute; z-index:1000; left:16px; right:16px; top:94px; padding:10px 12px; border-radius:12px; background:#FFF4E5; color:#B45309; font:12px system-ui,sans-serif; box-shadow:0 2px 10px #16203318; pointer-events:none; }
     #coordinate { position:absolute; z-index:999; left:16px; bottom:18px; padding:7px 10px; border-radius:12px; background:#ffffffdd; color:#475569; box-shadow:0 2px 10px #16203318; font:11px system-ui,sans-serif; pointer-events:none; }
@@ -275,7 +275,7 @@ internal val leafletHtml = """
     ];
     function showPlace(latitude, longitude, label, zoom) {
       searchMarkers.clearLayers();
-      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#3B5BDB',fillOpacity:1})
+      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#74B9FF',fillOpacity:1})
         .addTo(searchMarkers).bindPopup(label).openPopup();
       map.setView([latitude, longitude], zoom || 11);
       query.blur();
@@ -343,7 +343,7 @@ internal val leafletHtml = """
     }
     const waypointStyle = {
       posko:['P','#2563EB'], korban:['K','#DC2626'], bahaya:['!','#D97706'],
-      heli:['H','#3B5BDB'], air:['A','#0891B2'], lain:['•','#475569']
+      heli:['H','#74B9FF'], air:['A','#0891B2'], lain:['•','#475569']
     };
     const triageColors = {Merah:'#DC2626', Kuning:'#CA8A04', Hijau:'#16A34A', Hitam:'#111827'};
     let lastFocusKey;
@@ -381,7 +381,7 @@ internal val leafletHtml = """
         const plan = route.kind === 'Plan';
         const live = route.kind === 'LiveTrack';
         const style = {
-          color: plan ? '#3B5BDB' : (route.own ? '#0F766E' : '#EA580C'),
+          color: plan ? '#74B9FF' : (route.own ? '#0F766E' : '#EA580C'),
           weight: 5, opacity: .85, dashArray: plan ? '12 8' : null, lineJoin:'round'
         };
         const label = '<b>' + esc(route.name) + '</b><br>' + esc(route.owner) +
@@ -417,7 +417,7 @@ internal val leafletHtml = """
         if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
         L.circleMarker([unit.latitude, unit.longitude], {
           radius:unit.emergency ? 13 : 9, color:'#fff', weight:3,
-          fillColor:unit.emergency ? '#DC2626' : '#3B5BDB', fillOpacity:1
+          fillColor:unit.emergency ? '#DC2626' : '#74B9FF', fillOpacity:1
         }).addTo(window.nusaMarkers).bindPopup(
           '<b>' + (unit.emergency ? 'SOS - ' : '') + esc(unit.name || 'Unit') + '</b><br>' +
           (unit.own ? 'Perangkat ini' : (unit.direct ? 'BLE langsung' : 'Via relay')) + '<br>' +
