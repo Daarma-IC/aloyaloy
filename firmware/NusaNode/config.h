@@ -53,7 +53,14 @@
 // ---------------------------------------------------------------------------
 #define LORA_FREQ            921.0f     // MHz. Indonesia 920-923 [VERIFIKASI REGULASI]
 #define LORA_BW              125.0f     // kHz
+#ifndef LORA_SF                         // varian di sf-variants/ menetapkannya sendiri
 #define LORA_SF              7          // 7..12 — lihat tabel airtime di bawah. Dipilih 7
+#endif
+// 1 = SF dikunci ke LORA_SF (varian sf-variants/): SF tersimpan di NVS diabaikan dan perintah ganti SF
+// dari app ditolak — node pasti memakai SF firmware yang di-flash. 0 = SF bisa diganti dari app.
+#ifndef LORA_SF_FIXED
+#define LORA_SF_FIXED        0
+#endif
                                         // (bukan 10) buat prioritas banyak-user+latensi
                                         // kecil: simulasi ns-3 (contrib/nusamesh) nunjukin
                                         // latensi rata-rata turun dari ~83s ke ~1.1s dan

@@ -2,11 +2,15 @@ package id.nusamesh.app.ui
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -24,11 +28,17 @@ object OfflineTileStore {
     private const val FRESH_MS = 7L * 24 * 60 * 60 * 1000 // hormati cache minimal 7 hari (kebijakan OSM)
     private const val MAX_CACHE_BYTES = 300L * 1024 * 1024
     private const val USER_AGENT = "NusaMesh/0.2 (aplikasi mesh tanggap darurat; Android)"
+    /** Maksimal 5 tingkat (32×): lebih dari itu potongan terlalu kecil untuk berguna. */
+    private const val MAX_OVERZOOM = 5
+    private const val BUILT_IN_DIR = "offline-tiles"
 
     private lateinit var appContext: Context
     private lateinit var cacheDir: File
     private lateinit var packFile: File
     private var pack: SQLiteDatabase? = null
+    /** Peta bawaan di aset APK (offline-tiles/z/x/y.png); null bila APK dibuat tanpa peta. */
+    private var builtIn: OfflinePackInfo? = null
+    private var userPack: OfflinePackInfo? = null
     private var writesSinceTrim = 0
 
     private val mutablePack = MutableStateFlow<OfflinePackInfo?>(null)
@@ -42,7 +52,9 @@ object OfflineTileStore {
         appContext = context.applicationContext
         cacheDir = File(appContext.filesDir, "tiles/osm").apply { mkdirs() }
         packFile = File(appContext.filesDir, "tiles/offline.mbtiles")
-        if (packFile.exists()) openPack()?.let { mutablePack.value = it } ?: packFile.delete()
+        builtIn = loadBuiltIn()
+        if (packFile.exists()) userPack = openPack() ?: run { packFile.delete(); null }
+        publishPack()
         refreshSummary()
     }
 
@@ -61,7 +73,31 @@ object OfflineTileStore {
                 return bytes
             }
         }
-        return cached?.let(::readOrNull)
+        return cached?.let(::readOrNull) ?: overzoom(tile)
+    }
+
+    /**
+     * Zoom lebih dalam dari yang tersimpan: perbesar potongan ubin leluhur (zoom lebih rendah) yang ada di
+     * cache. Buram, tapi jalan & sungai tetap terlihat — jauh lebih berguna daripada bidang putih.
+     * Hasilnya tidak disimpan supaya ubin asli tetap diunduh begitu ada internet.
+     */
+    private fun overzoom(tile: TileMath.Tile): ByteArray? {
+        for (dz in 1..MAX_OVERZOOM) {
+            val z = tile.z - dz
+            if (z < 0) return null
+            val parent = File(cacheDir, "$z/${tile.x shr dz}/${tile.y shr dz}.png").takeIf { it.exists() } ?: continue
+            val source = BitmapFactory.decodeFile(parent.path) ?: continue
+            return runCatching {
+                val part = source.width shr dz
+                val x = (tile.x - ((tile.x shr dz) shl dz)) * part
+                val y = (tile.y - ((tile.y shr dz) shl dz)) * part
+                val crop = Bitmap.createBitmap(source, x, y, part, part)
+                val scaled = Bitmap.createScaledBitmap(crop, source.width, source.height, true)
+                ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+                    .also { crop.recycle(); scaled.recycle() }
+            }.also { source.recycle() }.getOrNull()
+        }
+        return null
     }
 
     private fun fetch(url: String): ByteArray? = runCatching {
@@ -129,8 +165,18 @@ object OfflineTileStore {
     @Synchronized
     fun packTile(tile: TileMath.Tile): Pair<ByteArray, String>? {
         if (!::appContext.isInitialized) return null
+        userTile(tile)?.let { return it }
+        // Peta bawaan APK: dibaca langsung dari aset (tanpa salinan), tidak ada = 404 cepat.
+        val info = builtIn ?: return null
+        if (tile.z > info.maxZoom) return null
+        return runCatching {
+            appContext.assets.open("$BUILT_IN_DIR/${tile.z}/${tile.x}/${tile.y}.png").use { it.readBytes() } to "image/png"
+        }.getOrNull()
+    }
+
+    private fun userTile(tile: TileMath.Tile): Pair<ByteArray, String>? {
         val db = pack ?: return null
-        val info = mutablePack.value ?: return null
+        val info = userPack ?: return null
         val mime = TileMath.mimeOf(info.format) ?: return null
         return runCatching {
             db.rawQuery(
@@ -151,7 +197,8 @@ object OfflineTileStore {
             closePack()
             packFile.delete()
             incoming.renameTo(packFile)
-            mutablePack.value = openPack()
+            userPack = openPack()
+            publishPack()
             "Peta offline \"${info.name}\" siap (zoom ${info.minZoom}–${info.maxZoom}, ${info.sizeBytes / (1024 * 1024)} MB)"
         } catch (e: Exception) {
             incoming.delete()
@@ -161,11 +208,43 @@ object OfflineTileStore {
 
     @Synchronized
     fun removePack(): String {
-        if (mutablePack.value == null) return "Tidak ada paket peta"
+        if (userPack == null) return if (builtIn != null) "Peta bawaan tidak bisa dihapus" else "Tidak ada paket peta"
         closePack()
         packFile.delete()
-        mutablePack.value = null
-        return "Paket peta offline dihapus"
+        userPack = null
+        publishPack()
+        return if (builtIn != null) "Paket impor dihapus; kembali ke peta bawaan" else "Paket peta offline dihapus"
+    }
+
+    private fun loadBuiltIn(): OfflinePackInfo? = runCatching {
+        val meta = JSONObject(appContext.assets.open("$BUILT_IN_DIR/metadata.json").use { it.readBytes().decodeToString() })
+        OfflinePackInfo(
+            name = meta.optString("name", "Peta bawaan"),
+            format = meta.optString("format", "png"),
+            minZoom = meta.optInt("minzoom", 10),
+            maxZoom = meta.optInt("maxzoom", 16),
+            bounds = TileMath.parseBounds(meta.optString("bounds")),
+            sizeBytes = 0,
+            builtIn = true,
+        )
+    }.getOrNull()
+
+    /**
+     * Info untuk peta: satu sumber → batasnya dipakai; bawaan + impor → tanpa batas, ubin dicari di keduanya
+     * (di luar keduanya dijawab 404 cepat).
+     */
+    private fun publishPack() {
+        val user = userPack
+        val base = builtIn
+        mutablePack.value = when {
+            user != null && base != null -> user.copy(
+                name = "${user.name} + ${base.name}",
+                minZoom = minOf(user.minZoom, base.minZoom),
+                maxZoom = maxOf(user.maxZoom, base.maxZoom),
+                bounds = null,
+            )
+            else -> user ?: base
+        }
     }
 
     private fun openPack(): OfflinePackInfo? {

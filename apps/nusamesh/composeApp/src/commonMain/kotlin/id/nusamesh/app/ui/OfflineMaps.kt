@@ -12,6 +12,8 @@ data class OfflinePackInfo(
     /** [barat, selatan, timur, utara] atau null bila metadata tidak mencantumkan. */
     val bounds: List<Double>?,
     val sizeBytes: Long,
+    /** Peta bawaan yang tertanam di APK (tidak bisa dihapus). */
+    val builtIn: Boolean = false,
 )
 
 /**

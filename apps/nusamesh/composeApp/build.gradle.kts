@@ -38,6 +38,8 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
+            // AI super-resolution gambar LoRa (Real-ESRGAN / SESR / XLSR, TFLite int8)
+            implementation(libs.tensorflow.lite)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -72,6 +74,15 @@ android {
             path = file("src/androidMain/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
+    }
+
+    // Peta offline bawaan (dibuat tools/offline-map, di-gitignore): ikut APK supaya langsung tersedia
+    // tanpa impor. Bila folder tidak ada, APK tetap jadi — hanya tanpa peta bawaan.
+    sourceSets.getByName("main").assets.srcDir("offline-maps")
+
+    // Model .tflite harus tersimpan tanpa kompresi supaya bisa di-memory-map langsung dari APK.
+    androidResources {
+        noCompress += "tflite"
     }
 
     compileOptions {

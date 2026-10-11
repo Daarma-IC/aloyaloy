@@ -1,5 +1,7 @@
 package id.nusamesh.app.mesh.engine
 
+import id.nusamesh.app.mesh.protocol.LoraRxMeta
+import kotlin.math.roundToInt
 import id.nusamesh.app.mesh.protocol.MessageType
 import id.nusamesh.app.mesh.protocol.WirePacket
 import id.nusamesh.app.mesh.protocol.WireProtocol
@@ -123,6 +125,8 @@ class FakeNode(
     private val seen = HashSet<String>()
     val loraPeers = mutableListOf<FakeNode>()
     val registrations = mutableListOf<Pair<String, Int>>()   // (peerId HP, prevNode)
+    /** Firmware uji QoS: kirim RX_META (RSSI/SNR/SF) sebelum tiap paket yang tiba lewat LoRa. null = firmware lama. */
+    var rxMeta: Triple<Float, Float, Int>? = null
 
     init { radio.add(this) }
 
@@ -149,16 +153,31 @@ class FakeNode(
         forward(p, data, exceptClient = from)
     }
 
-    private fun forward(p: WirePacket, data: ByteArray, exceptClient: String?) {
+    private fun forward(p: WirePacket, data: ByteArray, exceptClient: String?, fromLora: Boolean = false) {
         val key = "${p.timestamp}-${p.senderHex}-${p.type}-${p.payload.contentHashCode()}"
         if (!seen.add(key)) return
-        clients.filter { it != exceptClient }.forEach { radio.send(address, it, data) }
-        loraPeers.forEach { it.forward(p, data, exceptClient = null) }
+        val meta = rxMeta?.takeIf { fromLora }?.let { (rssi, snr, sf) -> WireProtocol.encode(rxMetaPacket(data, rssi, snr, sf)) }
+        clients.filter { it != exceptClient }.forEach { client ->
+            meta?.let { radio.send(address, client, it) }
+            radio.send(address, client, data)
+        }
+        loraPeers.forEach { it.forward(p, data, exceptClient = null, fromLora = true) }
     }
 
-    fun sendHealth(neighbors: Int = loraPeers.size) {
+    /** Sama dengan nusaBuildRxMeta() firmware: payload v1 18 byte. */
+    private fun rxMetaPacket(data: ByteArray, rssi: Float, snr: Float, sf: Int): WirePacket {
+        val id = LoraRxMeta.msgIdOf(data)
+        val r = (rssi * 10).roundToInt()
+        val n = (snr * 10).roundToInt()
+        val payload = byteArrayOf(1) + ByteArray(8) { (id ushr (56 - 8 * it)).toByte() } +
+            byteArrayOf((r shr 8).toByte(), r.toByte(), (n shr 8).toByte(), n.toByte(), sf.toByte(), (1250 shr 8).toByte(), 1250.toByte(), 2, 20)
+        return WirePacket(type = MessageType.NODE_RX_META.value, senderId = peerIdBytes(peerId), timestamp = now(), payload = payload, ttl = 1)
+    }
+
+    fun sendHealth(neighbors: Int = loraPeers.size, sf: Int? = null, testMode: Boolean = false) {
+        val base = byteArrayOf(neighbors.toByte(), (-70).toByte(), 16, clients.size.toByte(), 3)
         val h = WirePacket(type = MessageType.NODE_LORA_HEALTH.value, senderId = peerIdBytes(peerId), timestamp = now(),
-            payload = byteArrayOf(neighbors.toByte(), (-70).toByte(), 16, clients.size.toByte(), 3), ttl = 1)
+            payload = if (sf != null) base + byteArrayOf(sf.toByte(), if (testMode) 1 else 0) else base, ttl = 1)
         clients.forEach { radio.send(address, it, WireProtocol.encode(h)) }
     }
 }

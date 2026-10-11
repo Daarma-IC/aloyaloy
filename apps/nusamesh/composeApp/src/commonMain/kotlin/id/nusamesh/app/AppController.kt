@@ -3,6 +3,7 @@ package id.nusamesh.app
 import id.nusamesh.app.data.KeyValueStore
 import id.nusamesh.app.data.GpxCodec
 import id.nusamesh.app.data.MapPersistence
+import id.nusamesh.app.data.QosRecords
 import id.nusamesh.app.data.MeshRepository
 import id.nusamesh.app.data.MobilityLogEntry
 import id.nusamesh.app.data.currentEpochMillis
@@ -22,6 +23,13 @@ import id.nusamesh.app.domain.MeshStatus
 import id.nusamesh.app.domain.RouteKind
 import id.nusamesh.app.domain.SharedRoute
 import id.nusamesh.app.domain.TrackedUser
+import id.nusamesh.app.domain.QosRun
+import id.nusamesh.app.domain.RoadRouteInfo
+import id.nusamesh.app.routing.RoadGraph
+import id.nusamesh.app.routing.TravelMode
+import id.nusamesh.app.domain.QosSample
+import id.nusamesh.app.domain.QosSending
+import id.nusamesh.app.domain.RxMeasurement
 import id.nusamesh.app.domain.UnitStatus
 import id.nusamesh.app.location.DeviceLocation
 import id.nusamesh.app.mesh.engine.EngineSnapshot
@@ -34,6 +42,8 @@ import id.nusamesh.app.mesh.protocol.GeoPoint
 import id.nusamesh.app.mesh.protocol.ImportantMessage
 import id.nusamesh.app.mesh.protocol.MeshMessageType
 import id.nusamesh.app.mesh.protocol.QuickStatus
+import id.nusamesh.app.mesh.protocol.QosProbe
+import id.nusamesh.app.mesh.protocol.LoraRxMeta
 import id.nusamesh.app.mesh.protocol.RoutePolyline
 import id.nusamesh.app.mesh.protocol.RouteTelemetry
 import id.nusamesh.app.mesh.protocol.TrackSegmentTelemetry
@@ -53,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 class AppController(
@@ -62,6 +73,8 @@ class AppController(
     initialConversationId: String? = null,
     /** Persen baterai HP ini (ikut telemetri lokasi & SOS); null bila platform tidak menyediakan. */
     private val batteryLevel: () -> Int? = { null },
+    /** Isi file graf jalan offline (dibaca sekali saat rute pertama diminta); null = tidak tersedia. */
+    private val roadGraph: () -> ByteArray? = { null },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val _state = MutableStateFlow(
@@ -83,10 +96,12 @@ class AppController(
     val resumeMeshOnLaunch: Boolean get() = store.get(KEY_ACTIVE) == "1"
 
     private var saveMapJob: Job? = null
+    private var saveQosJob: Job? = null
 
     init {
         restoreOperationKey()
         restoreMapData()
+        _state.update { it.copy(qosRuns = QosRecords.decode(store.get(KEY_QOS))) }
         _state.update { it.copy(chats = withChannelPreviews(it.chats, it.role, it.team)) }
         scope.launch { repository.snapshot.collect(::onSnapshot) }
         // Jalur & titik disimpan permanen; ditunda sedikit supaya update GPS beruntun cukup satu tulis.
@@ -98,6 +113,19 @@ class AppController(
                 if (encoded != savedEmergencies) {
                     savedEmergencies = encoded
                     store.put(KEY_EMERGENCIES, encoded)
+                }
+            }
+        }
+        // Hasil uji QoS (data TA) disimpan permanen, ditunda sedikit supaya tiap paket tak memicu tulis.
+        scope.launch {
+            var savedRuns = _state.value.qosRuns
+            _state.collect { current ->
+                if (current.qosRuns == savedRuns) return@collect
+                savedRuns = current.qosRuns
+                saveQosJob?.cancel()
+                saveQosJob = scope.launch {
+                    delay(MAP_SAVE_DELAY_MS)
+                    store.put(KEY_QOS, QosRecords.encode(savedRuns))
                 }
             }
         }
@@ -223,6 +251,7 @@ class AppController(
             return
         }
         if (receiveRouteTelemetry(incoming)) return
+        QosProbe.decode(m.content)?.let { probe -> return receiveQos(incoming, probe) }
         if (_state.value.messages.any { it.id == m.id }) return
         // Chat channel tim/operasional yang bukan untuk peran kita disembunyikan (tetap diteruskan mesh).
         val conversationId = FieldChannels.conversationFor(m.channel, _state.value.role, _state.value.team, GLOBAL_CHAT_ID) ?: return
@@ -236,6 +265,7 @@ class AppController(
             delivery = DeliveryState.Received,
             path = if (incoming.viaNode) DeliveryPath.Node else DeliveryPath.Ble,
             verified = incoming.verified,
+            rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, m.timestampMs),
         )
         appendIncoming(message, QuickStatus.display(m.content))
         if (ImportantMessage.wantsAck(m.content)) acknowledge(m.id, incoming.fromPeerId)
@@ -267,6 +297,7 @@ class AppController(
             delivery = DeliveryState.Received,
             attachmentName = fileName,
             verified = incoming.verified,
+            rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, incoming.timestampMs),
             attachmentBytes = file.content.size,
             attachmentMimeType = file.mimeType,
             attachmentData = file.content,
@@ -692,8 +723,82 @@ class AppController(
         lastTrackFlushAt = now
     }
 
-    fun startRouteDraft() = _state.update { it.copy(routeDraft = emptyList(), pickedPoint = null) }
-    fun cancelRouteDraft() = _state.update { it.copy(routeDraft = null) }
+    fun startRouteDraft() = _state.update { it.copy(routeDraft = emptyList(), pickedPoint = null, roadRoute = null) }
+    fun cancelRouteDraft() = _state.update { it.copy(routeDraft = null, roadRoute = null) }
+
+    // ------------------------------------------------------------------------------------------
+    //  Rute jalan otomatis (offline): A* di graf jalan OSM yang ikut APK
+    // ------------------------------------------------------------------------------------------
+    private var graph: RoadGraph? = null
+    private var graphLoadFailed = false
+
+    /**
+     * Cari rute mengikuti jalan dari posisi sendiri ke titik yang diketuk di peta, atau ke tujuan navigasi
+     * aktif (unit/titik). Hasilnya jadi draft rute: bisa diikuti (kompas per titik) atau dikirim ke tim.
+     */
+    fun planRoadRoute(mode: TravelMode) {
+        val current = _state.value
+        if (current.routing) return
+        val own = current.trackedUsers.firstOrNull { it.own } ?: return showNotice("Menunggu GPS untuk titik awal rute")
+        val target = current.pickedPoint
+            ?: current.waypoints.firstOrNull { it.id == current.selectedWaypointId }?.point
+            ?: current.trackedUsers.firstOrNull { it.peerId == current.selectedTargetPeerId }?.let { GeoPoint(it.latitude, it.longitude) }
+            ?: return showNotice("Ketuk tujuan di peta (atau pilih titik/unit untuk diarahkan) dulu")
+        if (graphLoadFailed) return showNotice("Data jalan offline tidak tersedia di aplikasi ini")
+        _state.update { it.copy(routing = true) }
+        scope.launch {
+            val result = withContext(Dispatchers.Default) {
+                runCatching {
+                    val g = graph ?: roadGraph()?.let(RoadGraph::parse)?.also { graph = it }
+                        ?: error("Data jalan offline tidak tersedia di aplikasi ini")
+                    g.route(GeoPoint(own.latitude, own.longitude), target, mode)
+                }
+            }
+            result.exceptionOrNull()?.let { graphLoadFailed = graph == null }
+            val route = result.getOrNull()
+            _state.update { state ->
+                if (route == null) state.copy(routing = false)
+                else state.copy(
+                    routing = false,
+                    pickedPoint = null,
+                    routeDraft = simplifyForSharing(route.points),
+                    roadRoute = RoadRouteInfo(route.distanceMeters, route.durationSeconds, route.mode.label, route.offRoadMeters),
+                )
+            }
+            when {
+                result.isFailure -> showNotice(result.exceptionOrNull()?.message ?: "Gagal menghitung rute")
+                route == null -> showNotice("Rute tidak ditemukan: titik terlalu jauh dari jalan (>2 km) atau jalan tidak terhubung")
+            }
+        }
+    }
+
+    /** Rute jalan bisa ribuan titik; disederhanakan (mulai 3 m) supaya muat dikirim lewat LoRa & ringan diikuti. */
+    private fun simplifyForSharing(points: List<GeoPoint>): List<GeoPoint> {
+        var tolerance = 3.0
+        var out = RoutePolyline.simplify(points, tolerance)
+        while (out.size > MAX_SHARED_POINTS) {
+            tolerance *= 2
+            out = RoutePolyline.simplify(points, tolerance)
+        }
+        return out
+    }
+
+    /** Simpan draft (mis. rute jalan) sebagai rute sendiri lalu langsung ikuti — tanpa mengirim ke tim. */
+    fun followRouteDraft(name: String) {
+        val draft = _state.value.routeDraft ?: return
+        if (draft.size < 2) return
+        val id = newTelemetryId()
+        val title = name.trim().ifBlank { _state.value.roadRoute?.let { "Rute ${it.modeLabel.lowercase()}" } ?: "Rute ${repository.nickname}" }
+        val route = SharedRoute(id, repository.myPeerId, repository.nickname, title, RouteKind.Plan, mapOf(0 to draft), currentEpochMillis(), own = true, verified = hasKey)
+        _state.update {
+            it.copy(
+                routeDraft = null, roadRoute = null,
+                routes = (it.routes + route).takeLast(MAX_ROUTES),
+                followedRouteId = id, selectedTargetPeerId = null, selectedWaypointId = null,
+            )
+        }
+        showNotice("Mengikuti \"$title\". Bagikan ke tim lewat tombol Bagikan bila perlu.")
+    }
     fun undoRouteDraftPoint() = _state.update { it.copy(routeDraft = it.routeDraft?.dropLast(1)) }
 
     fun sendRouteDraft(name: String) {
@@ -704,7 +809,7 @@ class AppController(
         val title = name.trim().ifBlank { "Rute ${repository.nickname}" }
         repository.sendTelemetry(RouteTelemetry(id, RouteTelemetry.Kind.Plan, title, draft).encode())
         val route = SharedRoute(id, repository.myPeerId, repository.nickname, title, RouteKind.Plan, mapOf(0 to draft), currentEpochMillis(), own = true, verified = hasKey)
-        _state.update { it.copy(routeDraft = null, routes = (it.routes + route).takeLast(MAX_ROUTES)) }
+        _state.update { it.copy(routeDraft = null, roadRoute = null, routes = (it.routes + route).takeLast(MAX_ROUTES)) }
         showNotice("Rute \"$title\" dikirim (${formatDistance(RoutePolyline.lengthMeters(draft))})")
     }
 
@@ -712,7 +817,8 @@ class AppController(
     fun onMapTap(point: GeoPoint) {
         if (!point.valid) return
         _state.update { current ->
-            if (current.routeDraft != null) current.copy(routeDraft = (current.routeDraft + point).takeLast(MAX_DRAFT_POINTS))
+            // Rute jalan otomatis tidak ditambah titik manual; ketukan baru = tujuan baru.
+            if (current.routeDraft != null && current.roadRoute == null) current.copy(routeDraft = (current.routeDraft + point).takeLast(MAX_DRAFT_POINTS))
             else current.copy(pickedPoint = point)
         }
     }
@@ -1080,6 +1186,97 @@ class AppController(
     }
 
     // ------------------------------------------------------------------------------------------
+    //  Uji QoS (TA): RSSI vs jarak, Packet Success Probability vs jarak per SF
+    // ------------------------------------------------------------------------------------------
+    /**
+     * Data ukur penerimaan. Posisi pengirim: dari paket uji (bila ada) atau lokasi rutin terakhirnya.
+     * Latensi memakai jam dua HP yang berbeda — sinkronkan jam (jaringan/GPS) sebelum uji.
+     */
+    private fun measure(
+        fromPeerId: String,
+        viaNode: Boolean,
+        lora: LoraRxMeta?,
+        bleRssi: Int?,
+        sentAtMs: Long,
+        senderPoint: GeoPoint? = null,
+    ): RxMeasurement {
+        val now = currentEpochMillis()
+        val units = _state.value.trackedUsers
+        val own = units.firstOrNull { it.own }
+        val sender = units.firstOrNull { it.peerId == fromPeerId && !it.own }
+        val from = senderPoint ?: sender?.let { GeoPoint(it.latitude, it.longitude) }
+        return RxMeasurement(
+            receivedAtMs = now,
+            path = if (viaNode) DeliveryPath.Node else DeliveryPath.Ble,
+            loraRssiDbm = lora?.rssiDbm,
+            loraSnrDb = lora?.snrDb,
+            spreadingFactor = lora?.spreadingFactor,
+            bandwidthKHz = lora?.bandwidthKHz,
+            hopLeft = lora?.hopLeft,
+            metaMatched = lora?.matched,
+            bleRssiDbm = bleRssi,
+            distanceMeters = if (own != null && from != null) RoutePolyline.distanceMeters(GeoPoint(own.latitude, own.longitude), from) else null,
+            senderPositionAgeMs = if (senderPoint != null) 0L else sender?.let { now - it.updatedAtMs },
+            latencyMs = (now - sentAtMs).takeIf { it in -60_000L..3_600_000L },
+        )
+    }
+
+    private var qosJob: Job? = null
+
+    /** Kirim [total] paket uji bernomor tiap [intervalSeconds]; penerima menghitung PSP & RSSI. */
+    fun startQosTest(total: Int, intervalSeconds: Int, label: String) {
+        if (qosJob != null || !canSendTelemetry()) return
+        val runId = newTelemetryId()
+        val count = total.coerceIn(1, QosProbe.MAX_TOTAL)
+        val intervalMs = intervalSeconds.coerceIn(2, 600) * 1000L
+        val name = label.trim().ifBlank { "Uji ${formatClock(currentEpochMillis())}" }
+        _state.update { it.copy(qosSending = QosSending(runId, name, 0, count, intervalMs)) }
+        qosJob = scope.launch {
+            for (seq in 1..count) {
+                val own = _state.value.trackedUsers.firstOrNull { it.own }
+                val sf = _state.value.mesh.engine.servingNode?.spreadingFactor
+                repository.sendTelemetry(QosProbe(runId, seq, count, sf, own?.let { GeoPoint(it.latitude, it.longitude) }, name).encode())
+                _state.update { it.copy(qosSending = it.qosSending?.copy(sent = seq)) }
+                if (seq < count) delay(intervalMs)
+            }
+            qosJob = null
+            _state.update { it.copy(qosSending = null) }
+            showNotice("Uji QoS \"$name\" selesai: $count paket dikirim")
+        }
+    }
+
+    fun stopQosTest() {
+        qosJob?.cancel()
+        qosJob = null
+        _state.update { it.copy(qosSending = null) }
+    }
+
+    fun clearQosRuns() = _state.update { it.copy(qosRuns = emptyList()) }
+
+    fun qosPacketsCsv() = QosRecords.packetsCsv(_state.value.qosRuns)
+    fun qosSummaryCsv() = QosRecords.summaryCsv(_state.value.qosRuns)
+
+    /** Ganti SF Nusa Node yang melayani HP ini (hanya diterima node saat mode uji jarak aktif). */
+    fun setNodeSpreadingFactor(sf: Int) {
+        val node = _state.value.mesh.engine.servingNode ?: return showNotice("Belum tersambung ke Nusa Node")
+        if (!node.testMode) return showNotice("Tekan tombol BOOT di node untuk menyalakan mode uji, lalu coba lagi")
+        repository.sendRadioConfig(node.peerId, sf)
+        showNotice("Permintaan SF$sf dikirim ke ${node.name}. Ganti juga di node lain — beda SF tidak saling dengar.")
+    }
+
+    private fun receiveQos(incoming: IncomingMessage, probe: QosProbe) {
+        val sender = incoming.message.sender.ifBlank { repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId) }
+        val rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, incoming.message.timestampMs, probe.senderPoint)
+        _state.update { current ->
+            val existing = current.qosRuns.firstOrNull { it.runId == probe.runId && it.senderPeerId == incoming.fromPeerId }
+            if (existing?.samples?.any { it.seq == probe.seq } == true) return@update current // duplikat lewat jalur lain
+            val run = (existing ?: QosRun(probe.runId, incoming.fromPeerId, sender, probe.label, probe.total, probe.senderSf, startedAtMs = rx.receivedAtMs))
+                .let { it.copy(samples = it.samples + QosSample(probe.seq, rx)) }
+            current.copy(qosRuns = (current.qosRuns.filterNot { it === existing } + run).takeLast(MAX_QOS_RUNS))
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     //  Kunci operasi (keamanan)
     // ------------------------------------------------------------------------------------------
     private val hasKey get() = repository.operationKey != null
@@ -1150,6 +1347,8 @@ class AppController(
         private const val KEY_SOS_ACTIVE = "sos_active"
         private const val KEY_ROLE = "field_role"
         private const val KEY_OP_CODE = "operation_key"
+        private const val KEY_QOS = "qos_runs"
+        private const val MAX_QOS_RUNS = 100
         private const val FORGED_NOTICE_INTERVAL_MS = 60_000L
         private const val KEY_TEAM = "field_team"
         private const val KEY_ROUTES = "map_routes"

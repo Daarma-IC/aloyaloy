@@ -148,10 +148,16 @@ internal val leafletHtml = """
 <!doctype html>
 <html lang="id">
 <head>
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <!--LEAFLET_CSS-->
   <style>
     html, body, #map { width:100%; height:100%; margin:0; padding:0; background:transparent; }
+    /* Laut: tampak saat offline di luar daratan peta wilayah, bukan putih polos. */
+    #map.leaflet-container { background:#cfe3f0; }
+    .grid-label { font:10px system-ui,sans-serif; color:#334155; background:#ffffffd9; padding:1px 4px; border-radius:4px; white-space:nowrap; }
+    .grid-lat { transform:translate(4px,-50%); }
+    .grid-lon { transform:translate(-50%,-120%); }
     .leaflet-control-attribution { font:10px sans-serif !important; }
     .leaflet-top { top:94px; }
     .leaflet-control-zoom { border:1px solid #e2e8f0 !important; border-radius:8px !important; overflow:hidden; box-shadow:0 3px 12px #16203322 !important; }
@@ -161,7 +167,7 @@ internal val leafletHtml = """
     #clear { width:20px; height:20px; border:0; outline:0; border-radius:10px; color:white; background:#94a3b8; padding:0; cursor:pointer; line-height:18px; transition:transform 90ms ease,background 90ms ease; }
     #clear:active { transform:scale(.88); background:#64748b; }
     .leaflet-control-zoom a { transition:transform 90ms ease,background 90ms ease; }
-    .leaflet-control-zoom a:active { transform:scale(.92); background:#EEF2FF !important; }
+    .leaflet-control-zoom a:active { transform:scale(.92); background:#EEF6FF !important; }
     #error { position:absolute; z-index:1000; top:88px; left:16px; right:16px; color:#ef4444; font:11px system-ui,sans-serif; pointer-events:none; }
     #offline { display:none; position:absolute; z-index:1000; left:16px; right:16px; top:94px; padding:10px 12px; border-radius:12px; background:#FFF4E5; color:#B45309; font:12px system-ui,sans-serif; box-shadow:0 2px 10px #16203318; pointer-events:none; }
     #coordinate { position:absolute; z-index:999; left:16px; bottom:18px; padding:7px 10px; border-radius:12px; background:#ffffffdd; color:#475569; box-shadow:0 2px 10px #16203318; font:11px system-ui,sans-serif; pointer-events:none; }
@@ -185,12 +191,47 @@ internal val leafletHtml = """
     const initialData = /*MAP_DATA*/;
     document.getElementById('map-status').style.display = 'none';
     const offlineRegion = /*OFFLINE_REGION*/;
+    // Peta wilayah offline = DASAR permanen di bawah ubin (tilePane z-index 200). Dulu digambar di atas
+    // ubin & ditambah-hapus per ubin gagal/berhasil: satu ubin gagal menutupi semua ubin tersimpan (putih).
+    map.createPane('basemap').style.zIndex = 150;
     const offlineLayer = L.geoJSON(offlineRegion, {
-      style: function() { return {color:'#8296ad',weight:1,fillColor:'#f8fafc',fillOpacity:1}; },
+      pane: 'basemap',
+      style: function() { return {color:'#94a3b8',weight:1,fillColor:'#eef2f6',fillOpacity:1}; },
       onEachFeature: function(feature, layer) {
         if (feature.properties && feature.properties.name) layer.bindTooltip(feature.properties.name);
       }
     }).addTo(map);
+    // Grid koordinat saat offline: di zoom dalam peta wilayah hanya bidang polos, grid memberi acuan posisi.
+    const gridPane = map.createPane('grid');
+    gridPane.style.zIndex = 350;
+    gridPane.style.pointerEvents = 'none';
+    const gridLayer = L.layerGroup();
+    const gridSteps = [10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001];
+    function gridLabel(value, positive, negative, decimals) {
+      return Math.abs(value).toFixed(decimals) + '°' + (value < 0 ? negative : positive);
+    }
+    function drawGrid() {
+      gridLayer.clearLayers();
+      if (!map.hasLayer(gridLayer)) return;
+      const b = map.getBounds();
+      const span = Math.min(b.getNorth() - b.getSouth(), b.getEast() - b.getWest());
+      const step = gridSteps.find(function(s) { return span / s >= 3; }) || 0.001;
+      const decimals = Math.max(0, Math.ceil(-Math.log10(step)));
+      const line = {pane:'grid', color:'#475569', weight:1, opacity:.35, interactive:false};
+      for (let i = Math.ceil(b.getSouth() / step); i * step <= b.getNorth(); i++) {
+        const lat = i * step;
+        L.polyline([[lat, b.getWest()], [lat, b.getEast()]], line).addTo(gridLayer);
+        L.marker([lat, b.getWest()], {pane:'grid', interactive:false, icon:L.divIcon({className:'', iconSize:null,
+          html:'<div class="grid-label grid-lat">' + gridLabel(lat, 'U', 'S', decimals) + '</div>'})}).addTo(gridLayer);
+      }
+      for (let i = Math.ceil(b.getWest() / step); i * step <= b.getEast(); i++) {
+        const lon = i * step;
+        L.polyline([[b.getSouth(), lon], [b.getNorth(), lon]], line).addTo(gridLayer);
+        L.marker([b.getSouth(), lon], {pane:'grid', interactive:false, icon:L.divIcon({className:'', iconSize:null,
+          html:'<div class="grid-label grid-lon">' + gridLabel(lon, 'T', 'B', decimals) + '</div>'})}).addTo(gridLayer);
+      }
+    }
+    map.on('moveend zoomend', drawGrid);
     L.control.attribution({position:'bottomright', prefix:false})
       .addAttribution('Offline map: Natural Earth (public domain)').addTo(map);
     let loadedTileCount = 0;
@@ -199,17 +240,17 @@ internal val leafletHtml = """
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     const offline = document.getElementById('offline');
-    tiles.on('tileerror', function() {
-      if (!map.hasLayer(offlineLayer)) offlineLayer.addTo(map);
-      offline.style.display = 'block';
-    });
-    tiles.on('tileload', function() {
-      loadedTileCount += 1;
-      if (map.hasLayer(offlineLayer)) map.removeLayer(offlineLayer);
-      offline.style.display = 'none';
-    });
+    function setOffline(on) {
+      offline.style.display = on ? 'block' : 'none';
+      // Grid hanya pengganti saat tidak ada peta detail; paket MBTiles sudah memberi acuan sendiri.
+      const wantGrid = on && !packLayer;
+      if (wantGrid && !map.hasLayer(gridLayer)) { gridLayer.addTo(map); drawGrid(); }
+      if (!wantGrid && map.hasLayer(gridLayer)) map.removeLayer(gridLayer);
+    }
+    tiles.on('tileerror', function() { setOffline(true); });
+    tiles.on('tileload', function() { loadedTileCount += 1; setOffline(false); });
     setTimeout(function() {
-      if (loadedTileCount === 0) offline.style.display = 'block';
+      if (loadedTileCount === 0) setOffline(true);
     }, 8000);
     // WebView sering dibuat saat ukurannya masih 0×0: tanpa ini Leaflet tidak pernah memuat ubin.
     const fixSize = function() { map.invalidateSize(false); };
@@ -234,7 +275,7 @@ internal val leafletHtml = """
     ];
     function showPlace(latitude, longitude, label, zoom) {
       searchMarkers.clearLayers();
-      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#3B5BDB',fillOpacity:1})
+      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#74B9FF',fillOpacity:1})
         .addTo(searchMarkers).bindPopup(label).openPopup();
       map.setView([latitude, longitude], zoom || 11);
       query.blur();
@@ -302,7 +343,7 @@ internal val leafletHtml = """
     }
     const waypointStyle = {
       posko:['P','#2563EB'], korban:['K','#DC2626'], bahaya:['!','#D97706'],
-      heli:['H','#3B5BDB'], air:['A','#0891B2'], lain:['•','#475569']
+      heli:['H','#74B9FF'], air:['A','#0891B2'], lain:['•','#475569']
     };
     const triageColors = {Merah:'#DC2626', Kuning:'#CA8A04', Hijau:'#16A34A', Hitam:'#111827'};
     let lastFocusKey;
@@ -317,17 +358,18 @@ internal val leafletHtml = """
       if (!pack) { offline.textContent = 'Mode offline: peta wilayah tersedia, detail jalan memerlukan internet.'; return; }
       const b = pack.bounds;
       packLayer = L.tileLayer('/mbtiles/{z}/{x}/{y}', {
-        minZoom: 0, minNativeZoom: pack.minZoom, maxNativeZoom: pack.maxZoom, maxZoom: 19,
+        // Di bawah minZoom-3 satu layar butuh ribuan ubin hasil perkecil: biarkan peta wilayah yang tampil.
+        minZoom: Math.max(0, pack.minZoom - 3), minNativeZoom: pack.minZoom, maxNativeZoom: pack.maxZoom, maxZoom: 19,
         bounds: b ? [[b[1], b[0]], [b[3], b[2]]] : undefined,
         attribution: 'Peta offline: ' + esc(pack.name)
       }).addTo(map);
       offline.textContent = 'Tanpa internet: memakai peta offline "' + pack.name + '" dan ubin yang pernah dilihat.';
+      if (map.hasLayer(gridLayer)) map.removeLayer(gridLayer);
       if (b && !fitted) { map.fitBounds([[b[1], b[0]], [b[3], b[2]]]); fitted = true; }
     }
     let fitted = false;
     window.setNusaData = function(data) {
       if (!data) return;
-      applyPack(data.pack || null);
       const units = data.units || [];
       window.nusaMarkers.clearLayers();
       window.nusaGuidance.clearLayers();
@@ -339,7 +381,7 @@ internal val leafletHtml = """
         const plan = route.kind === 'Plan';
         const live = route.kind === 'LiveTrack';
         const style = {
-          color: plan ? '#3B5BDB' : (route.own ? '#0F766E' : '#EA580C'),
+          color: plan ? '#74B9FF' : (route.own ? '#0F766E' : '#EA580C'),
           weight: 5, opacity: .85, dashArray: plan ? '12 8' : null, lineJoin:'round'
         };
         const label = '<b>' + esc(route.name) + '</b><br>' + esc(route.owner) +
@@ -375,7 +417,7 @@ internal val leafletHtml = """
         if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
         L.circleMarker([unit.latitude, unit.longitude], {
           radius:unit.emergency ? 13 : 9, color:'#fff', weight:3,
-          fillColor:unit.emergency ? '#DC2626' : '#3B5BDB', fillOpacity:1
+          fillColor:unit.emergency ? '#DC2626' : '#74B9FF', fillOpacity:1
         }).addTo(window.nusaMarkers).bindPopup(
           '<b>' + (unit.emergency ? 'SOS - ' : '') + esc(unit.name || 'Unit') + '</b><br>' +
           (unit.own ? 'Perangkat ini' : (unit.direct ? 'BLE langsung' : 'Via relay')) + '<br>' +
@@ -412,6 +454,8 @@ internal val leafletHtml = """
         fitted = true;
       }
       lastFocusKey = data.focusKey;
+      // Setelah unit: zoom ke posisi tim lebih berguna daripada ke seluruh paket peta.
+      applyPack(data.pack || null);
     };
     window.setNusaData(initialData);
     // Web (iframe): data terbaru dititipkan induk sebelum peta siap.

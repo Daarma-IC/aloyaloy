@@ -52,6 +52,7 @@ fun NodeSheet(
     onConfigChange: (MobilityConfig) -> Unit,
     onClearLog: () -> Unit,
     onDismiss: () -> Unit,
+    onSetSpreadingFactor: (Int) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val locked = snapshot.nodes.firstOrNull { it.locked }
@@ -85,8 +86,47 @@ fun NodeSheet(
             snapshot.nodes.forEach { node ->
                 NodeRow(node) { onLock(if (node.locked) null else node.peerId) }
             }
+            snapshot.servingNode?.takeIf { it.connected }?.let { node -> SpreadingFactorPanel(node, onSetSpreadingFactor) }
             Spacer(Modifier.height(4.dp))
             MobilityPanel(mobilityConfig, mobilityLog, onConfigChange, onClearLog)
+        }
+    }
+}
+
+/**
+ * Uji QoS: ganti SF node yang melayani HP ini. Node hanya menerima saat mode uji jarak aktif (tombol BOOT
+ * ditekan di node), dan SEMUA node harus memakai SF yang sama supaya tetap saling mendengar.
+ */
+@Composable
+private fun SpreadingFactorPanel(node: NodeInfo, onSet: (Int) -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp)).border(1.dp, Border, RoundedCornerShape(16.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Spreading factor (uji QoS)", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            when {
+                node.spreadingFactor == null -> "Firmware node belum mendukung pengaturan SF dari aplikasi."
+                !node.testMode -> "${node.name}: SF${node.spreadingFactor}. Tekan tombol BOOT di node untuk menyalakan mode uji agar SF bisa diganti."
+                else -> "${node.name}: SF${node.spreadingFactor} · mode uji AKTIF. Ganti SF di SEMUA node — beda SF tidak saling dengar."
+            },
+            color = Slate, fontSize = 10.sp, lineHeight = 14.sp,
+        )
+        if (node.spreadingFactor != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (7..12).forEach { sf ->
+                    val selected = sf == node.spreadingFactor
+                    Text(
+                        "SF$sf",
+                        color = when { selected -> Color.White; node.testMode -> Brand; else -> Muted },
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.background(if (selected) BrandDeep else Color.White, RoundedCornerShape(12.dp))
+                            .border(1.dp, BrandSoft, RoundedCornerShape(12.dp))
+                            .pressableClick { if (!selected) onSet(sf) }
+                            .padding(horizontal = 9.dp, vertical = 6.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -101,7 +141,7 @@ private fun NodeRow(node: NodeInfo, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(40.dp).background(if (active) Brand else Color.White, CircleShape).border(1.dp, BrandSoft, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).background(if (active) BrandDeep else Color.White, CircleShape).border(1.dp, BrandSoft, CircleShape), contentAlignment = Alignment.Center) {
             AppIcon(IconKind.Node, if (active) Color.White else Brand, Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -115,6 +155,7 @@ private fun NodeRow(node: NodeInfo, onClick: () -> Unit) {
                     node.userSlots?.let { "${it.first}/${it.second} HP" },
                     node.loraNeighbors?.let { "$it tetangga LoRa" },
                     node.loraBestSnr?.let { "SNR $it dB" },
+                    node.spreadingFactor?.let { "SF$it" + if (node.testMode) " · uji" else "" },
                 ).joinToString(" · ").ifEmpty { "Menunggu data node…" },
                 color = Slate, fontSize = 9.sp, lineHeight = 13.sp,
             )
@@ -231,7 +272,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     Row(Modifier.fillMaxWidth().pressableClick { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = Ink, fontSize = 10.sp, modifier = Modifier.weight(1f))
         Box(
-            Modifier.width(38.dp).height(22.dp).background(if (checked) Brand else Color(0xFFCBD5E1), RoundedCornerShape(11.dp)).padding(3.dp),
+            Modifier.width(38.dp).height(22.dp).background(if (checked) BrandDeep else Color(0xFFCBD5E1), RoundedCornerShape(11.dp)).padding(3.dp),
             contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
             Box(Modifier.size(16.dp).background(Color.White, CircleShape))
@@ -242,18 +283,18 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 @Composable
 private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.background(if (selected) Brand else BrandTint, RoundedCornerShape(14.dp)).pressableClick(onClick).padding(horizontal = 12.dp, vertical = 6.dp),
+        Modifier.background(if (selected) BrandDeep else BrandTint, RoundedCornerShape(14.dp)).pressableClick(onClick).padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
-        Text(text, color = if (selected) Color.White else Brand, fontSize = 10.sp)
+        Text(text, color = if (selected) Color.White else BrandDeep, fontSize = 10.sp)
     }
 }
 
 @Composable
 private fun SheetButton(text: String, filled: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(40.dp).background(if (filled) Brand else BrandTint, RoundedCornerShape(20.dp)).pressableClick(onClick),
+        Modifier.fillMaxWidth().height(40.dp).background(if (filled) BrandDeep else BrandTint, RoundedCornerShape(20.dp)).pressableClick(onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = if (filled) Color.White else Brand, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = if (filled) Color.White else BrandDeep, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }

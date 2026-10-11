@@ -115,6 +115,32 @@ class MeshEngineTest {
     }
 
     @Test
+    fun loraRxMeasurementIsPairedWithTheMessageItDescribes() = runTest {
+        val radio = world()
+        val n1 = node(radio, "N1", 1)
+        val n2 = node(radio, "N2", 2)
+        n1.loraPeers += n2; n2.loraPeers += n1
+        n2.rxMeta = Triple(-97.5f, 6.25f, 9)       // firmware uji QoS di node penerima
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        val z = phone(radio, "Z", "0f0f0f0f0f0f0f0f", "Zaki")
+        radio.setRssi("A", "N1", -60); radio.setRssi("Z", "N2", -60)
+        advanceTimeBy(8_000); runCurrent()
+        n2.sendHealth(sf = 9, testMode = true); runCurrent()
+        assertEquals(9, z.engine.snapshot.value.servingNode?.spreadingFactor)
+        assertTrue(z.engine.snapshot.value.servingNode?.testMode == true)
+
+        val received = mutableListOf<IncomingMessage>()
+        backgroundScope.launch { z.engine.messages.collect { received += it } }
+        a.engine.sendPublic(msg("Ayu", "@meshta-qos-v1|r1|1|10|9|||500m"))
+        advanceTimeBy(30_000); runCurrent()
+        val rx = assertNotNull(received.single { it.message.content.contains("qos") }.loraRx, "data ukur harus menempel di pesan")
+        assertEquals(-97.5f, rx.rssiDbm)
+        assertEquals(6.3f, rx.snrDb, "SNR dibulatkan 0,1 dB seperti firmware")
+        assertEquals(9, rx.spreadingFactor)
+        assertTrue(rx.matched, "msgId dari node harus cocok dengan paket yang diterima")
+    }
+
+    @Test
     fun electsStrongestNodeOnlyAndRegisters() = runTest {
         val radio = world()
         val n1 = node(radio, "N1", 1)

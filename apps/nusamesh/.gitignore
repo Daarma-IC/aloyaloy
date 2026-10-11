@@ -7,3 +7,12 @@ iosApp/*.xcodeproj/
 iosApp/DerivedData/
 *.xcuserstate
 
+
+# Peta offline bawaan (±97 MB): dibuat ulang dengan tools/offline-map, tidak disimpan di git
+composeApp/offline-maps/
+
+# Benchmark SR: model, data, dan hasil diunduh/dibuat ulang (tools/sr-benchmark/download.sh)
+tools/sr-benchmark/models/
+tools/sr-benchmark/data/
+tools/sr-benchmark/results/
+tools/sr-benchmark/.venv/

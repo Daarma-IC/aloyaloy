@@ -24,7 +24,12 @@ import kotlin.math.ceil
  *
  * Tidak thread-safe: dipakai dari dispatcher engine yang satu jalur.
  */
-class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
+class NodeQueue(
+    private val myPeerId: ByteArray?,
+    private val now: () -> Long,
+    /** SF aktif node (dilaporkan LORA_HEALTH); airtime SF12 ±20× SF7, jadi jeda ikut menyesuaikan. */
+    private val spreadingFactor: () -> Int = { DEFAULT_SF },
+) {
     companion object {
         // 96 KB pada MTU 517 menghasilkan sekitar 215 fragmen. Sisakan ruang untuk pesan teks
         // yang masuk selama voice masih menunggu jatah airtime radio.
@@ -45,8 +50,9 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
 
         private const val LORA_FRAME_DATA = 243      // NUSA_FRAG_MAX_DATA
         private const val LORA_FRAME_HEADER = 12     // NUSA_FRAME_HDR
-        private const val SYMBOL_MS = 1.024          // 2^SF / BW = 128 / 125 kHz
-        private const val PREAMBLE_MS = (8 + 4.25) * SYMBOL_MS
+        const val DEFAULT_SF = 7
+        private const val BW_KHZ = 125.0
+        private const val PREAMBLE_SYMBOLS = 8 + 4.25
 
         /** Sama dengan nusaStripPadding() di firmware. */
         fun unpaddedLength(bytes: ByteArray): Int {
@@ -57,18 +63,21 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
         }
 
         /** Airtime satu frame LoRa (rumus Semtech, header eksplisit + CRC). */
-        private fun frameAirtimeMs(frameBytes: Int): Double {
-            val symbols = 8 + maxOf(0.0, ceil((8.0 * frameBytes - 4 * 7 + 28 + 16) / (4.0 * 7))) * 5
-            return PREAMBLE_MS + symbols * SYMBOL_MS
+        /** Rumus Semtech (header eksplisit, CRC, CR4/5), sama dengan NusaRadio::airtimeMs firmware. */
+        private fun frameAirtimeMs(frameBytes: Int, sf: Int): Double {
+            val symbolMs = (1 shl sf) / BW_KHZ
+            val de = if (symbolMs > 16.0) 1 else 0 // Low Data Rate Optimize (SF11/12 @125 kHz)
+            val symbols = 8 + maxOf(0.0, ceil((8.0 * frameBytes - 4 * sf + 28 + 16) / (4.0 * (sf - 2 * de)))) * 5
+            return PREAMBLE_SYMBOLS * symbolMs + symbols * symbolMs
         }
 
         /** Airtime total paket app setelah dipecah node menjadi frame LoRa. */
-        fun airtimeMs(bytes: ByteArray): Double {
+        fun airtimeMs(bytes: ByteArray, sf: Int = DEFAULT_SF): Double {
             var left = unpaddedLength(bytes).coerceAtLeast(1)
             var total = 0.0
             while (left > 0) {
                 val chunk = minOf(left, LORA_FRAME_DATA)
-                total += frameAirtimeMs(chunk + LORA_FRAME_HEADER)
+                total += frameAirtimeMs(chunk + LORA_FRAME_HEADER, sf.coerceIn(7, 12))
                 left -= chunk
             }
             return total
@@ -214,7 +223,7 @@ class NodeQueue(private val myPeerId: ByteArray?, private val now: () -> Long) {
                     pending.remove(next)
                     if (next.send(next.bytes)) {
                         if (!next.localOnly) {
-                            airCreditMs -= airtimeMs(next.bytes)
+                            airCreditMs -= airtimeMs(next.bytes, spreadingFactor())
                             rateTokens -= 1.0
                         }
                         next.batch?.sentOne()

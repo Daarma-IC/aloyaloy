@@ -1,5 +1,13 @@
 package id.nusamesh.app.ui
 
+import kotlin.math.roundToInt
+import kotlin.math.abs
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -59,6 +67,7 @@ import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.domain.ChatPreview
 import id.nusamesh.app.AppController
 import id.nusamesh.app.domain.DeliveryPath
+import id.nusamesh.app.media.EnhancedImage
 import id.nusamesh.app.domain.DeliveryState
 import id.nusamesh.app.domain.FieldChannels
 import id.nusamesh.app.mesh.protocol.ImportantMessage
@@ -77,6 +86,7 @@ fun ChatScreen(
     onSendAttachment: (ChatAttachment) -> Unit,
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
+    qos: QosActions = QosActions(),
 ) {
     if (state.activeConversationId == null) {
         ChatListScreen(state, padding, onCreateGlobal, onOpenChat)
@@ -90,6 +100,7 @@ fun ChatScreen(
             onSendAttachment = onSendAttachment,
             onNotice = onNotice,
             onDismissNebeng = onDismissNebeng,
+            qos = qos,
         )
     }
 }
@@ -176,7 +187,7 @@ private fun EmptyChat(modifier: Modifier, onCreateGlobal: () -> Unit) {
         Text("Semua HP di jaringan mesh, termasuk\nyang lewat Nusa Node, menerima pesan global.", color = Slate, fontSize = 11.sp, lineHeight = 17.sp)
         Spacer(Modifier.height(20.dp))
         Row(
-            Modifier.height(42.dp).background(Brand, RoundedCornerShape(21.dp)).padding(horizontal = 20.dp).pressableClick(onCreateGlobal),
+            Modifier.height(42.dp).background(BrandDeep, RoundedCornerShape(21.dp)).padding(horizontal = 20.dp).pressableClick(onCreateGlobal),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -195,7 +206,7 @@ private fun ChatRow(chat: ChatPreview, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(44.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).background(BrandDeep, CircleShape), contentAlignment = Alignment.Center) {
             AppIcon(IconKind.Mesh, Color.White, Modifier.size(22.dp))
             Box(Modifier.align(Alignment.BottomEnd).size(11.dp).background(Success, CircleShape).border(2.dp, Color.White, CircleShape))
         }
@@ -206,7 +217,7 @@ private fun ChatRow(chat: ChatPreview, onClick: () -> Unit) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(chat.message, color = Slate, fontSize = 9.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                if (chat.unread > 0) Box(Modifier.size(20.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
+                if (chat.unread > 0) Box(Modifier.size(20.dp).background(BrandDeep, CircleShape), contentAlignment = Alignment.Center) {
                     Text(chat.unread.toString(), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Medium)
                 }
             }
@@ -224,7 +235,12 @@ private fun GlobalConversationScreen(
     onSendAttachment: (ChatAttachment) -> Unit,
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
+    qos: QosActions,
 ) {
+    var qosOpen by remember { mutableStateOf(false) }
+    if (qosOpen) QosDialog(state, qos) { qosOpen = false }
+    var srOpen by remember { mutableStateOf(false) }
+    if (srOpen) SrBenchmarkDialog(mediaActions) { srOpen = false }
     var message by remember { mutableStateOf("") }
     var important by remember { mutableStateOf(false) }
     var attachmentOpen by remember { mutableStateOf(false) }
@@ -255,7 +271,7 @@ private fun GlobalConversationScreen(
             item { GlobalWelcomeCard() }
             items(messages, key = { it.id }) { message ->
                 if (message.viaName == AppController.SYSTEM) SystemCard(message.body)
-                else Bubble(message, playback.takeIf { it?.id == message.id }) {
+                else Bubble(message, playback.takeIf { it?.id == message.id }, onEnhance = mediaActions::enhanceImage) {
                     val audio = message.attachmentData
                     when {
                         playback?.id == message.id -> { mediaActions.stopVoicePlayback(); playback = null }
@@ -288,6 +304,8 @@ private fun GlobalConversationScreen(
                     onError = onNotice,
                 )
             },
+            onQos = { attachmentOpen = false; qosOpen = true },
+            onSrBenchmark = { attachmentOpen = false; srOpen = true },
             onFile = {
                 mediaActions.pickFile(
                     onPicked = { attachmentOpen = false; onSendAttachment(it) },
@@ -330,7 +348,7 @@ private fun ConversationHeader(state: AppUiState, onBack: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         RoundIconButton(IconKind.Back, onBack, background = Color(0xFFF1F5F9), tint = Ink, size = 38.dp)
-        Box(Modifier.size(40.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).background(BrandDeep, CircleShape), contentAlignment = Alignment.Center) {
             AppIcon(IconKind.Mesh, Color.White, Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -397,8 +415,31 @@ private fun GlobalWelcomeCard() {
 }
 
 @Composable
-private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start) {
+private fun Bubble(
+    message: ChatMessage,
+    playback: VoicePlayback?,
+    onEnhance: Enhancer? = null,
+    onPlayVoice: () -> Unit,
+) {
+    // Geser gelembung ke samping untuk membuka/menutup data ukur penerimaan (uji QoS).
+    var dragX by remember { mutableFloatStateOf(0f) }
+    var showRx by remember(message.id) { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val threshold = with(density) { 56.dp.toPx() }
+    Row(
+        Modifier.fillMaxWidth()
+            .offset { IntOffset(dragX.roundToInt(), 0) }
+            .pointerInput(message.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = { if (abs(dragX) >= threshold) showRx = !showRx; dragX = 0f },
+                    onDragCancel = { dragX = 0f },
+                ) { change, amount ->
+                    change.consume()
+                    dragX = (dragX + amount).coerceIn(-threshold * 1.6f, threshold * 1.6f)
+                }
+            },
+        horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start,
+    ) {
         Column(horizontalAlignment = if (message.outgoing) Alignment.End else Alignment.Start) {
             if (!message.outgoing) Text(
                 // ✓ Tim = ditandatangani kunci operasi: pengirim pasti anggota tim, bukan peniru.
@@ -417,7 +458,7 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                 Modifier.widthIn(max = 280.dp)
                     .shadow(if (message.outgoing) 8.dp else 3.dp, bubbleShape, ambientColor = (if (message.outgoing) Brand else Ink).copy(alpha = .18f), spotColor = (if (message.outgoing) Brand else Ink).copy(alpha = .18f))
                     .background(
-                        if (message.outgoing) Brush.linearGradient(listOf(Brand, BrandBright)) else Brush.linearGradient(listOf(Color.White, Color.White)),
+                        if (message.outgoing) Brush.linearGradient(listOf(BrandDeep, Brand)) else Brush.linearGradient(listOf(Color.White, Color.White)),
                         bubbleShape,
                     ).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp),
@@ -441,7 +482,7 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                             fontWeight = if (status != null || important) FontWeight.Bold else null,
                         )
                     }
-                    ChatMessageKind.Image -> ImagePreview(message)
+                    ChatMessageKind.Image -> ImagePreview(message, onEnhance)
                     ChatMessageKind.Voice -> VoicePreview(message.durationSeconds, message.outgoing, playback, onPlayVoice)
                     ChatMessageKind.File -> AttachmentPreview(IconKind.File, message.attachmentName ?: "File", message.attachmentBytes, message.outgoing)
                 }
@@ -467,9 +508,59 @@ private fun Bubble(message: ChatMessage, playback: VoicePlayback?, onPlayVoice: 
                     if (message.outgoing) DeliveryStatus(message)
                 }
             }
+            if (showRx) RxPanel(message)
         }
     }
 }
+
+/** Pemanggil AI super-resolution: (gambar, progres(selesai, total), hasil, error). */
+private typealias Enhancer = (ByteArray, (Int, Int) -> Unit, (EnhancedImage) -> Unit, (String) -> Unit) -> Unit
+
+/** Data ukur satu pesan: dibuka dengan menggeser gelembung (bahan uji QoS TA). */
+@Composable
+private fun RxPanel(message: ChatMessage) {
+    val rx = message.rx
+    val lines = buildList {
+        if (message.outgoing) {
+            add("Pesan Anda — data ukur (RSSI/SNR/jarak) tercatat di HP penerima.")
+            add("Jalur: ${pathLabel(message.path)}" + (message.viaName?.takeIf { it != AppController.SYSTEM }?.let { " · via $it" } ?: ""))
+            if (message.ackedBy.isNotEmpty()) add(ackLabel(message.ackedBy))
+        } else if (rx == null) {
+            add("Tidak ada data ukur untuk pesan ini.")
+        } else {
+            add("Jalur: ${pathLabel(rx.path)}")
+            if (rx.loraRssiDbm != null) {
+                add("RSSI LoRa: ${fmt1(rx.loraRssiDbm.toDouble())} dBm · SNR ${fmt1((rx.loraSnrDb ?: 0f).toDouble())} dB")
+                add(listOfNotNull(rx.spreadingFactor?.let { "SF$it" }, rx.bandwidthKHz?.let { "BW ${it.roundToInt()} kHz" }, rx.hopLeft?.let { "sisa hop $it" }).joinToString(" · "))
+                if (rx.metaMatched == false) add("⚠ Data LoRa dipasangkan berdasarkan urutan (msgId tidak cocok)")
+            } else if (rx.path != DeliveryPath.Ble) {
+                add("RSSI LoRa: tidak tersedia (firmware node lama / lewat perantara)")
+            }
+            rx.bleRssiDbm?.let { add("RSSI BLE hop terakhir: $it dBm") }
+            add(
+                rx.distanceMeters?.let { d ->
+                    "Jarak ke pengirim: ${AppController.formatDistance(d)}" +
+                        (rx.senderPositionAgeMs?.takeIf { it > 0 }?.let { " (posisi ${it / 1000} dtk lalu)" } ?: "")
+                } ?: "Jarak: posisi pengirim/penerima belum diketahui",
+            )
+            rx.latencyMs?.let { add("Latensi: ${fmt1(it / 1000.0)} dtk (jam kedua HP harus sinkron)") }
+        }
+    }
+    Column(
+        Modifier.padding(top = 6.dp).widthIn(max = 280.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        lines.forEach { Text(it, color = Ink, fontSize = 9.sp, lineHeight = 13.sp) }
+    }
+}
+
+private fun pathLabel(path: DeliveryPath) = when (path) {
+    DeliveryPath.Ble -> "Bluetooth langsung"
+    DeliveryPath.Node -> "LoRa lewat Nusa Node"
+    DeliveryPath.Nebeng -> "Nebeng HP perantara"
+}
+
+private fun fmt1(value: Double) = ((value * 10).roundToInt() / 10.0).toString()
 
 /** "Diterima Budi, Sari +2" — siapa saja yang mengonfirmasi menerima pesan penting. */
 internal fun ackLabel(names: List<String>): String =
@@ -498,7 +589,7 @@ private fun DeliveryStatus(message: ChatMessage) {
 }
 
 @Composable
-private fun ImagePreview(message: ChatMessage) {
+private fun ImagePreview(message: ChatMessage, onEnhance: Enhancer? = null) {
     val bitmap = remember(message.id) {
         message.attachmentData?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() }
     }
@@ -506,18 +597,31 @@ private fun ImagePreview(message: ChatMessage) {
         AttachmentPreview(IconKind.Image, "Gambar", message.attachmentBytes, message.outgoing)
         return
     }
+    // AI super-resolution: hanya untuk gambar kecil (profil LoRa 128 px), atas permintaan, gambar asli tetap ada.
+    var enhanced by remember(message.id) { mutableStateOf<EnhancedImage?>(null) }
+    var showAi by remember(message.id) { mutableStateOf(false) }
+    var busy by remember(message.id) { mutableStateOf(false) }
+    var progress by remember(message.id) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var aiError by remember(message.id) { mutableStateOf<String?>(null) }
+    val aiBitmap = remember(enhanced) { enhanced?.bytes?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() } }
+    // Hanya gambar kecil (profil LoRa): gambar BLE ±960 px sudah tajam, AI justru mengarang detail (terbukti di HP).
+    val canEnhance = onEnhance != null && message.attachmentData != null && maxOf(bitmap.width, bitmap.height) <= 256
+    val shown = if (showAi && aiBitmap != null) aiBitmap else bitmap
+    val subtle = if (message.outgoing) Color.White.copy(alpha = .8f) else Slate
     var fullscreen by remember { mutableStateOf(false) }
     if (fullscreen) {
-        ImageViewer(bitmap, "${message.senderName} · ${message.time} · ${formatBytes(message.attachmentBytes)}") { fullscreen = false }
+        val caption = if (shown === aiBitmap) "Diperjelas AI (${enhanced?.model}) · detail bisa hasil tebakan model"
+        else "${message.senderName} · ${message.time} · ${formatBytes(message.attachmentBytes)}"
+        ImageViewer(shown, caption) { fullscreen = false }
     }
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Image(
-            bitmap = bitmap,
+            bitmap = shown,
             contentDescription = "Gambar dari ${message.senderName}",
             contentScale = ContentScale.Fit,
             // Gambar profil LoRa hanya 128 px: tampil lebih besar dengan filter halus.
             filterQuality = FilterQuality.Medium,
-            modifier = Modifier.widthIn(min = 150.dp, max = 230.dp).aspectRatio(bitmap.width.toFloat() / bitmap.height.coerceAtLeast(1))
+            modifier = Modifier.widthIn(min = 150.dp, max = 230.dp).aspectRatio(shown.width.toFloat() / shown.height.coerceAtLeast(1))
                 .clip(RoundedCornerShape(12.dp)).pressableClick { fullscreen = true },
         )
         if (message.attachmentName?.startsWith("lora_") == true) {
@@ -526,6 +630,43 @@ private fun ImagePreview(message: ChatMessage) {
                 color = if (message.outgoing) Color.White.copy(alpha = .75f) else Slate,
                 fontSize = 7.sp,
             )
+        }
+        if (canEnhance) {
+            val label = when {
+                busy -> "Memperjelas dengan AI…" + (progress?.takeIf { it.second > 1 }?.let { " ${it.first}/${it.second}" } ?: "")
+                aiBitmap == null -> "✦ Perjelas (AI)"
+                showAi -> "Lihat gambar asli"
+                else -> "Lihat hasil AI"
+            }
+            Text(
+                label,
+                color = if (message.outgoing) Color.White else Brand,
+                fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .background(if (message.outgoing) Color.White.copy(alpha = .18f) else BrandTint, RoundedCornerShape(10.dp))
+                    .pressableClick {
+                        when {
+                            busy -> Unit
+                            aiBitmap != null -> showAi = !showAi
+                            else -> {
+                                busy = true
+                                aiError = null
+                                progress = null
+                                onEnhance!!.invoke(message.attachmentData!!, { done, total -> progress = done to total }, { result ->
+                                    enhanced = result; showAi = true; busy = false
+                                }, { error -> aiError = error; busy = false })
+                            }
+                        }
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+            if (showAi && enhanced != null) {
+                Text(
+                    "Diperjelas AI · ${enhanced!!.model} · ${enhanced!!.millis} ms · detail bisa hasil tebakan",
+                    color = subtle, fontSize = 7.sp,
+                )
+            }
+            aiError?.let { Text(it, color = if (message.outgoing) Color(0xFFFECACA) else Danger, fontSize = 7.sp) }
         }
     }
 }
@@ -594,6 +735,8 @@ private fun Composer(
     recording: Boolean,
     onImage: () -> Unit,
     onFile: () -> Unit,
+    onQos: () -> Unit,
+    onSrBenchmark: () -> Unit,
     onVoice: () -> Unit,
     onSend: () -> Unit,
     important: Boolean = false,
@@ -616,6 +759,8 @@ private fun Composer(
             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AttachmentAction(IconKind.Image, "Gambar", onImage)
                 AttachmentAction(IconKind.File, "File", onFile)
+                AttachmentAction(IconKind.Signal, "Uji QoS", onQos)
+                AttachmentAction(IconKind.Image, "Uji AI", onSrBenchmark)
             }
         }
         if (recording) {
@@ -654,7 +799,7 @@ private fun Composer(
                 RoundIconButton(
                     if (message.isBlank()) IconKind.Mic else IconKind.Send,
                     if (message.isBlank()) onVoice else onSend,
-                    background = Brand,
+                    background = BrandDeep,
                     tint = Color.White,
                     size = 42.dp,
                 )

@@ -32,6 +32,9 @@ import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.media.ChatMediaActions
 import id.nusamesh.app.media.AndroidCodec2
 import id.nusamesh.app.media.DocumentActions
+import id.nusamesh.app.media.EnhancedImage
+import id.nusamesh.app.media.SrSpeed
+import id.nusamesh.app.media.SuperResolution
 import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.OfflineTileStore
 import id.nusamesh.app.media.LoraImageCodec
@@ -82,14 +85,18 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private var pendingSave: Pair<String, (String) -> Unit>? = null
     private var pendingOpen: Pair<(String) -> Unit, (String) -> Unit>? = null
 
-    private val documentSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
-        val (content, onResult) = pendingSave ?: return@registerForActivityResult
+    private fun writeSaved(uri: Uri?) {
+        val (content, onResult) = pendingSave ?: return
         pendingSave = null
-        if (uri == null) return@registerForActivityResult onResult("Ekspor dibatalkan")
+        if (uri == null) return onResult("Ekspor dibatalkan")
         runCatching { contentResolver.openOutputStream(uri)?.use { it.write(content.encodeToByteArray()) } ?: error("File tidak dapat ditulis") }
-            .onSuccess { onResult("GPX tersimpan: ${displayName(uri)}") }
-            .onFailure { onResult(it.message ?: "Gagal menyimpan GPX") }
+            .onSuccess { onResult("Tersimpan: ${displayName(uri)}") }
+            .onFailure { onResult(it.message ?: "Gagal menyimpan file") }
     }
+
+    // Tipe MIME CreateDocument ditetapkan saat registrasi, jadi satu launcher per jenis file.
+    private val gpxSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml"), ::writeSaved)
+    private val csvSaver = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv"), ::writeSaved)
 
     private val documentOpener = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val (onOpened, onError) = pendingOpen ?: return@registerForActivityResult
@@ -129,7 +136,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun saveDocument(fileName: String, mimeType: String, content: String, onResult: (String) -> Unit) {
         pendingSave = content to onResult
-        documentSaver.launch(fileName)
+        (if (mimeType == "text/csv") csvSaver else gpxSaver).launch(fileName)
     }
 
     override fun openDocument(mimeTypes: List<String>, onOpened: (String) -> Unit, onError: (String) -> Unit) {
@@ -390,6 +397,46 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
 
     override fun stopVoicePlayback() = releasePlayer()
 
+    // ---- AI super-resolution: satu thread latar (interpreter TFLite tidak thread-safe) ----
+    private val superResolution by lazy { SuperResolution(applicationContext) }
+    private val srExecutor by lazy { java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "NusaMesh-sr").apply { priority = Thread.NORM_PRIORITY - 1 } } }
+
+    override fun enhanceImage(
+        bytes: ByteArray,
+        onProgress: (Int, Int) -> Unit,
+        onResult: (EnhancedImage) -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        srExecutor.execute {
+            runCatching {
+                val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: error("Gambar tidak dapat dibaca")
+                val (model, _) = superResolution.chosenModel()
+                val start = System.nanoTime()
+                val out = superResolution.enhance(source, model) { done, total -> runOnUiThread { onProgress(done, total) } }
+                val ms = (System.nanoTime() - start) / 1_000_000
+                // Hasil >512 px (input 129–256 px) disimpan JPEG supaya hemat memori; hasil LoRa 512 px tetap PNG.
+                val big = maxOf(out.width, out.height) > 512
+                val encoded = java.io.ByteArrayOutputStream().also {
+                    out.compress(if (big) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG, if (big) 92 else 100, it)
+                }.toByteArray()
+                out.recycle()
+                EnhancedImage(encoded, model.label, ms)
+            }.onSuccess { runOnUiThread { onResult(it) } }
+                .onFailure { runOnUiThread { onError(it.message ?: "AI gagal memperjelas gambar") } }
+        }
+    }
+
+    override fun benchmarkSuperResolution(onResult: (List<SrSpeed>, String) -> Unit, onError: (String) -> Unit) {
+        srExecutor.execute {
+            runCatching {
+                val results = superResolution.benchmark()
+                val chosen = superResolution.choose(results)
+                results.map { (model, r) -> SrSpeed(model.label, r.getOrNull(), superResolution.assetSizeKb(model), r.exceptionOrNull()?.message) } to chosen.label
+            }.onSuccess { (speeds, chosen) -> runOnUiThread { onResult(speeds, chosen) } }
+                .onFailure { runOnUiThread { onError(it.message ?: "Uji AI gagal") } }
+        }
+    }
+
     private fun requestAudioFocus() {
         val audio = getSystemService(AudioManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -579,5 +626,3 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         return "lampiran-${System.currentTimeMillis()}"
     }
 }
-
-

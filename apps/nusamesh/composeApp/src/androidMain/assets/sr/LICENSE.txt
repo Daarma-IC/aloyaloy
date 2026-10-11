@@ -1,0 +1,8 @@
+Model super-resolution di folder ini berasal dari Qualcomm AI Hub (https://huggingface.co/qualcomm),
+diekspor ke TFLite int8 (w8a8), input 128x128 RGB -> output 512x512:
+
+- real_esrgan_x4v3_w8a8.tflite  Real-ESRGAN General x4v3 (Xintao Wang dkk.)  BSD 3-Clause
+- sesr_m5_w8a8.tflite            SESR-M5                                       BSD 3-Clause
+- xlsr_w8a8.tflite               XLSR                                          BSD 3-Clause
+
+Lisensi lengkap: https://github.com/xinntao/Real-ESRGAN/blob/master/LICENSE dan model card masing-masing.

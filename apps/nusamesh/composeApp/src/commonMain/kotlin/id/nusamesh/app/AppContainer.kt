@@ -12,7 +12,8 @@ class AppContainer(
     initialPage: AppPage = AppPage.Home,
     initialConversationId: String? = null,
     batteryLevel: () -> Int? = { null },
+    roadGraph: () -> ByteArray? = { null },
 ) {
     private val meshRepository = MeshRepository(link, store)
-    val appController = AppController(meshRepository, store, initialPage, initialConversationId, batteryLevel)
+    val appController = AppController(meshRepository, store, initialPage, initialConversationId, batteryLevel, roadGraph)
 }
