@@ -1,0 +1,197 @@
+{
+  "sha": "13310f750da0a09bbc944067b7d7fa8b8b27b110",
+  "node_id": "C_kwDOAF3Q3doAKDEzMzEwZjc1MGRhMGEwOWJiYzk0NDA2N2I3ZDdmYThiOGIyN2IxMTA",
+  "commit": {
+    "author": {
+      "name": "dependabot[bot]",
+      "email": "49699333+dependabot[bot]@users.noreply.github.com",
+      "date": "2026-10-13T19:40:14Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-13T19:40:14Z"
+    },
+    "message": "build(deps): bump the all-actions group across 1 directory with 8 updates (#15352)\n\nBumps the all-actions group with 8 updates in the / directory:\n\n| Package | From | To |\n| --- | --- | --- |\n| [github/codeql-action/init](https://github.com/github/codeql-action) | `4.37.8` | `4.38.2` |\n| [github/codeql-action/analyze](https://github.com/github/codeql-action) | `4.37.8` | `4.38.2` |\n| [conda-incubator/setup-miniconda](https://github.com/conda-incubator/setup-miniconda) | `4.0.1` | `4.1.0` |\n| [docker/setup-docker-action](https://github.com/docker/setup-docker-action) | `5.4.0` | `5.5.0` |\n| [github/issue-labeler](https://github.com/github/issue-labeler) | `3.4` | `3.5` |\n| [softprops/action-gh-release](https://github.com/softprops/action-gh-release) | `3.0.2` | `3.0.3` |\n| [github/codeql-action/upload-sarif](https://github.com/github/codeql-action) | `4.37.8` | `4.38.2` |\n| [msys2/setup-msys2](https://github.com/msys2/setup-msys2) | `2.32.0` | `2.33.0` |\n\n\n\nUpdates `github/codeql-action/init` from 4.37.8 to 4.38.2\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28...2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2)\n\nUpdates `github/codeql-action/analyze` from 4.37.8 to 4.38.2\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28...2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2)\n\nUpdates `conda-incubator/setup-miniconda` from 4.0.1 to 4.1.0\n- [Release notes](https://github.com/conda-incubator/setup-miniconda/releases)\n- [Changelog](https://github.com/conda-incubator/setup-miniconda/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/conda-incubator/setup-miniconda/compare/8ee1f361103df19b6f8c8655fd3967a8ecb162d5...be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb)\n\nUpdates `docker/setup-docker-action` from 5.4.0 to 5.5.0\n- [Release notes](https://github.com/docker/setup-docker-action/releases)\n- [Commits](https://github.com/docker/setup-docker-action/compare/77e84dbf09b47d1e29270283c22f16145aa85ca1...2bf61fb9464cc67f0cbdeabed6aa0380accd1c70)\n\nUpdates `github/issue-labeler` from 3.4 to 3.5\n- [Release notes](https://github.com/github/issue-labeler/releases)\n- [Commits](https://github.com/github/issue-labeler/compare/c1b0f9f52a63158c4adc09425e858e87b32e9685...ccca1e16fcb66762200e616fc29b57b940c1cb67)\n\nUpdates `softprops/action-gh-release` from 3.0.2 to 3.0.3\n- [Release notes](https://github.com/softprops/action-gh-release/releases)\n- [Changelog](https://github.com/softprops/action-gh-release/blob/master/CHANGELOG.md)\n- [Commits](https://github.com/softprops/action-gh-release/compare/3d0d9888cb7fd7b750713d6e236d1fcb99157228...efb35369e0ad2afab669f228072c1b0d510eae64)\n\nUpdates `github/codeql-action/upload-sarif` from 4.37.8 to 4.38.2\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28...2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2)\n\nUpdates `msys2/setup-msys2` from 2.32.0 to 2.33.0\n- [Release notes](https://github.com/msys2/setup-msys2/releases)\n- [Changelog](https://github.com/msys2/setup-msys2/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/msys2/setup-msys2/compare/66cd2cce69caa17b53920067426061ca1de3a884...ec48f7c5447b3140e2b088413ae3a55687bccb6e)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.2\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.2\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: conda-incubator/setup-miniconda\n  dependency-version: 4.1.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: docker/setup-docker-action\n  dependency-version: 5.5.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: github/issue-labeler\n  dependency-version: '3.5'\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: softprops/action-gh-release\n  dependency-version: 3.0.3\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: all-actions\n- dependency-name: github/codeql-action/upload-sarif\n  dependency-version: 4.38.2\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: msys2/setup-msys2\n  dependency-version: 2.33.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+    "tree": {
+      "sha": "64bf7ef757a09bf707eb3e0ac37bdd66bceb9ba0",
+      "url": "https://api.github.com/repos/OSGeo/gdal/git/trees/64bf7ef757a09bf707eb3e0ac37bdd66bceb9ba0"
+    },
+    "url": "https://api.github.com/repos/OSGeo/gdal/git/commits/13310f750da0a09bbc944067b7d7fa8b8b27b110",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqzokeCRC1aQ7uu5UhlAAAmr4QAFCHCwEBTuYHxiyKreyRoCYM\nCHQiXqMoN8pAS964LcrRxziKstmrWb5hyu9HDFgVKuPEQVFssNGimNAo8hAtp2ES\nO8xycK17pByN/0Ah7s+iQOe/QcT3Sv1NvhrWvVIM3XzfSRYObk/JKFreQRBp+pkZ\nX/+Jk/9nSHmXHEgAlDBVNax8UR58Lbr9inParUPh2Si1pkg/o9YssGXpu1qT8iDt\neoyclcS0nD00PlwFD9ru8LGnAqiJ/Xa7Ton4K6345JO5PookJZfQG+pdIZvWdh0e\n7TxBIGSfMRq7SkMAYy+FsqBWD7xjjGX6kSDDOwlfSuF+EeBvebhWcQSKxdKNpwnl\nexrL9HecndroKSiovFeHAwdMY2W6+/Y4+iEZ+VZD4IqiLTBqH9Hv8TuNPRCyrr1g\nva/xiIqdjBLUwi6/SDU9p33pL4oqmbXgOO0iaGaERhSp90TM/T8TudZBOL3ILwG7\ni8n58xhVgIUjiJiBbGY9u+iGmcpJ/w/xbet3e5akrk8vn5agZKPIUvfvz9vAWkmn\nd4fVv2v9puj3dNYINbPp0aYZ0/HsHIY9rw/IWJpcNzSFXRRASXsT4tpeqOPTt1mV\nmOsksFLc7ZwIME6/lsLVmPCEh6det1z2nLX8nfy7Znp2yBH1IAp49k4UY8xvyko3\nIFSSgkYgmc3U+yb6aXvr\n=fhJj\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 64bf7ef757a09bf707eb3e0ac37bdd66bceb9ba0\nparent aa5cb6e2487820f8ec0e75ed9727eb23ce842f9e\nauthor dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> 1791920414 -0400\ncommitter GitHub <noreply@github.com> 1791920414 -0400\n\nbuild(deps): bump the all-actions group across 1 directory with 8 updates (#15352)\n\nBumps the all-actions group with 8 updates in the / directory:\n\n| Package | From | To |\n| --- | --- | --- |\n| [github/codeql-action/init](https://github.com/github/codeql-action) | `4.37.8` | `4.38.2` |\n| [github/codeql-action/analyze](https://github.com/github/codeql-action) | `4.37.8` | `4.38.2` |\n| [conda-incubator/setup-miniconda](https://github.com/conda-incubator/setup-miniconda) | `4.0.1` | `4.1.0` |\n| [docker/setup-docker-action](https://github.com/docker/setup-docker-action) | `5.4.0` | `5.5.0` |\n| [github/issue-labeler](https://github.com/github/issue-labeler) | `3.4` | `3.5` |\n| [softprops/action-gh-release](https://github.com/softprops/action-gh-release) | `3.0.2` | `3.0.3` |\n| [github/codeql-action/upload-sarif](https://github.com/github/codeql-action) | `4.37.8` | `4.38.2` |\n| [msys2/setup-msys2](https://github.com/msys2/setup-msys2) | `2.32.0` | `2.33.0` |\n\n\n\nUpdates `github/codeql-action/init` from 4.37.8 to 4.38.2\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28...2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2)\n\nUpdates `github/codeql-action/analyze` from 4.37.8 to 4.38.2\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28...2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2)\n\nUpdates `conda-incubator/setup-miniconda` from 4.0.1 to 4.1.0\n- [Release notes](https://github.com/conda-incubator/setup-miniconda/releases)\n- [Changelog](https://github.com/conda-incubator/setup-miniconda/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/conda-incubator/setup-miniconda/compare/8ee1f361103df19b6f8c8655fd3967a8ecb162d5...be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb)\n\nUpdates `docker/setup-docker-action` from 5.4.0 to 5.5.0\n- [Release notes](https://github.com/docker/setup-docker-action/releases)\n- [Commits](https://github.com/docker/setup-docker-action/compare/77e84dbf09b47d1e29270283c22f16145aa85ca1...2bf61fb9464cc67f0cbdeabed6aa0380accd1c70)\n\nUpdates `github/issue-labeler` from 3.4 to 3.5\n- [Release notes](https://github.com/github/issue-labeler/releases)\n- [Commits](https://github.com/github/issue-labeler/compare/c1b0f9f52a63158c4adc09425e858e87b32e9685...ccca1e16fcb66762200e616fc29b57b940c1cb67)\n\nUpdates `softprops/action-gh-release` from 3.0.2 to 3.0.3\n- [Release notes](https://github.com/softprops/action-gh-release/releases)\n- [Changelog](https://github.com/softprops/action-gh-release/blob/master/CHANGELOG.md)\n- [Commits](https://github.com/softprops/action-gh-release/compare/3d0d9888cb7fd7b750713d6e236d1fcb99157228...efb35369e0ad2afab669f228072c1b0d510eae64)\n\nUpdates `github/codeql-action/upload-sarif` from 4.37.8 to 4.38.2\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28...2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2)\n\nUpdates `msys2/setup-msys2` from 2.32.0 to 2.33.0\n- [Release notes](https://github.com/msys2/setup-msys2/releases)\n- [Changelog](https://github.com/msys2/setup-msys2/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/msys2/setup-msys2/compare/66cd2cce69caa17b53920067426061ca1de3a884...ec48f7c5447b3140e2b088413ae3a55687bccb6e)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.2\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.2\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: conda-incubator/setup-miniconda\n  dependency-version: 4.1.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: docker/setup-docker-action\n  dependency-version: 5.5.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: github/issue-labeler\n  dependency-version: '3.5'\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: softprops/action-gh-release\n  dependency-version: 3.0.3\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: all-actions\n- dependency-name: github/codeql-action/upload-sarif\n  dependency-version: 4.38.2\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n- dependency-name: msys2/setup-msys2\n  dependency-version: 2.33.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: all-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+      "verified_at": "2026-10-13T19:40:14Z"
+    }
+  },
+  "url": "https://api.github.com/repos/OSGeo/gdal/commits/13310f750da0a09bbc944067b7d7fa8b8b27b110",
+  "html_url": "https://github.com/OSGeo/gdal/commit/13310f750da0a09bbc944067b7d7fa8b8b27b110",
+  "comments_url": "https://api.github.com/repos/OSGeo/gdal/commits/13310f750da0a09bbc944067b7d7fa8b8b27b110/comments",
+  "author": {
+    "login": "dependabot[bot]",
+    "id": 49699333,
+    "node_id": "MDM6Qm90NDk2OTkzMzM=",
+    "avatar_url": "https://avatars.githubusercontent.com/in/29110?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/dependabot%5Bbot%5D",
+    "html_url": "https://github.com/apps/dependabot",
+    "followers_url": "https://api.github.com/users/dependabot%5Bbot%5D/followers",
+    "following_url": "https://api.github.com/users/dependabot%5Bbot%5D/following{/other_user}",
+    "gists_url": "https://api.github.com/users/dependabot%5Bbot%5D/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/dependabot%5Bbot%5D/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/dependabot%5Bbot%5D/subscriptions",
+    "organizations_url": "https://api.github.com/users/dependabot%5Bbot%5D/orgs",
+    "repos_url": "https://api.github.com/users/dependabot%5Bbot%5D/repos",
+    "events_url": "https://api.github.com/users/dependabot%5Bbot%5D/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/dependabot%5Bbot%5D/received_events",
+    "type": "Bot",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "aa5cb6e2487820f8ec0e75ed9727eb23ce842f9e",
+      "url": "https://api.github.com/repos/OSGeo/gdal/commits/aa5cb6e2487820f8ec0e75ed9727eb23ce842f9e",
+      "html_url": "https://github.com/OSGeo/gdal/commit/aa5cb6e2487820f8ec0e75ed9727eb23ce842f9e"
+    }
+  ],
+  "stats": {
+    "total": 28,
+    "additions": 14,
+    "deletions": 14
+  },
+  "files": [
+    {
+      "sha": "2ebfb79251d2969abdc4e04709b3b354bb712b9c",
+      "filename": ".github/workflows/codeql.yml",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fcodeql.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fcodeql.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fcodeql.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -111,7 +111,7 @@ jobs:\n     # We do that after running CMake to avoid CodeQL to trigger during CMake time,\n     # in particular during HDF5 detection which is terribly slow (https://github.com/OSGeo/gdal/issues/9549)\n     - name: Initialize CodeQL\n-      uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8\n+      uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2\n       with:\n         languages: ${{ matrix.language }}\n         # If you wish to specify custom queries, you can do so here or in a config file.\n@@ -131,6 +131,6 @@ jobs:\n         cmake --build build -j$(nproc)\n \n     - name: Perform CodeQL Analysis\n-      uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8\n+      uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2\n       with:\n         category: \"/language:${{matrix.language}}\""
+    },
+    {
+      "sha": "7f3dc0c3171da2297d5b4f2c9edaab99710597d0",
+      "filename": ".github/workflows/conda.yml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fconda.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fconda.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fconda.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -55,7 +55,7 @@ jobs:\n           ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-\n           ${{ runner.os }}-conda-\n \n-    - uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1\n+    - uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0\n       with:\n         miniforge-version: latest\n         use-mamba: true"
+    },
+    {
+      "sha": "0c0544056697f164e1e44c44aac21d5a65b2a78f",
+      "filename": ".github/workflows/docker-workshop.yml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fdocker-workshop.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fdocker-workshop.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fdocker-workshop.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -26,7 +26,7 @@ jobs:\n         with:\n           persist-credentials: false\n       - name: Set up Docker\n-        uses: docker/setup-docker-action@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0\n+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0\n         with:\n           daemon-config: |\n             {"
+    },
+    {
+      "sha": "4a0c86b2e471c9176069df5e2f523313a4e8992a",
+      "filename": ".github/workflows/docker.yml",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fdocker.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fdocker.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fdocker.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -43,7 +43,7 @@ jobs:\n         with:\n           persist-credentials: false\n       - name: Set up Docker\n-        uses: docker/setup-docker-action@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0\n+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0\n         with:\n           daemon-config: |\n             {\n@@ -133,7 +133,7 @@ jobs:\n         with:\n           persist-credentials: false\n       - name: Set up Docker\n-        uses: docker/setup-docker-action@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0\n+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0\n         with:\n           daemon-config: |\n             {"
+    },
+    {
+      "sha": "8cb0aa0faf6ce1c6a525d8bbd4a2185cf73f60e9",
+      "filename": ".github/workflows/labeler.yml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Flabeler.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Flabeler.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Flabeler.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -11,7 +11,7 @@ jobs:\n   triage:\n     runs-on: ubuntu-latest\n     steps:\n-    - uses: github/issue-labeler@c1b0f9f52a63158c4adc09425e858e87b32e9685 # v3.4\n+    - uses: github/issue-labeler@ccca1e16fcb66762200e616fc29b57b940c1cb67 # v3.5\n       with:\n         configuration-path: .github/labeler.yml\n         enable-versioned-regex: 0"
+    },
+    {
+      "sha": "afc9dcce8631a051f675f36da006b30d6d3485de",
+      "filename": ".github/workflows/macos.yml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fmacos.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fmacos.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fmacos.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -48,7 +48,7 @@ jobs:\n           restore-keys: |\n             ${{ runner.os }}-conda-\n \n-      - uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1\n+      - uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0\n         with:\n             channels: conda-forge\n             auto-update-conda: true"
+    },
+    {
+      "sha": "7c28e12e69ff00c076835019ad2b6278e182ee0d",
+      "filename": ".github/workflows/release.yml",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Frelease.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Frelease.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Frelease.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -191,7 +191,7 @@ jobs:\n         if: startsWith(github.ref, 'refs/tags/') && env.PRE_RELEASE != 'true'\n         with:\n           attestations: true\n-      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.0   # zizmor: ignore[superfluous-actions]\n+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.0   # zizmor: ignore[superfluous-actions]\n         if: startsWith(github.ref, 'refs/tags/')\n         name: Publish release as draft\n         with:\n@@ -231,7 +231,7 @@ jobs:\n         with:\n           persist-credentials: false\n       - name: Set up Docker\n-        uses: docker/setup-docker-action@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0\n+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0\n         with:\n           daemon-config: |\n             {"
+    },
+    {
+      "sha": "b5e6a359d58f959443839705486816ada286dd6e",
+      "filename": ".github/workflows/scorecard.yml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fscorecard.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fscorecard.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fscorecard.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -71,6 +71,6 @@ jobs:\n \n       # Upload the results to GitHub's code scanning dashboard.\n       - name: \"Upload to code-scanning\"\n-        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8\n+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2\n         with:\n           sarif_file: results.sarif"
+    },
+    {
+      "sha": "b5888e1e2ceb3bd31e2a17caae1342f08fae8dcc",
+      "filename": ".github/workflows/windows_build.yml",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 3,
+      "changes": 6,
+      "blob_url": "https://github.com/OSGeo/gdal/blob/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fwindows_build.yml",
+      "raw_url": "https://github.com/OSGeo/gdal/raw/13310f750da0a09bbc944067b7d7fa8b8b27b110/.github%2Fworkflows%2Fwindows_build.yml",
+      "contents_url": "https://api.github.com/repos/OSGeo/gdal/contents/.github%2Fworkflows%2Fwindows_build.yml?ref=13310f750da0a09bbc944067b7d7fa8b8b27b110",
+      "patch": "@@ -228,7 +228,7 @@ jobs:\n         with:\n           persist-credentials: false\n       - name: Install development packages\n-        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0\n+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0\n         with:\n           msystem: MINGW64\n           update: true\n@@ -328,7 +328,7 @@ jobs:\n       shell: pwsh\n       run: |\n         echo \"JAVA_HOME=$env:JAVA_HOME_11_X64\" >> %GITHUB_ENV%\n-    - uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1\n+    - uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0\n       with:\n         activate-environment: gdalenv\n         miniforge-version: latest\n@@ -445,7 +445,7 @@ jobs:\n       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n       with:\n         persist-credentials: false\n-    - uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1\n+    - uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0\n       with:\n         activate-environment: gdalenv\n         miniforge-version: latest"
+    }
+  ]
+}

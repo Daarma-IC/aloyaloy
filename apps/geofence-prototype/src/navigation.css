@@ -1,0 +1,211 @@
+.nav-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.nav-mode-grid button {
+  border: 1px solid #cbd5db;
+  background: white;
+  color: #536971;
+  border-radius: 7px;
+  padding: 9px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nav-mode-grid button.active {
+  background: #7c3aed;
+  color: white;
+  border-color: #7c3aed;
+}
+.victim-card .arrival {
+  display: block;
+  margin-top: 12px;
+  padding: 7px;
+  border-radius: 5px;
+  background: #14532d;
+  color: #bbf7d0;
+  font:
+    10px ui-monospace,
+    monospace;
+  text-align: center;
+}
+.manual-tools {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.manual-tools p {
+  font-size: 10px;
+  color: #854d0e;
+  line-height: 1.45;
+  margin: 0 0 8px;
+}
+.manual-tools div {
+  display: flex;
+  gap: 6px;
+}
+.manual-tools button {
+  border: 1px solid #d7c26b;
+  background: white;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.manual-tools button.primary {
+  background: #ca8a04;
+  border-color: #ca8a04;
+}
+.manual-tools small {
+  display: block;
+  margin-top: 7px;
+  color: #92731f;
+  font-size: 9px;
+}
+.route-alert {
+  padding: 9px 10px;
+  margin-bottom: 10px;
+  border-radius: 7px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.route-alert.loading {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.route-alert.error {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+.direction-step {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5ebed;
+}
+.direction-step > b {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 10px;
+}
+.direction-step span {
+  font-size: 10px;
+  color: #33464f;
+  text-transform: capitalize;
+}
+.direction-step small {
+  display: block;
+  color: #819299;
+  margin-top: 2px;
+}
+@media (max-width: 520px) {
+  .nav-mode-grid {
+    grid-template-columns: 1fr;
+  }
+  .nav-mode-grid button {
+    padding: 10px;
+  }
+}
+.nav-mode-grid.four {
+  grid-template-columns: repeat(2, 1fr);
+}
+.nav-mode-grid button.active.trail {
+  background: #059669;
+  border-color: #059669;
+}
+.graph-card {
+  position: relative;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 9px;
+  padding: 11px;
+  margin-bottom: 12px;
+}
+.graph-card > div b,
+.graph-card > div small {
+  display: block;
+}
+.graph-card > div b {
+  font-size: 12px;
+  color: #065f46;
+}
+.graph-card > div small {
+  font-size: 9px;
+  color: #397868;
+  margin-top: 3px;
+  max-width: 245px;
+}
+.graph-card > span {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  font:
+    8px ui-monospace,
+    monospace;
+  padding: 4px 5px;
+  border-radius: 4px;
+  background: #d1fae5;
+  color: #047857;
+}
+.graph-card > span.error,
+.graph-card > span.empty {
+  background: #fff1f2;
+  color: #be123c;
+}
+.graph-card > span.downloading,
+.graph-card > span.loading {
+  background: #eef2ff;
+  color: #4338ca;
+}
+.graph-card p {
+  font-size: 9px;
+  color: #4b7168;
+  margin: 9px 0;
+}
+.graph-card button {
+  border: 1px solid #6ee7b7;
+  background: white;
+  color: #047857;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.route-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin: 0 0 11px;
+}
+.route-metrics span {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 7px;
+  padding: 8px 5px;
+  text-align: center;
+  font-size: 8px;
+  color: #56806d;
+}
+.route-metrics b {
+  display: block;
+  font-size: 11px;
+  color: #047857;
+  margin-bottom: 2px;
+}

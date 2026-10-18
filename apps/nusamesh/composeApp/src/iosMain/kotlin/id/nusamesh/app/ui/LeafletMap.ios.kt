@@ -22,6 +22,7 @@ import platform.darwin.NSObject
 /** Menerima ketukan peta dari JavaScript dan meneruskan data peta setelah halaman selesai dimuat. */
 private class MapBridge : NSObject(), WKScriptMessageHandlerProtocol, WKNavigationDelegateProtocol {
     var onMapTap: (Double, Double) -> Unit = { _, _ -> }
+    var onNavigationResult: (String) -> Unit = {}
     var webView: WKWebView? = null
     private var ready = false
     private var dataJson = "null"
@@ -37,6 +38,7 @@ private class MapBridge : NSObject(), WKScriptMessageHandlerProtocol, WKNavigati
     }
 
     override fun userContentController(userContentController: WKUserContentController, didReceiveScriptMessage: WKScriptMessage) {
+        if (didReceiveScriptMessage.name == "nusaNavigation") { (didReceiveScriptMessage.body as? String)?.let(onNavigationResult); return }
         val body = didReceiveScriptMessage.body as? List<*> ?: return
         val latitude = (body.getOrNull(0) as? NSNumber)?.doubleValue ?: return
         val longitude = (body.getOrNull(1) as? NSNumber)?.doubleValue ?: return
@@ -50,14 +52,16 @@ private class MapBridge : NSObject(), WKScriptMessageHandlerProtocol, WKNavigati
 }
 
 @Composable
-actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit) {
+actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit, onNavigationResult: (String) -> Unit) {
     val bridge = remember { MapBridge() }
     bridge.onMapTap = onMapTap
+    bridge.onNavigationResult = onNavigationResult
     UIKitView(
         modifier = modifier,
         factory = {
             val configuration = WKWebViewConfiguration().apply {
                 userContentController.addScriptMessageHandler(bridge, name = "nusaTap")
+                userContentController.addScriptMessageHandler(bridge, name = "nusaNavigation")
             }
             WKWebView(frame = CGRectZero.readValue(), configuration = configuration).apply {
                 customUserAgent = "Mozilla/5.0 (iPhone) Meshta/0.2"

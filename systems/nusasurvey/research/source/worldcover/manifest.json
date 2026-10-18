@@ -1,0 +1,38 @@
+﻿{
+    "repository":  "ESA-WorldCover/esa-worldcover-datasets",
+    "commit":  "82bdd1d342685de9ff1782dff96ad875844a142f",
+    "importedAt":  "2026-10-14T08:11:37.3398746Z",
+    "scope":  "selected upstream source, not full clone or installed runtime",
+    "files":  [
+                  {
+                      "path":  "README.md",
+                      "url":  "https://raw.githubusercontent.com/ESA-WorldCover/esa-worldcover-datasets/82bdd1d342685de9ff1782dff96ad875844a142f/README.md",
+                      "downloaded":  true,
+                      "sha256":  "1e695b92a73f6a8f63dc50680f83b2d8c0cdbce73ebbd6200926d0283c0f6bd8"
+                  },
+                  {
+                      "path":  "LICENSE",
+                      "url":  "https://raw.githubusercontent.com/ESA-WorldCover/esa-worldcover-datasets/82bdd1d342685de9ff1782dff96ad875844a142f/LICENSE",
+                      "downloaded":  true,
+                      "sha256":  "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+                  },
+                  {
+                      "path":  "scripts/download.py",
+                      "url":  "https://raw.githubusercontent.com/ESA-WorldCover/esa-worldcover-datasets/82bdd1d342685de9ff1782dff96ad875844a142f/scripts/download.py",
+                      "downloaded":  true,
+                      "sha256":  "aa1c749e198f0bc63e34ecf3bf108d95f252824fb410805b897c7a6fda009024"
+                  },
+                  {
+                      "path":  "notebooks/utils/labels.py",
+                      "url":  "https://raw.githubusercontent.com/ESA-WorldCover/esa-worldcover-datasets/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks/utils/labels.py",
+                      "downloaded":  true,
+                      "sha256":  "0735056450da96876a150a57f50ef17d0f0f2f4c2f5bc2095cec0f57bde8fc79"
+                  },
+                  {
+                      "path":  "notebooks/utils/stac.py",
+                      "url":  "https://raw.githubusercontent.com/ESA-WorldCover/esa-worldcover-datasets/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks/utils/stac.py",
+                      "downloaded":  true,
+                      "sha256":  "207b4371175cca76791582af0f93ede1244bfc1192178c8c58199d2e2bca7986"
+                  }
+              ]
+}

@@ -1,29 +1,200 @@
-asset 401f58202a6ae0b9d01e.wasm 19.8 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] (auxiliary name: main)
+asset 9dee691cdbe8b6b814b6.wasm 22.9 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] (auxiliary name: main)
 asset bccfa839aa4b38489c76.wasm 8.02 MiB [emitted] [immutable] [from: kotlin/skiko.wasm] (auxiliary name: main)
-asset composeApp.js 4.03 MiB [emitted] (name: main)
+asset composeApp.js 4.04 MiB [emitted] (name: main)
 runtime modules 29.5 KiB 13 modules
 javascript modules 1.53 MiB
-  modules by path ../../../../../../../../../.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b...(truncated) 109 KiB
-    modules by path ../../../../../../../../../.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b...(truncated) 84.8 KiB 8 modules
-    modules by path ../../../../../../../../../.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b...(truncated) 5.17 KiB 4 modules
+  modules by path C:/Users/darma/.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b6e17636dac8...(truncated) 109 KiB
+    modules by path C:/Users/darma/.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b6e17636dac8/...(truncated) 84.8 KiB 8 modules
+    modules by path C:/Users/darma/.kotlin/kotlin-npm-tooling/yarn/0e8af1ba763e2a6bb176b6e17636dac8/...(truncated) 5.17 KiB 4 modules
     + 2 modules
   modules by path ./kotlin/ 1.04 MiB
     ./kotlin/NusaMesh-composeApp.mjs 395 bytes [built] [code generated]
     ./kotlin/skiko.mjs 613 KiB [built] [code generated]
-    ./kotlin/NusaMesh-composeApp.uninstantiated.mjs 443 KiB [built] [code generated] [3 warnings]
+    ./kotlin/NusaMesh-composeApp.uninstantiated.mjs 444 KiB [built] [code generated] [3 warnings]
     ./kotlin/custom-formatters.js 5.15 KiB [built] [code generated]
   ../../node_modules/@js-joda/core/dist/js-joda.esm.js 392 KiB [built] [code generated]
-asset modules 27.8 MiB (asset) 84 bytes (javascript)
+asset modules 30.9 MiB (asset) 84 bytes (javascript)
   ./kotlin/skiko.wasm 8.02 MiB (asset) 42 bytes (javascript) [built] [code generated]
-  ./kotlin/NusaMesh-composeApp.wasm 19.8 MiB (asset) 42 bytes (javascript) [built] [code generated]
-
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Gradle build daemon has been stopped: stop command received
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
+  ./kotlin/NusaMesh-composeApp.wasm 22.9 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 22.9 MiB [immutable]
+  asset 20ac8e00de61a3146532.wasm 22.9 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.f8d24d4e23a36eca2f71.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.f8d24d4e23a36eca2f71.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 26.9 MiB (30.9 MiB) = composeApp.js 4.04 MiB main.f8d24d4e23a36eca2f71.hot-update.js 1.16 KiB 20ac8e00de61a3146532.wasm 22.9 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 22.9 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 22.9 MiB [immutable]
+  asset 8cdf641f18c0a5b28b07.wasm 22.9 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.662ad6a92ec0ae8e2570.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.662ad6a92ec0ae8e2570.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 26.9 MiB (30.9 MiB) = composeApp.js 4.04 MiB main.662ad6a92ec0ae8e2570.hot-update.js 1.16 KiB 8cdf641f18c0a5b28b07.wasm 22.9 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 22.9 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 22.9 MiB [immutable]
+  asset fb8be02d99ec81cda912.wasm 22.9 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.f1ab11a0ca0542630657.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.f1ab11a0ca0542630657.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 26.9 MiB (30.9 MiB) = composeApp.js 4.04 MiB main.f1ab11a0ca0542630657.hot-update.js 1.16 KiB fb8be02d99ec81cda912.wasm 22.9 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 22.9 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 22.9 MiB [immutable]
+  asset 3c0f9e2a1a7c905e6a72.wasm 22.9 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.2ba578f1a6b74f94c293.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.2ba578f1a6b74f94c293.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 26.9 MiB (30.9 MiB) = composeApp.js 4.04 MiB main.2ba578f1a6b74f94c293.hot-update.js 1.16 KiB 3c0f9e2a1a7c905e6a72.wasm 22.9 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 22.9 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.2 MiB [immutable]
+  asset 5026708d036f6462f9a0.wasm 23.2 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.a7d0a19daf2a5bf470b2.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.a7d0a19daf2a5bf470b2.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.3 MiB (31.2 MiB) = composeApp.js 4.04 MiB main.a7d0a19daf2a5bf470b2.hot-update.js 1.16 KiB 5026708d036f6462f9a0.wasm 23.2 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.2 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.3 MiB [immutable]
+  asset c6d3f218c327122cfbf1.wasm 23.3 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.bc2936ab91a1d4404882.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.bc2936ab91a1d4404882.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.3 MiB (31.3 MiB) = composeApp.js 4.04 MiB main.bc2936ab91a1d4404882.hot-update.js 1.16 KiB c6d3f218c327122cfbf1.wasm 23.3 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.3 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 31.3 MiB [cached] 2 assets
+assets by path . 5.1 MiB
+  asset composeApp.js 4.04 MiB [emitted] (name: main)
+  asset main.0eaa66a646c2be9e7ea6.hot-update.js 1.06 MiB [emitted] [immutable] [hmr] (name: main)
+  asset main.0eaa66a646c2be9e7ea6.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 5.1 MiB (31.3 MiB) = composeApp.js 4.04 MiB main.0eaa66a646c2be9e7ea6.hot-update.js 1.06 MiB 2 auxiliary assets
+cached modules 1.09 MiB (javascript) 31.3 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.uninstantiated.mjs 444 KiB [built] [code generated] [3 warnings]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.3 MiB [immutable]
+  asset 1e0273bedfb8695e3358.wasm 23.3 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.1961360c69c97c540c60.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.1961360c69c97c540c60.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.3 MiB (31.3 MiB) = composeApp.js 4.04 MiB main.1961360c69c97c540c60.hot-update.js 1.16 KiB 1e0273bedfb8695e3358.wasm 23.3 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.3 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.3 MiB [immutable]
+  asset 6b22d91499e76aa251f0.wasm 23.3 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.12432d8aeb73af1dc198.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.12432d8aeb73af1dc198.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.3 MiB (31.3 MiB) = composeApp.js 4.04 MiB main.12432d8aeb73af1dc198.hot-update.js 1.16 KiB 6b22d91499e76aa251f0.wasm 23.3 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.3 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.3 MiB [immutable]
+  asset f85bc88e02d68c5a0b8f.wasm 23.3 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.6f10facd29a505fb48c7.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.6f10facd29a505fb48c7.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.3 MiB (31.3 MiB) = composeApp.js 4.04 MiB main.6f10facd29a505fb48c7.hot-update.js 1.16 KiB f85bc88e02d68c5a0b8f.wasm 23.3 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.3 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.3 MiB [immutable]
+  asset fe9aa0efd0da2a7464ce.wasm 23.3 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.998c11369feb90e4cd41.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.998c11369feb90e4cd41.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.3 MiB (31.3 MiB) = composeApp.js 4.04 MiB main.998c11369feb90e4cd41.hot-update.js 1.16 KiB fe9aa0efd0da2a7464ce.wasm 23.3 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.3 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.5 MiB [immutable]
+  asset 664627f6c781e78ad0a2.wasm 23.5 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.23f804ec275fba0461c7.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.23f804ec275fba0461c7.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.5 MiB (31.5 MiB) = composeApp.js 4.04 MiB main.23f804ec275fba0461c7.hot-update.js 1.16 KiB 664627f6c781e78ad0a2.wasm 23.5 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.5 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.5 MiB [immutable]
+  asset 5b88a870377dd7c466c5.wasm 23.5 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.18b62986112b074c782a.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.18b62986112b074c782a.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.5 MiB (31.5 MiB) = composeApp.js 4.04 MiB main.18b62986112b074c782a.hot-update.js 1.16 KiB 5b88a870377dd7c466c5.wasm 23.5 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.5 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.6 MiB [immutable]
+  asset 8b118308648f0884a28d.wasm 23.6 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.8bba45e4c427665a5eab.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.8bba45e4c427665a5eab.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.7 MiB (31.6 MiB) = composeApp.js 4.04 MiB main.8bba45e4c427665a5eab.hot-update.js 1.16 KiB 8b118308648f0884a28d.wasm 23.6 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.6 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.6 MiB [immutable]
+  asset e6fa154547041c9bde85.wasm 23.6 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.1a4be17c66565efba52e.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.1a4be17c66565efba52e.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.7 MiB (31.6 MiB) = composeApp.js 4.04 MiB main.1a4be17c66565efba52e.hot-update.js 1.16 KiB e6fa154547041c9bde85.wasm 23.6 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.6 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.6 MiB [immutable]
+  asset 869dca77ce8121d69e95.wasm 23.6 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.215871eafa8f52df4c41.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.215871eafa8f52df4c41.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.7 MiB (31.7 MiB) = composeApp.js 4.04 MiB main.215871eafa8f52df4c41.hot-update.js 1.16 KiB 869dca77ce8121d69e95.wasm 23.6 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.6 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.7 MiB [immutable]
+  asset cb4ebeb152f9b73a226b.wasm 23.7 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.382d3e011fdd85ba65ad.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.382d3e011fdd85ba65ad.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.7 MiB (31.7 MiB) = composeApp.js 4.04 MiB main.382d3e011fdd85ba65ad.hot-update.js 1.16 KiB cb4ebeb152f9b73a226b.wasm 23.7 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.7 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 8.02 MiB [cached] 1 asset
+assets by info 23.7 MiB [immutable]
+  asset f538d3f257ba15fed272.wasm 23.7 MiB [emitted] [immutable] [from: kotlin/NusaMesh-composeApp.wasm] [hmr] (name: main) (auxiliary name: main)
+  asset main.48b3a81648472aefc519.hot-update.js 1.16 KiB [emitted] [immutable] [hmr] (name: main)
+  asset main.48b3a81648472aefc519.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+asset composeApp.js 4.04 MiB [emitted] (name: main)
+Entrypoint main 27.7 MiB (31.7 MiB) = composeApp.js 4.04 MiB main.48b3a81648472aefc519.hot-update.js 1.16 KiB f538d3f257ba15fed272.wasm 23.7 MiB 2 auxiliary assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) [cached] 20 modules
+runtime modules 29.5 KiB 13 modules
+./kotlin/NusaMesh-composeApp.wasm 23.7 MiB (asset) 42 bytes (javascript) [built] [code generated]
+assets by status 35.8 MiB [cached] 3 assets
+cached modules 1.53 MiB (javascript) 8.02 MiB (asset) 29.5 KiB (runtime) [cached] 33 modules
+./kotlin/NusaMesh-composeApp.wasm 23.7 MiB (asset) 42 bytes (javascript) [built]

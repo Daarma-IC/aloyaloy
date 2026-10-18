@@ -108,6 +108,7 @@ class NodeQueue(
         private val total: Int,
         private val onProgress: (Int, Int) -> Unit,
         private val onComplete: (Boolean) -> Unit,
+        val onEstimate: ((Long) -> Unit)? = null,
     ) {
         var sent = 0
             private set
@@ -132,6 +133,8 @@ class NodeQueue(
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private var closed = false
     private var worker: Job? = null
+    private var inFlight: Item? = null
+    private var writeDurationMs = 0.0
 
     val size get() = pending.size
     val relayedCount get() = pending.count { !it.own }
@@ -153,13 +156,14 @@ class NodeQueue(
         send: suspend (ByteArray) -> Boolean,
         onProgress: (Int, Int) -> Unit = { _, _ -> },
         onComplete: (Boolean) -> Unit = {},
+        onEstimate: ((Long) -> Unit)? = null,
     ): Boolean {
         if (closed || packets.isEmpty() || pending.size + packets.size > MAX_PENDING) {
             onComplete(false)
             return false
         }
         val t = now()
-        val batch = Batch(packets.size, onProgress, onComplete)
+        val batch = Batch(packets.size, onProgress, onComplete, onEstimate)
         val items = packets.map { Item(it.copyOf(), t, isOwn(it), send, batch) }
         val relayedIncoming = items.count { !it.own }
         if (relayedIncoming > 0 && relayedCount + relayedIncoming > MAX_RELAYED) {
@@ -171,6 +175,7 @@ class NodeQueue(
             if (item.priority == 3 && pending.isNotEmpty()) continue
             pending += item
         }
+        updateEstimates()
         wake.trySend(Unit)
         return true
     }
@@ -207,12 +212,47 @@ class NodeQueue(
         return pending.minByOrNull { it.rank(t) }
     }
 
+    /** Simulate the current scheduler without consuming credit or changing packet order.
+     * Forecast ends at BLE acceptance of the last fragment, not radio TX or receiver delivery.
+     * New traffic, SF changes and write durations cause the forecast to be recalculated.
+     */
+    private fun updateEstimates() {
+        if (inFlight != null || pending.none { it.batch?.onEstimate != null }) return
+        val start = now()
+        var at = start
+        val elapsed = (start-lastRefill).coerceAtLeast(0)
+        var air = minOf(BURST_AIR_MS, airCreditMs+elapsed*DUTY_SHARE)
+        var tokens = minOf(RATE_BURST, rateTokens+elapsed/RATE_INTERVAL_MS)
+        val rest = pending.toMutableList()
+        val finishes = linkedMapOf<Batch, Long>()
+        val sf = spreadingFactor()
+        fun advance(ms: Long) {
+            at += ms
+            air = minOf(BURST_AIR_MS, air+ms*DUTY_SHARE)
+            tokens = minOf(RATE_BURST, tokens+ms/RATE_INTERVAL_MS)
+        }
+        while(rest.isNotEmpty()) {
+            val next = rest.minBy { it.rank(at) }
+            if(!next.localOnly) {
+                val wait = ceil(maxOf(if(air<0) -air/DUTY_SHARE else 0.0,
+                    if(tokens<1) (1-tokens)*RATE_INTERVAL_MS else 0.0)).toLong()
+                if(wait>0) { advance(wait); continue }
+            }
+            rest.remove(next)
+            advance(ceil(writeDurationMs).toLong())
+            if(!next.localOnly) { air-=airtimeMs(next.bytes,sf); tokens-=1 }
+            next.batch?.let { finishes[it]=at-start }
+        }
+        finishes.forEach { (batch,ms) -> if(!batch.finished) batch.onEstimate?.invoke(ms) }
+    }
+
     /** Jalankan pengirim berjeda di [scope] (harus scope engine yang satu jalur). */
     fun start(scope: CoroutineScope) {
         if (worker != null) return
         worker = scope.launch {
             for (ignored in wake) {
                 while (isActive) {
+                    updateEstimates()
                     // Pilih ulang tiap putaran: teks yang masuk saat menunggu jatah airtime tetap
                     // mendahului fragmen voice/gambar yang sudah lama antre.
                     val next = peekNext() ?: break
@@ -221,7 +261,12 @@ class NodeQueue(
                         if (wait > 0) { delay(minOf(wait, RECHECK_MS)); continue }
                     }
                     pending.remove(next)
-                    if (next.send(next.bytes)) {
+                    inFlight = next
+                    val started = now()
+                    val success = try { next.send(next.bytes) } finally { inFlight = null }
+                    val duration = (now()-started).coerceAtLeast(0).toDouble()
+                    writeDurationMs = if(writeDurationMs==0.0) duration else writeDurationMs*.75+duration*.25
+                    if (success) {
                         if (!next.localOnly) {
                             airCreditMs -= airtimeMs(next.bytes, spreadingFactor())
                             rateTokens -= 1.0
@@ -241,6 +286,7 @@ class NodeQueue(
 
     fun close() {
         closed = true
+        inFlight?.batch?.finish(false)
         pending.mapNotNull { it.batch }.distinct().forEach { it.finish(false) }
         pending.clear()
         wake.close()

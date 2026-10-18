@@ -26,6 +26,8 @@ sealed interface LinkEvent {
     data class MtuChanged(val deviceId: String, val mtu: Int) : LinkEvent
     data class RssiRead(val deviceId: String, val rssi: Int) : LinkEvent
     data class ConnectFailed(val deviceId: String, val reason: String) : LinkEvent
+    /** Optional platform detail; send() still returns a single Boolean outcome for counters. */
+    data class TransmissionError(val deviceId: String, val reason: String) : LinkEvent
 }
 
 /**

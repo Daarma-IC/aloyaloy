@@ -1,0 +1,38 @@
+﻿[
+    {
+        "file":  "copernicus-dem.html",
+        "url":  "https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM",
+        "bytes":  110375,
+        "sha256":  "4b51970370f6aa1c108b452d18f69c4310525a4eb206910860b479e28066ed15"
+    },
+    {
+        "file":  "demnas.html",
+        "url":  "https://www.big.go.id/en/content/product/demnas",
+        "bytes":  16867,
+        "sha256":  "adc68d2162423bd4a2af7a69de098f503f24ecb524ffbe943b504ef5ece94b3e"
+    },
+    {
+        "file":  "earth-engine-export.html",
+        "url":  "https://developers.google.com/earth-engine/guides/exporting_images",
+        "bytes":  174322,
+        "sha256":  "9e147a6f11c4e37187e6844458139c65d101688ec5bf4dd8d1bde1229c5b0fa6"
+    },
+    {
+        "file":  "gdal-slope.html",
+        "url":  "https://gdal.org/en/stable/programs/gdal_raster_slope.html",
+        "bytes":  43588,
+        "sha256":  "65e55996b6d9aff96cc39b7f69eb0a7206e506e6171ac6f4cb931e29cf815500"
+    },
+    {
+        "file":  "grass-r-walk.html",
+        "url":  "https://grass.osgeo.org/grass-stable/manuals/r.walk.html",
+        "bytes":  74058,
+        "sha256":  "d6d685f4dd8478e7b668804dbd63f0672d3af88349416bd794bcb60272049cd6"
+    },
+    {
+        "file":  "worldcover-data.html",
+        "url":  "https://esa-worldcover.org/en/data-access",
+        "bytes":  49866,
+        "sha256":  "7645b74f70102799bad26dc751706f630cfee7e3e3d60bc25f343053a7a57d5e"
+    }
+]

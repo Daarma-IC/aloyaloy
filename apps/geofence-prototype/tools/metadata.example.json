@@ -1,0 +1,18 @@
+{
+  "id": "replace-with-aoi-name",
+  "datasetVersion": "replace-with-package-version",
+  "verticalDatum": "EGM2008",
+  "elevationUnit": "m",
+  "dem": {
+    "name": "Replace with DEMNAS BIG or Copernicus product actually used",
+    "observedAt": "Replace with dataset observation period",
+    "downloadedAt": "Replace with actual download date",
+    "license": "Replace with source license and attribution"
+  },
+  "landCover": {
+    "name": "ESA WorldCover 2021 v200",
+    "observedAt": "2021",
+    "downloadedAt": "Replace with actual download date",
+    "license": "CC BY 4.0; © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium"
+  }
+}

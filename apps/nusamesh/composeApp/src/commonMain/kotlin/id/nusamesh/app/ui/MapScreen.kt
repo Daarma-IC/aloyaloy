@@ -85,6 +85,10 @@ class MapActions(
     val removeOfflineMap: () -> Unit = {},
     val planRoadRoute: (TravelMode) -> Unit = {},
     val followDraft: (String) -> Unit = {},
+    val receiveNavigation: (String) -> Unit = {},
+    val planNavigation: () -> Unit = {},
+    val activateNavigation: (Boolean) -> Unit = {},
+    val stopNavigation: () -> Unit = {},
 )
 
 @Composable
@@ -95,7 +99,7 @@ fun MapScreen(
     offlinePack: OfflinePackInfo? = null,
     offlineSummary: String = "",
 ) {
-    var sheetFraction by remember { mutableFloatStateOf(0.45f) }
+    var sheetFraction by remember { mutableFloatStateOf(0.32f) }
     /** Panel diciutkan: tinggal pegangan + judul, peta hampir layar penuh. */
     var collapsed by remember { mutableStateOf(false) }
     var markingOpen by remember { mutableStateOf(false) }
@@ -121,13 +125,14 @@ fun MapScreen(
         routes = state.routes,
         waypoints = state.waypoints,
         draft = state.routeDraft,
-        picked = state.pickedPoint.takeIf { markingOpen || roadOpen },
+        picked = state.pickedPoint,
         guide = if (here != null && target != null) here to target.point else null,
         guideLabel = target?.title,
         focusKey = state.selectedTargetPeerId ?: state.selectedWaypointId ?: state.followedRouteId,
         statuses = state.unitStatuses.mapValues { it.value.status.label },
         haveKey = state.operationCode != null,
         offlinePack = offlinePack,
+        sarNavigation = state.sarNavigation,
     )
     BoxWithConstraints(
         Modifier.fillMaxSize().background(Color(0xFFF8FAFC))
@@ -137,13 +142,13 @@ fun MapScreen(
         val availablePx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().weight(if (collapsed) 1f else 1f - sheetFraction).background(BrandTint)) {
-                LeafletMap(Modifier.fillMaxSize(), mapData, actions.mapTap)
+                LeafletMap(Modifier.fillMaxSize(), mapData, actions.mapTap, actions.receiveNavigation)
             }
             Column(
                 Modifier.fillMaxWidth()
                 .then(if (collapsed) Modifier else Modifier.weight(sheetFraction))
-                .background(Color.White, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .padding(horizontal = 24.dp, vertical = 10.dp),
+                .background(Color.White, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Seret pegangan: atur tinggi panel; seret ke bawah melewati batas = ciutkan, seret ke atas = buka lagi.
@@ -155,7 +160,7 @@ fun MapScreen(
                         detectVerticalDragGestures(
                             onDragStart = { pulled = 0f },
                             onDragEnd = {
-                                if (!collapsed && sheetFraction <= COLLAPSE_FRACTION) { collapsed = true; sheetFraction = 0.45f }
+                                if (!collapsed && sheetFraction <= COLLAPSE_FRACTION) { collapsed = true; sheetFraction = 0.32f }
                             },
                         ) { change, dragAmount ->
                             change.consume()
@@ -195,9 +200,10 @@ fun MapScreen(
                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                SarNavigationCard(state, actions)
                 CoordinatePanel(here, target?.point, coordinateFormat) { coordinateFormat = it }
-                if (guidance != null && target != null) {
-                    GuidanceCard(target, guidance) { actions.selectTarget(null); actions.selectWaypoint(null); actions.followRoute(null) }
+                if (guidance != null && target != null && state.sarNavigation.route == null) {
+                    GuidanceCard(target, guidance, false) { actions.stopNavigation(); actions.selectTarget(null); actions.selectWaypoint(null); actions.followRoute(null) }
                 }
 
                 // Rute / Gambar / Tandai saling eksklusif seperti tab: membuka satu menutup yang lain
@@ -313,7 +319,7 @@ private fun CoordinatePanel(here: GeoPoint?, target: GeoPoint?, format: Coordina
 
 /** Arahan ke unit/titik/rute: jarak besar di kiri, arah & instruksi di kanan. */
 @Composable
-private fun GuidanceCard(target: NavigationTarget, guidance: OfflineGuidance, onStop: () -> Unit) {
+private fun GuidanceCard(target: NavigationTarget, guidance: OfflineGuidance, routed: Boolean = false, onStop: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().background(BrandSoft, RoundedCornerShape(16.dp)).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -334,7 +340,7 @@ private fun GuidanceCard(target: NavigationTarget, guidance: OfflineGuidance, on
         }
         Text(guidance.turnInstruction, color = Ink, fontSize = 13.sp)
         Text(
-            "Arah langsung, bukan jaminan jalur aman. Hindari tebing, sungai, longsor, dan area tertutup.",
+            if (routed) "Ikuti waypoint rute. Kandidat berdasarkan data medan, belum verifikasi lapangan." else "Arah langsung, bukan jaminan jalur aman. Hindari tebing, sungai, longsor, dan area tertutup.",
             color = Warning, fontSize = 10.sp, lineHeight = 13.sp,
         )
     }

@@ -15,6 +15,10 @@ private external fun installMapTap(handler: (Double, Double) -> Unit)
 
 @JsFun("() => { delete window.nusaMapTap; }")
 private external fun removeMapTap()
+@JsFun("(f) => { window.nusaNavigationResult = (json) => f(json); }")
+private external fun installNavigationResult(handler: (String) -> Unit)
+@JsFun("() => { delete window.nusaNavigationResult; }")
+private external fun removeNavigationResult()
 
 /** Data dititipkan di atribut iframe (dibaca peta saat siap) lalu dikirim langsung bila peta sudah jalan. */
 @JsFun(
@@ -25,11 +29,13 @@ private external fun pushMapData(frame: HTMLIFrameElement, json: String)
 
 @Composable
 @OptIn(ExperimentalComposeUiApi::class)
-actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit) {
+actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit, onNavigationResult: (String) -> Unit) {
     val currentTap = rememberUpdatedState(onMapTap)
+    val currentResult = rememberUpdatedState(onNavigationResult)
     DisposableEffect(Unit) {
         installMapTap { lat, lon -> currentTap.value(lat, lon) }
-        onDispose { removeMapTap() }
+        installNavigationResult { json -> currentResult.value(json) }
+        onDispose { removeMapTap(); removeNavigationResult() }
     }
     WebElementView(
         factory = {

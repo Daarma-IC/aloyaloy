@@ -3,6 +3,8 @@
 Aplikasi Kotlin Multiplatform untuk Android dan iOS. UI Compose dibagi bersama,
 sedangkan akses BLE memakai API native masing-masing platform.
 
+Navigasi jalan–medan NusaSurvey sudah diintegrasikan pada layar Peta. Klik unit/titik lalu Arahkan untuk meminta rute lokal, jarak/ETA, profil elevasi, dan panduan waypoint. Paket bawaan mencakup area operasi Gede–Cibodas, Tangkuban Parahu, Papandayan dan Kaliurang; seluruh data jalur/medan wilayah tersebut dibundel agar perhitungan rute berjalan tanpa internet. Basemap detail memakai tile OSM online atau MBTiles/cache lokal seperti sebelumnya. Tidak ada panel unduh paket; wilayah tambahan disiapkan pengembang sebelum build. Fencing/polygon ditunda. [Integrasi navigasi](docs/SAR_NAVIGATION.md) · [Cakupan, unduh paket dan layanan wilayah](docs/REGIONAL_NAVIGATION.md).
+
 ## Struktur singkat
 
 ```text
@@ -77,3 +79,7 @@ prototype ini masih UTF-8 biasa agar integrasi hardware dapat dites. Sebelum
 rilis publik, pasang implementasi Noise di batas `MeshRepository` dan kirim
 sebagai tipe `0x12` (`NoiseEncrypted`). Firmware tetap meneruskan ciphertext
 tanpa membacanya.
+
+## Diagnostik transmisi
+
+Buka Pesan untuk daftar chat, lalu buka panel Kualitas jaringan di bawahnya untuk grafik gabungan QoS LoRa/BLE dengan pilihan beberapa parameter dalam satu kartesian. Panel tertutup secara default agar chat tetap mudah diakses. Detail menyediakan metrik sesi/per-device, log dengan filter ID pesan dan ekspor CSV; navbar tetap tiga menu. Voice note menampilkan loading kompresi, antre/kirim, progres fragmen, dan waktu selesai transport. [Definisi metrik dan batas firmware](docs/TRANSMISSION_DIAGNOSTICS.md).

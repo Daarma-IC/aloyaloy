@@ -1,0 +1,53 @@
+{
+  "packages": [
+    {
+      "id": "kaliurang-real-terrain",
+      "name": "Kaliurang",
+      "bbox": [
+        110.425,
+        -7.601,
+        110.452,
+        -7.569
+      ],
+      "version": "copdem2021-worldcover2021-osm-obstacles-v2",
+      "sha256": "ed54b3dc36e70b3d4cd05b11b002922056e315c4113bb534aeff152f84cf5cb3"
+    },
+    {
+      "id": "jabar-cibodas",
+      "name": "Jawa Barat · Gede–Cibodas",
+      "bbox": [
+        106.971,
+        -6.766,
+        107.021,
+        -6.716
+      ],
+      "version": "copdem-worldcover2021-osm-2026-10-15",
+      "sha256": "ff87b906627d1d3301feef243d03c7aa25491274499cd34c3ebf288882c38a16"
+    },
+    {
+      "id": "jabar-tangkuban",
+      "name": "Jawa Barat · Tangkuban Parahu",
+      "bbox": [
+        107.585,
+        -6.785,
+        107.635,
+        -6.735
+      ],
+      "version": "copdem-worldcover2021-osm-2026-10-15",
+      "sha256": "54f341a0096c2f21b5d2ae0944934ccf2af0afdadb1628c5de09158170238ea4"
+    },
+    {
+      "id": "jabar-papandayan",
+      "name": "Jawa Barat · Papandayan",
+      "bbox": [
+        107.708,
+        -7.337,
+        107.758,
+        -7.287
+      ],
+      "version": "copdem-worldcover2021-osm-2026-10-15",
+      "sha256": "91042979b98ba25ba83412ce5bf23cdd3c977605941115b3654bd9ddcd63a87d"
+    }
+  ],
+  "generatedAt": "2026-10-17T11:05:40.246Z"
+}

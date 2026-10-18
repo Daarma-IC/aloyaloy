@@ -1,0 +1,101 @@
+{
+  "sha": "f2147ead8d9c6a2c724120113d9c56ab85963262",
+  "node_id": "C_kwDOACUsn9oAKGYyMTQ3ZWFkOGQ5YzZhMmM3MjQxMjAxMTNkOWM1NmFiODU5NjMyNjI",
+  "commit": {
+    "author": {
+      "name": "dependabot[bot]",
+      "email": "49699333+dependabot[bot]@users.noreply.github.com",
+      "date": "2026-10-12T18:12:35Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-12T18:12:35Z"
+    },
+    "message": "chore(deps): bump pypa/cibuildwheel from 4.2.1 to 4.3.0 (#7743)",
+    "tree": {
+      "sha": "ad7ec5ccbac8a6bc888cc921f5bcb7e4c28dad36",
+      "url": "https://api.github.com/repos/Project-OSRM/osrm-backend/git/trees/ad7ec5ccbac8a6bc888cc921f5bcb7e4c28dad36"
+    },
+    "url": "https://api.github.com/repos/Project-OSRM/osrm-backend/git/commits/f2147ead8d9c6a2c724120113d9c56ab85963262",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqzSMTCRC1aQ7uu5UhlAAAz0EQAK8NYtCJLE9+DeaHjtMsJAlm\nVPuhCQ6o1VnlHjlFZJQNxopWceq321Cc3Swlc9rUs33DBBZ1ao6C2CovjFNy4CEW\nkaBpKUFeBPDDnnmtJEyA7RgMDpJ4JsWfkK4CdzS4mPZqrif0KBioRSdvcqg8q4pc\nwTAxt7m6g3VF4xwtW3geBEyXlElm5/Vun72J9YAu81xAd3R0I7ZPSnngsxSpbNEy\njDoVwS1n0Y6AzS/HkrePuhkj1Curo5U946W+nEzixZNuCTOD55eKeSoWANVYAnkq\nI3JHb4lL947Zmy5A4bljd2IFScrNE8Txj1a/bOHQb5wDSllJY4cCQSVYc8ppfg+a\nPPM7882YjGSRPyWhgmrqF/Ix1VWeqeiyxFEkI0qsQWSAW18MW/uYo7g2aKhzR3GJ\nDcAsOxFdu2aTlbq+7cslRhNbVIbV1hkAAxcq+F+uKZnUVN2OvRbQJHRzk+yJluE8\ndVr9s1eToyefKoKsD0zonhiaNNhrPT4r4WD1Wyp2tBoh8LwWTRxV0aFQIFd8uJVT\nsIInE0y1jhKS13H/b3xk7CrU25EuJaFJi2C0uZzlrH0Oryqj6a7xQE/J1T1bcj/U\nMVbbhOd8MOq0iyI3+VJ9HdIbsG2FdpLiS6jZFsHRdwV86iB2nRlQyyxoyxoV4WZ6\nV1P2HPJEorWVCkai6BBe\n=cXxf\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree ad7ec5ccbac8a6bc888cc921f5bcb7e4c28dad36\nparent 92eba58ec37136a2f0fb4acfe68c7c3f509c185f\nauthor dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> 1791828755 +0100\ncommitter GitHub <noreply@github.com> 1791828755 +0100\n\nchore(deps): bump pypa/cibuildwheel from 4.2.1 to 4.3.0 (#7743)",
+      "verified_at": "2026-10-12T18:12:36Z"
+    }
+  },
+  "url": "https://api.github.com/repos/Project-OSRM/osrm-backend/commits/f2147ead8d9c6a2c724120113d9c56ab85963262",
+  "html_url": "https://github.com/Project-OSRM/osrm-backend/commit/f2147ead8d9c6a2c724120113d9c56ab85963262",
+  "comments_url": "https://api.github.com/repos/Project-OSRM/osrm-backend/commits/f2147ead8d9c6a2c724120113d9c56ab85963262/comments",
+  "author": {
+    "login": "dependabot[bot]",
+    "id": 49699333,
+    "node_id": "MDM6Qm90NDk2OTkzMzM=",
+    "avatar_url": "https://avatars.githubusercontent.com/in/29110?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/dependabot%5Bbot%5D",
+    "html_url": "https://github.com/apps/dependabot",
+    "followers_url": "https://api.github.com/users/dependabot%5Bbot%5D/followers",
+    "following_url": "https://api.github.com/users/dependabot%5Bbot%5D/following{/other_user}",
+    "gists_url": "https://api.github.com/users/dependabot%5Bbot%5D/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/dependabot%5Bbot%5D/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/dependabot%5Bbot%5D/subscriptions",
+    "organizations_url": "https://api.github.com/users/dependabot%5Bbot%5D/orgs",
+    "repos_url": "https://api.github.com/users/dependabot%5Bbot%5D/repos",
+    "events_url": "https://api.github.com/users/dependabot%5Bbot%5D/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/dependabot%5Bbot%5D/received_events",
+    "type": "Bot",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "92eba58ec37136a2f0fb4acfe68c7c3f509c185f",
+      "url": "https://api.github.com/repos/Project-OSRM/osrm-backend/commits/92eba58ec37136a2f0fb4acfe68c7c3f509c185f",
+      "html_url": "https://github.com/Project-OSRM/osrm-backend/commit/92eba58ec37136a2f0fb4acfe68c7c3f509c185f"
+    }
+  ],
+  "stats": {
+    "total": 4,
+    "additions": 2,
+    "deletions": 2
+  },
+  "files": [
+    {
+      "sha": "53f61012d528154eb0524745f95dab45ddbc574e",
+      "filename": ".github/workflows/osrm-backend.yml",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4,
+      "blob_url": "https://github.com/Project-OSRM/osrm-backend/blob/f2147ead8d9c6a2c724120113d9c56ab85963262/.github%2Fworkflows%2Fosrm-backend.yml",
+      "raw_url": "https://github.com/Project-OSRM/osrm-backend/raw/f2147ead8d9c6a2c724120113d9c56ab85963262/.github%2Fworkflows%2Fosrm-backend.yml",
+      "contents_url": "https://api.github.com/repos/Project-OSRM/osrm-backend/contents/.github%2Fworkflows%2Fosrm-backend.yml?ref=f2147ead8d9c6a2c724120113d9c56ab85963262",
+      "patch": "@@ -177,7 +177,7 @@ jobs:\n           token: ${{ secrets.GITHUB_TOKEN }}\n       - name: Run CIBuildWheel\n         if: github.event_name != 'pull_request'\n-        uses: pypa/cibuildwheel@v4.2.1\n+        uses: pypa/cibuildwheel@v4.3.0\n         with:\n           output-dir: dist\n         # The wheel-build CMAKE_ARGS (vcpkg toolchain + triplet) and the\n@@ -794,7 +794,7 @@ jobs:\n         run: echo \"path=$(ls dist/*.tar.gz | head -n1)\" >> \"$GITHUB_OUTPUT\"\n \n       - name: Run cibuildwheel\n-        uses: pypa/cibuildwheel@v4.2.1\n+        uses: pypa/cibuildwheel@v4.3.0\n         if: ${{ env.BUILD_BINDINGS }}\n         with:\n           # for linux build the wheel from the sdist"
+    }
+  ]
+}

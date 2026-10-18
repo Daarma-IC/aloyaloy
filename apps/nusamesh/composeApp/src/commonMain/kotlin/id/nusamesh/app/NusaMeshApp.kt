@@ -47,6 +47,7 @@ import id.nusamesh.app.media.DocumentActions
 import id.nusamesh.app.media.UnavailableDocumentActions
 import id.nusamesh.app.ui.MapActions
 import id.nusamesh.app.ui.QosActions
+import id.nusamesh.app.ui.TransmissionMonitorScreen
 import id.nusamesh.app.ui.PlatformBackHandler
 import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.UnavailableOfflineMaps
@@ -91,6 +92,7 @@ fun NusaMeshApp(
     val offlinePack by offlineMaps.pack.collectAsState()
     val offlineSummary by offlineMaps.cacheSummary.collectAsState()
     val mobilityLog by controller.mobilityLog.collectAsState()
+    val transmissionDiagnostics by controller.transmissionDiagnostics.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
     // Back: tutup lembar node / percakapan dulu, lalu kembali ke Beranda; baru di Beranda keluar aplikasi.
@@ -171,6 +173,16 @@ fun NusaMeshApp(
                         onSendAttachment = controller::sendAttachment,
                         onNotice = controller::showNotice,
                         onDismissNebeng = controller::dismissNebengNotice,
+                        diagnostics = transmissionDiagnostics,
+                        diagnosticsContent = { monitorPadding, close -> TransmissionMonitorScreen(
+                        diagnostics = transmissionDiagnostics,
+                        engine = state.mesh.engine,
+                        padding = monitorPadding,
+                        onExportLog = { documentActions.saveDocument(csvName("transmission-log"), "text/csv", controller.transmissionLogCsv(), controller::showNotice) },
+                        onExportSummary = { documentActions.saveDocument(csvName("transmission-metrics"), "text/csv", controller.transmissionSummaryCsv(), controller::showNotice) },
+                        onClear = controller::clearTransmissionLog,
+                        onBack = close,
+                        ) },
                         qos = QosActions(
                             start = controller::startQosTest,
                             stop = controller::stopQosTest,
@@ -215,6 +227,10 @@ fun NusaMeshApp(
                             removeOfflineMap = { offlineMaps.removePack(controller::showNotice) },
                             planRoadRoute = controller::planRoadRoute,
                             followDraft = controller::followRouteDraft,
+                            receiveNavigation = controller::receiveSarNavigation,
+                            planNavigation = controller::planSarNavigation,
+                            activateNavigation = controller::setSarNavigationActive,
+                            stopNavigation = controller::stopSarNavigation,
                             importGpx = {
                                 // Banyak pengelola file memberi GPX tipe octet-stream/xml, jadi terima semua lalu validasi isinya.
                                 documentActions.openDocument(listOf("*/*"), controller::importGpx, controller::showNotice)

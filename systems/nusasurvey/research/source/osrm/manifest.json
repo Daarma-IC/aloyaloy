@@ -1,0 +1,68 @@
+﻿{
+    "repository":  "Project-OSRM/osrm-backend",
+    "commit":  "f2147ead8d9c6a2c724120113d9c56ab85963262",
+    "importedAt":  "2026-10-14T08:10:06.6940226Z",
+    "scope":  "selected upstream source, not full clone or installed runtime",
+    "files":  [
+                  {
+                      "path":  "README.md",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/README.md",
+                      "downloaded":  true,
+                      "sha256":  "36ffbc34505ed337343619f1498f73c487e2774d0d389655652550d19dfbf8bd"
+                  },
+                  {
+                      "path":  "LICENSE.TXT",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/LICENSE.TXT",
+                      "downloaded":  true,
+                      "sha256":  "df207517bc08c688bac5cfe5d4f3576546efd3e7827275efcb3550f43f88b7f5"
+                  },
+                  {
+                      "path":  "AGENTS.md",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/AGENTS.md",
+                      "downloaded":  true,
+                      "sha256":  "46282bd021b2ff925f24b90cabb3ad2bdfc1a4ff23cdcf0ffc17ca24341d9983"
+                  },
+                  {
+                      "path":  "profiles/foot.lua",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/profiles/foot.lua",
+                      "downloaded":  true,
+                      "sha256":  "74e231f81301d89a10e2bd0e67b787147c761b3ee06f665426e21a9b736372f4"
+                  },
+                  {
+                      "path":  "profiles/lib/way_handlers.lua",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/profiles/lib/way_handlers.lua",
+                      "downloaded":  true,
+                      "sha256":  "4d503da9a7d1fb2228f869e218404524cf9cca7027c382e06ae65830f007a6c0"
+                  },
+                  {
+                      "path":  "docs/profiles.md",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/docs/profiles.md",
+                      "downloaded":  true,
+                      "sha256":  "d0955f985344c108ff78b900eabac8b2d404e5cb7fac865c55d9d25bdb9acd83"
+                  },
+                  {
+                      "path":  "docs/areas.md",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/docs/areas.md",
+                      "downloaded":  true,
+                      "sha256":  "d0aae13e5bbf1f1f9662e9a145ff9585494468571e75d4c7f079d9cc8e52099e"
+                  },
+                  {
+                      "path":  "docs/http.md",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/docs/http.md",
+                      "downloaded":  true,
+                      "sha256":  "9a0e50dddb5c16b0404275dbefb5bb73874988592ef33c751a53faee147bd48f"
+                  },
+                  {
+                      "path":  "include/engine/api/route_parameters.hpp",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/include/engine/api/route_parameters.hpp",
+                      "downloaded":  true,
+                      "sha256":  "42d4a4e7a3e83d9098f91dc78ac778018700f5d675a056648c34732de3550e9e"
+                  },
+                  {
+                      "path":  "src/engine/plugins/viaroute.cpp",
+                      "url":  "https://raw.githubusercontent.com/Project-OSRM/osrm-backend/f2147ead8d9c6a2c724120113d9c56ab85963262/src/engine/plugins/viaroute.cpp",
+                      "downloaded":  true,
+                      "sha256":  "93ac60956faffff99e96aabf30ae2aedc361aa817d5a3a446677573f0bdf6073"
+                  }
+              ]
+}

@@ -47,12 +47,19 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
+import id.nusamesh.app.mesh.engine.DiagnosticSnapshot
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import id.nusamesh.app.data.currentEpochMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -86,10 +93,17 @@ fun ChatScreen(
     onSendAttachment: (ChatAttachment) -> Unit,
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
+    diagnostics: DiagnosticSnapshot,
+    diagnosticsContent: @Composable (PaddingValues, () -> Unit) -> Unit,
     qos: QosActions = QosActions(),
 ) {
+    var diagnosticsOpen by remember { mutableStateOf(false) }
+    if (diagnosticsOpen) {
+        diagnosticsContent(padding) { diagnosticsOpen = false }
+        return
+    }
     if (state.activeConversationId == null) {
-        ChatListScreen(state, padding, onCreateGlobal, onOpenChat)
+        ChatListScreen(state, padding, onCreateGlobal, onOpenChat, diagnostics) { diagnosticsOpen = true }
     } else {
         GlobalConversationScreen(
             state = state,
@@ -113,8 +127,11 @@ private fun ChatListScreen(
     padding: PaddingValues,
     onCreateGlobal: () -> Unit,
     onOpenChat: (String) -> Unit,
+    diagnostics: DiagnosticSnapshot,
+    onDiagnostics: () -> Unit,
 ) {
     var selectedFilter by remember { mutableStateOf(ChatFilter.All) }
+    var qosExpanded by remember { mutableStateOf(false) }
     val visibleChats = state.chats.filter { chat ->
         when (selectedFilter) {
             ChatFilter.All -> true
@@ -140,13 +157,34 @@ private fun ChatListScreen(
         Spacer(Modifier.height(18.dp))
         ChatFilters(selectedFilter) { selectedFilter = it }
         Spacer(Modifier.height(18.dp))
-        if (visibleChats.isEmpty()) {
-            EmptyChat(Modifier.weight(1f), onCreateGlobal)
-        } else {
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(visibleChats, key = { it.peerId }) { chat -> ChatRow(chat) { onOpenChat(chat.peerId) } }
-                item { Spacer(Modifier.height(16.dp)) }
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (visibleChats.isEmpty()) item { EmptyChat(Modifier.height(230.dp), onCreateGlobal) }
+            items(visibleChats, key = { it.peerId }) { chat -> ChatRow(chat) { onOpenChat(chat.peerId) } }
+            item(key = "qos-panel") {
+                Column(
+                    Modifier.padding(top = 18.dp).fillMaxWidth()
+                        .background(Color.White, RoundedCornerShape(18.dp))
+                        .border(1.dp, BrandTint, RoundedCornerShape(18.dp)),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().pressableClick { qosExpanded = !qosExpanded }.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        AppIcon(IconKind.Signal, BrandDeep, Modifier.size(20.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Kualitas jaringan", color = Ink, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Grafik QoS LoRa & BLE", color = Slate, fontSize = 10.sp, lineHeight = 14.sp)
+                        }
+                        Text(if (qosExpanded) "Tutup" else "Buka", color = BrandDeep, fontSize = 11.sp, lineHeight = 16.sp)
+                    }
+                    if (qosExpanded) {
+                        val charts = remember(diagnostics.events, diagnostics.elapsedMs) { transmissionCharts(diagnostics) }
+                        CombinedQosPlot(charts, onDiagnostics)
+                    }
+                }
             }
+            item { Spacer(Modifier.height(16.dp)) }
         }
     }
 }
@@ -245,6 +283,8 @@ private fun GlobalConversationScreen(
     var important by remember { mutableStateOf(false) }
     var attachmentOpen by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
+    var preparingVoice by remember { mutableStateOf(false) }
+    val voiceScope = rememberCoroutineScope()
     val messages = state.messages.filter { it.conversationId == state.activeConversationId }
     var playback by remember { mutableStateOf<VoicePlayback?>(null) }
     DisposableEffect(Unit) { onDispose { mediaActions.stopVoicePlayback() } }
@@ -297,6 +337,7 @@ private fun GlobalConversationScreen(
             attachmentOpen = attachmentOpen,
             onToggleAttachment = { attachmentOpen = !attachmentOpen },
             recording = recording,
+            preparingVoice = preparingVoice,
             onImage = {
                 mediaActions.pickImage(
                     loraProfile = state.mesh.engine.loraPathAvailable,
@@ -313,11 +354,17 @@ private fun GlobalConversationScreen(
                 )
             },
             onVoice = {
-                if (recording) {
+                if (preparingVoice) Unit else if (recording) {
+                    recording = false
+                    preparingVoice = true
+                    voiceScope.launch {
+                    // Let Compose render the waiting state before the platform stops its recorder.
+                    withFrameNanos { }
                     mediaActions.stopVoiceNote(
-                        onRecorded = { recording = false; onSendAttachment(it) },
-                        onError = { recording = false; onNotice(it) },
+                        onRecorded = { preparingVoice = false; onSendAttachment(it) },
+                        onError = { preparingVoice = false; onNotice(it) },
                     )
+                    }
                 } else {
                     recording = true
                     mediaActions.startVoiceNote { recording = false; onNotice(it) }
@@ -486,8 +533,12 @@ private fun Bubble(
                     ChatMessageKind.Voice -> VoicePreview(message.durationSeconds, message.outgoing, playback, onPlayVoice)
                     ChatMessageKind.File -> AttachmentPreview(IconKind.File, message.attachmentName ?: "File", message.attachmentBytes, message.outgoing)
                 }
-                if (message.outgoing && message.kind != ChatMessageKind.Text && message.delivery == DeliveryState.Sending) {
+                if (message.outgoing && message.kind != ChatMessageKind.Text && message.kind != ChatMessageKind.Voice && message.delivery == DeliveryState.Sending) {
                     val transfer = (message.transferProgress ?: 0f).coerceIn(0f, 1f)
+                    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                        CircularProgressIndicator(Modifier.size(14.dp),color=Color.White,strokeWidth=2.dp)
+                        TransferWaitingLabel(message, transfer)
+                    }
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -501,7 +552,9 @@ private fun Bubble(
                         )
                         Text("${(transfer * 100).toInt()}%", color = Color.White.copy(alpha = .85f), fontSize = 7.sp)
                     }
+                    Text(if(message.path == DeliveryPath.Nebeng) "Estimasi sampai HP perantara; antrean LoRa berikutnya belum diketahui." else "Estimasi selesai kirim dari HP; waktu tiba di penerima belum diketahui.",color=Color.White.copy(alpha=.8f),fontSize=9.sp,lineHeight=13.sp)
                 }
+                if(message.outgoing && message.kind==ChatMessageKind.Voice) VoiceTransferCard(message)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PathTag(message)
                     Text(message.time, color = if (message.outgoing) Color.White.copy(alpha = .75f) else Muted, fontSize = 7.sp)
@@ -515,6 +568,22 @@ private fun Bubble(
 
 /** Pemanggil AI super-resolution: (gambar, progres(selesai, total), hasil, error). */
 private typealias Enhancer = (ByteArray, (Int, Int) -> Unit, (EnhancedImage) -> Unit, (String) -> Unit) -> Unit
+
+@Composable
+private fun TransferWaitingLabel(message: ChatMessage, progress: Float) {
+    var now by remember(message.id) { mutableStateOf(currentEpochMillis()) }
+    LaunchedEffect(message.id) { while(true) { delay(1000); now=currentEpochMillis() } }
+    val elapsed=message.transferStartedAtMs?.let { ((now-it).coerceAtLeast(0)/1000).toString()+" dtk" }
+    val phase=if(progress==0f) "Menunggu giliran kirim" else "Mengirim ${if(message.kind==ChatMessageKind.Voice) "suara" else "lampiran"}"
+    Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+        Text(phase+(elapsed?.let { " · $it" } ?: "…"),color=Color.White,fontSize=11.sp,lineHeight=15.sp)
+        Text(transferRemainingLabel(message.transferEstimate,message.transferEstimatedAtMs,now),color=Color.White,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold)
+        message.transferEstimate?.let { estimate ->
+            Text("${estimate.completedFragments}/${estimate.totalFragments} fragmen · ${if(estimate.nodePacing) "antrean node" else "laju BLE terukur"}",color=Color.White.copy(alpha=.8f),fontSize=9.sp,lineHeight=13.sp)
+            if(estimate.assumedSf) Text("SF node belum dilaporkan; estimasi memakai SF7 sementara.",color=Color.White.copy(alpha=.8f),fontSize=9.sp,lineHeight=13.sp)
+        }
+    }
+}
 
 /** Data ukur satu pesan: dibuka dengan menggeser gelembung (bahan uji QoS TA). */
 @Composable
@@ -577,7 +646,7 @@ private fun DeliveryStatus(message: ChatMessage) {
         message.ackedBy.isNotEmpty() -> Triple(IconKind.DoubleCheck, ackLabel(message.ackedBy), Color.White)
         else -> when (message.delivery) {
         DeliveryState.Sending -> Triple(IconKind.Clock, if (viaLora) "Antre LoRa" else "Mengirim", Color.White.copy(alpha = .85f))
-        DeliveryState.Sent -> Triple(IconKind.Check, if (ImportantMessage.wantsAck(message.body)) "Terkirim, menunggu konfirmasi" else "Terkirim", Color.White)
+        DeliveryState.Sent -> Triple(IconKind.Check, if(message.kind==ChatMessageKind.Voice) "Ke transport BLE" else if (ImportantMessage.wantsAck(message.body)) "Terkirim, menunggu konfirmasi" else "Terkirim", Color.White)
         DeliveryState.Failed -> Triple(IconKind.Alert, "Gagal", Color(0xFFFECACA))
         DeliveryState.Received -> return
         }
@@ -733,6 +802,7 @@ private fun Composer(
     attachmentOpen: Boolean,
     onToggleAttachment: () -> Unit,
     recording: Boolean,
+    preparingVoice: Boolean,
     onImage: () -> Unit,
     onFile: () -> Unit,
     onQos: () -> Unit,
@@ -763,7 +833,9 @@ private fun Composer(
                 AttachmentAction(IconKind.Image, "Uji AI", onSrBenchmark)
             }
         }
-        if (recording) {
+        if (preparingVoice) {
+            VoicePreparationPanel()
+        } else if (recording) {
             Row(
                 Modifier.fillMaxWidth().height(42.dp).background(DangerTint, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,

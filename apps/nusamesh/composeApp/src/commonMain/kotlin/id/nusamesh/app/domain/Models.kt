@@ -43,6 +43,12 @@ data class ChatMessage(
     val durationSeconds: Int? = null,
     /** 0..1 selama fragmen attachment keluar dari antrean transport. */
     val transferProgress: Float? = null,
+    val transferStartedAtMs: Long? = null,
+    val transferCompletedAtMs: Long? = null,
+    val transferEstimate: id.nusamesh.app.mesh.engine.TransferEstimate? = null,
+    val transferEstimatedAtMs: Long? = null,
+    /** Local time at which the first receiver confirmed full receipt, not a playback receipt. */
+    val acknowledgedAtMs: Long? = null,
     val path: DeliveryPath = DeliveryPath.Ble,
     /** Nama HP perantara bila [path] = Nebeng. */
     val viaName: String? = null,
@@ -172,6 +178,8 @@ data class AppUiState(
     val roadRoute: RoadRouteInfo? = null,
     /** Sedang menghitung rute jalan. */
     val routing: Boolean = false,
+    /** Local terrain navigation; independent of LoRa-shared draft/route simplification. */
+    val sarNavigation: id.nusamesh.app.routing.SarNavigation = id.nusamesh.app.routing.SarNavigation(),
     val qosSending: QosSending? = null,
     /** Nama HP yang mengonfirmasi menerima SOS kita (direset tiap SOS dinyalakan). */
     val sosAckedBy: List<String> = emptyList(),

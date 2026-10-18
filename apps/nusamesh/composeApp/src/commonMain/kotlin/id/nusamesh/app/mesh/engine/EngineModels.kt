@@ -33,6 +33,7 @@ data class NodeInfo(
     val spreadingFactor: Int? = null,
     /** Mode uji jarak aktif (tombol BOOT): hanya saat ini SF boleh diganti dari app. */
     val testMode: Boolean = false,
+    val queuedPackets: Int = 0,
 )
 
 data class IncomingMessage(
@@ -53,6 +54,17 @@ data class IncomingMessage(
 
 /** Konfirmasi terima (DELIVERY_ACK) untuk pesan [messageId] milik kita, dari [fromPeerId]. */
 data class IncomingAck(val messageId: String, val fromPeerId: String)
+
+fun fileTransferId(senderPeerId: String, timestampMs: Long) = "file-$timestampMs-$senderPeerId"
+
+/** Remaining local transport time only. A null duration means BLE speed is not measured yet. */
+data class TransferEstimate(
+    val remainingMs: Long?,
+    val completedFragments: Int,
+    val totalFragments: Int,
+    val nodePacing: Boolean,
+    val assumedSf: Boolean,
+)
 
 /** Berkas (gambar/voice/file) utuh dari FILE_TRANSFER 0x22. */
 data class IncomingFile(

@@ -1,0 +1,67 @@
+{
+  "packageSha256": "d23144d8a9d5df2dc1de73de7f7f2fd9281e093820e5e457bc3898b75dce5478",
+  "sources": [
+    {
+      "name": "Copernicus DEM GLO-30 Public (2021 release)",
+      "observedAt": "TanDEM-X acquisition 2011-2015; product release 2021",
+      "downloadedAt": "2026-10-14T10:20:26.203007+00:00",
+      "license": "Copernicus DEM GLO-30 public licence; https://registry.opendata.aws/copernicus-dem/",
+      "url": "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_S08_00_E110_00_DEM/Copernicus_DSM_COG_10_S08_00_E110_00_DEM.tif",
+      "role": "dem",
+      "filename": "dem.tif",
+      "sha256": "c271a243a87516e471d618f94f2ba3c228a75e01bdb2cf056200a753bdd5cee4",
+      "sourceCRS": "EPSG:4326",
+      "nativeResolutionMApprox": 30.68077540636836,
+      "sourceTransform": [
+        0.0002777777777777778,
+        0.0,
+        110.42180555555557,
+        0.0,
+        -0.0002777777777777778,
+        -7.565972222222222
+      ],
+      "sourceNoData": "None"
+    },
+    {
+      "name": "ESA WorldCover 2021 v200",
+      "observedAt": "2021",
+      "downloadedAt": "2026-10-14T10:20:26.203007+00:00",
+      "license": "CC BY 4.0; \u00a9 ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+      "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_S09E108_Map.tif",
+      "role": "landCover",
+      "filename": "landCover.tif",
+      "sha256": "0edfe8b3123a336657f262bb5b68ec07bf7ec22a7be1b402c1ce341f197cb4f0",
+      "sourceCRS": "EPSG:4326",
+      "nativeResolutionMApprox": 9.204234544946912,
+      "sourceTransform": [
+        8.333333333333333e-05,
+        0.0,
+        110.422,
+        0.0,
+        -8.333333333333333e-05,
+        -7.566
+      ],
+      "sourceNoData": "0.0"
+    },
+    {
+      "name": "OpenStreetMap foot-accessible paths, Kaliurang",
+      "observedAt": "OSM snapshot 2026-10-14",
+      "downloadedAt": "2026-10-14T10:20:26.203007+00:00",
+      "license": "ODbL; \u00a9 OpenStreetMap contributors",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=110.425,-7.601,110.452,-7.569",
+      "sha256": "44403fef378a42120ed9f6b50e5cc4185ab00a774d105970afb0c16e14addde9"
+    }
+  ],
+  "aoi": [
+    110.425,
+    -7.601,
+    110.452,
+    -7.569
+  ],
+  "statistics": {
+    "validElevationCells": 8772,
+    "noDataCells": 0,
+    "elevationMinM": 816.374000417562,
+    "elevationMaxM": 1414.4432419024954
+  }
+}

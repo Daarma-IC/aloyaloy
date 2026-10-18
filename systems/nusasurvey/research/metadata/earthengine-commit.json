@@ -1,0 +1,101 @@
+{
+  "sha": "9ec29fe12a009862f25c6613a5fc8648b89aacaf",
+  "node_id": "C_kwDOAgxJkdoAKDllYzI5ZmUxMmEwMDk4NjJmMjVjNjYxM2E1ZmM4NjQ4Yjg5YWFjYWY",
+  "commit": {
+    "author": {
+      "name": "Kurt Schwehr",
+      "email": "schwehr@google.com",
+      "date": "2026-10-14T02:40:57Z"
+    },
+    "committer": {
+      "name": "Google Earth Engine Authors",
+      "email": "no-reply@google.com",
+      "date": "2026-10-14T02:42:00Z"
+    },
+    "message": "data.js: Minor fixes and clarify workload tag syntax\n\nPiperOrigin-RevId: 999054044",
+    "tree": {
+      "sha": "7bf82faf37916e9d273ccb49bdf9ea5c60ede10b",
+      "url": "https://api.github.com/repos/google/earthengine-api/git/trees/7bf82faf37916e9d273ccb49bdf9ea5c60ede10b"
+    },
+    "url": "https://api.github.com/repos/google/earthengine-api/git/commits/9ec29fe12a009862f25c6613a5fc8648b89aacaf",
+    "comment_count": 0,
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "url": "https://api.github.com/repos/google/earthengine-api/commits/9ec29fe12a009862f25c6613a5fc8648b89aacaf",
+  "html_url": "https://github.com/google/earthengine-api/commit/9ec29fe12a009862f25c6613a5fc8648b89aacaf",
+  "comments_url": "https://api.github.com/repos/google/earthengine-api/commits/9ec29fe12a009862f25c6613a5fc8648b89aacaf/comments",
+  "author": {
+    "login": "schwehr",
+    "id": 389869,
+    "node_id": "MDQ6VXNlcjM4OTg2OQ==",
+    "avatar_url": "https://avatars.githubusercontent.com/u/389869?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/schwehr",
+    "html_url": "https://github.com/schwehr",
+    "followers_url": "https://api.github.com/users/schwehr/followers",
+    "following_url": "https://api.github.com/users/schwehr/following{/other_user}",
+    "gists_url": "https://api.github.com/users/schwehr/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/schwehr/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/schwehr/subscriptions",
+    "organizations_url": "https://api.github.com/users/schwehr/orgs",
+    "repos_url": "https://api.github.com/users/schwehr/repos",
+    "events_url": "https://api.github.com/users/schwehr/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/schwehr/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "a-googler",
+    "id": 20343323,
+    "node_id": "MDQ6VXNlcjIwMzQzMzIz",
+    "avatar_url": "https://avatars.githubusercontent.com/u/20343323?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/a-googler",
+    "html_url": "https://github.com/a-googler",
+    "followers_url": "https://api.github.com/users/a-googler/followers",
+    "following_url": "https://api.github.com/users/a-googler/following{/other_user}",
+    "gists_url": "https://api.github.com/users/a-googler/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/a-googler/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/a-googler/subscriptions",
+    "organizations_url": "https://api.github.com/users/a-googler/orgs",
+    "repos_url": "https://api.github.com/users/a-googler/repos",
+    "events_url": "https://api.github.com/users/a-googler/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/a-googler/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "0c0a51b733b07a703dca951219f43c41db196c22",
+      "url": "https://api.github.com/repos/google/earthengine-api/commits/0c0a51b733b07a703dca951219f43c41db196c22",
+      "html_url": "https://github.com/google/earthengine-api/commit/0c0a51b733b07a703dca951219f43c41db196c22"
+    }
+  ],
+  "stats": {
+    "total": 10,
+    "additions": 5,
+    "deletions": 5
+  },
+  "files": [
+    {
+      "sha": "91f6766172ecd7213d950660ad014e66a3528862",
+      "filename": "javascript/src/data.js",
+      "status": "modified",
+      "additions": 5,
+      "deletions": 5,
+      "changes": 10,
+      "blob_url": "https://github.com/google/earthengine-api/blob/9ec29fe12a009862f25c6613a5fc8648b89aacaf/javascript%2Fsrc%2Fdata.js",
+      "raw_url": "https://github.com/google/earthengine-api/raw/9ec29fe12a009862f25c6613a5fc8648b89aacaf/javascript%2Fsrc%2Fdata.js",
+      "contents_url": "https://api.github.com/repos/google/earthengine-api/contents/javascript%2Fsrc%2Fdata.js?ref=9ec29fe12a009862f25c6613a5fc8648b89aacaf",
+      "patch": "@@ -2311,8 +2311,8 @@ ee.data.getWorkloadTag = function() {\n  * Sets the workload tag, used to label computation and exports.\n  *\n  * Workload tag must be 1 - 63 characters, beginning and ending with an\n- * alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_), dots\n- * (.), and alphanumerics between, or an empty string to clear the workload tag.\n+ * alphanumeric character ([a-z0-9]) with dashes (-), underscores (_), and\n+ * alphanumerics between, or an empty string to clear the workload tag.\n  * @param {string} tag\n  * @export\n  */\n@@ -2328,8 +2328,8 @@ ee.data.setWorkloadTag = function(tag) {\n  * an empty string or pass in true to `ee.data.resetWorkloadTag(true)`, like so.\n  *\n  * Workload tag must be 1 - 63 characters, beginning and ending with an\n- * alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_), dots\n- * (.), and alphanumerics between, or an empty string to reset the default back\n+ * alphanumeric character ([a-z0-9]) with dashes (-), underscores (_), and\n+ * alphanumerics between, or an empty string to reset the default back\n  * to none.\n  * @param {string} tag\n  * @export\n@@ -3450,7 +3450,7 @@ ee.data.MapZoomRange = {\n \n \n /**\n- * An object to specifying common user preferences for the creation of a new\n+ * An object for specifying common user preferences for the creation of a new\n  * task.\n  *\n  * @typedef {{"
+    }
+  ]
+}

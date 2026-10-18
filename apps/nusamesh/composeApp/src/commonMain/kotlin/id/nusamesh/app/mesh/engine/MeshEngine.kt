@@ -25,6 +25,7 @@ import id.nusamesh.app.mesh.protocol.WirePacket
 import id.nusamesh.app.mesh.protocol.WireProtocol
 import id.nusamesh.app.mesh.protocol.peerIdBytes
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,6 +52,7 @@ class MeshEngine(
     private val now: () -> Long,
     private val random: Random = Random.Default,
     private val mobilityLog: MobilityLogSink = MobilityLogSink { _, _, _, _, _, _, _ -> },
+    val diagnostics: TransmissionDiagnostics = TransmissionDiagnostics(now),
 ) {
     companion object {
         const val ANNOUNCE_TTL = 3
@@ -82,6 +84,7 @@ class MeshEngine(
         var name: String? = null
         var scanRssi: Int? = null
         var scanAt: Long = 0
+        var lastDiagnosticScanAt: Long = Long.MIN_VALUE / 2
         var connected = false
         var connecting = false
         var mtu = 185
@@ -154,13 +157,17 @@ class MeshEngine(
     fun start() = scope.launch {
         if (running) return@launch
         running = true
+        diagnostics.record(DiagnosticLayer.SYSTEM, "MESH_STARTED")
         link.start(myIdBytes)
         jobs += scope.launch { link.events.collect { handleLinkEvent(it) } }
-        jobs += scope.launch { link.state.collect { publish() } }
+        jobs += scope.launch { link.state.collect {
+            diagnostics.record(DiagnosticLayer.BLE, "LINK_STATE", detail = it.name)
+            publish()
+        } }
         jobs += periodic(ANNOUNCE_PERIOD_MS) { broadcastAnnounce() }
         jobs += periodic(GOSSIP_PERIOD_MS) { broadcastGossip() }
         jobs += periodic(MAINTENANCE_PERIOD_MS) { maintenance() }
-        jobs += periodic(500L) { if (dirty) publish() }
+        jobs += periodic(500L) { diagnostics.tick(); if (dirty) publish() }
         jobs += scope.launch {
             while (isActive) {
                 delay(mobilityConfig.checkIntervalMs)
@@ -173,6 +180,7 @@ class MeshEngine(
     fun stop() = scope.launch {
         if (!running) return@launch
         running = false
+        diagnostics.record(DiagnosticLayer.SYSTEM, "MESH_STOPPED")
         jobs.forEach { it.cancel() }
         jobs.clear()
         devices.values.forEach { it.queue?.close() }
@@ -194,13 +202,18 @@ class MeshEngine(
     // ----------------------------------------------------------------------------------------------
 
     /** Kirim pesan publik ke seluruh mesh (dan LoRa bila ada jalur). */
-    /** [onComplete] dipanggil saat pesan benar-benar keluar dari semua antrean (termasuk airtime LoRa node). */
+    /** Completion confirms local queues/BLE acceptance, not actual LoRa transmission or delivery. */
     fun sendPublic(message: MeshMessage, onComplete: (Boolean) -> Unit = {}) = scope.launch {
+        diagnostics.messageSubmitted(message.id)
         val packet = WirePacket(
             type = MessageType.MESSAGE.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
             timestamp = now(), payload = message.encode(), ttl = recommendedTtl(peers.size),
         )
-        broadcast(packet, except = null, onComplete = onComplete)
+        broadcast(packet, except = null, onComplete = { success ->
+            diagnostics.record(DiagnosticLayer.MESSAGE, if (success) "MESSAGE_LOCAL_ACCEPTED" else "MESSAGE_LOCAL_FAILED",
+                if (success) DiagnosticLevel.INFO else DiagnosticLevel.ERROR, messageId = message.id)
+            onComplete(success)
+        })
     }
 
     /** Kirim berkas publik (FILE_TRANSFER, kompatibel Nusa Mesh). Dipecah fragmen sesuai MTU. */
@@ -208,10 +221,16 @@ class MeshEngine(
         file: FilePacket,
         onProgress: (Float) -> Unit = {},
         onComplete: (Boolean) -> Unit = {},
+        timestampMs: Long? = null,
+        onEstimate: ((TransferEstimate) -> Unit)? = null,
     ) = scope.launch {
+        val timestamp = timestampMs ?: now()
+        val transferId = fileTransferId(myPeerId, timestamp)
+        if(file.mimeType.startsWith("audio/")) diagnostics.messageSubmitted(transferId)
+        diagnostics.record(DiagnosticLayer.MESSAGE, "FILE_SUBMITTED", messageId = transferId, bytes = file.content.size)
         val packet = WirePacket(
             type = MessageType.FILE_TRANSFER.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
-            timestamp = now(), payload = file.encode(), ttl = recommendedTtl(peers.size),
+            timestamp = timestamp, payload = file.encode(), ttl = recommendedTtl(peers.size),
         )
         broadcast(
             packet,
@@ -219,6 +238,8 @@ class MeshEngine(
             allowLora = file.content.size <= LORA_FILE_MAX_BYTES,
             onProgress = onProgress,
             onComplete = onComplete,
+            onEstimate = onEstimate,
+            trackingId = transferId,
         )
     }
 
@@ -266,10 +287,21 @@ class MeshEngine(
             is LinkEvent.Discovered -> onDiscovered(e)
             is LinkEvent.Connected -> onConnected(e)
             is LinkEvent.Disconnected -> onDisconnected(e.deviceId)
-            is LinkEvent.ConnectFailed -> devices[e.deviceId]?.let { it.connecting = false }
-            is LinkEvent.MtuChanged -> devices[e.deviceId]?.let { it.mtu = e.mtu; updateMtus() }
-            is LinkEvent.RssiRead -> devices[e.deviceId]?.let { it.scanRssi = e.rssi }
+            is LinkEvent.ConnectFailed -> {
+                diagnostics.record(DiagnosticLayer.BLE, "CONNECT_FAILED", DiagnosticLevel.ERROR, e.deviceId, detail = e.reason)
+                devices[e.deviceId]?.let { it.connecting = false }
+            }
+            is LinkEvent.MtuChanged -> {
+                diagnostics.record(DiagnosticLayer.BLE, "MTU_CHANGED", deviceId = e.deviceId, detail = "mtu=${e.mtu}")
+                devices[e.deviceId]?.let { it.mtu = e.mtu; updateMtus() }
+            }
+            is LinkEvent.RssiRead -> {
+                diagnostics.record(DiagnosticLayer.BLE, "RSSI_READ", deviceId = e.deviceId, rssiDbm = e.rssi.toDouble())
+                devices[e.deviceId]?.let { it.scanRssi = e.rssi }
+            }
             is LinkEvent.Received -> onReceived(e.deviceId, e.data)
+            is LinkEvent.TransmissionError -> diagnostics.record(DiagnosticLayer.BLE, "GATT_ERROR", DiagnosticLevel.ERROR,
+                e.deviceId, detail = e.reason)
         }
         // Scan bisa puluhan event per detik: cukup tandai, penerbit berkala yang menghitung ulang.
         if (e is LinkEvent.Discovered) dirty = true else publish()
@@ -278,11 +310,16 @@ class MeshEngine(
     private fun device(id: String) = devices.getOrPut(id) { Device(id) }
 
     private fun onDiscovered(e: LinkEvent.Discovered) {
+        if (e.deviceId !in devices) diagnostics.record(DiagnosticLayer.BLE, "DISCOVERED", deviceId = e.deviceId, rssiDbm = e.rssi.toDouble())
         val d = device(e.deviceId)
         if (e.peerId != null && e.peerId != myPeerId) d.peerId = e.peerId
         if (e.name != null) d.name = e.name
         d.scanRssi = e.rssi
         d.scanAt = now()
+        if (d.scanAt - d.lastDiagnosticScanAt >= 10_000) {
+            diagnostics.record(DiagnosticLayer.BLE, "RSSI_SCAN", deviceId = d.id, rssiDbm = e.rssi.toDouble())
+            d.lastDiagnosticScanAt = d.scanAt
+        }
         if (d.peerId == myPeerId) return
         if (d.connected || d.connecting) return
         if (d.isNode) considerNode(d) else considerPhone(d)
@@ -335,10 +372,12 @@ class MeshEngine(
         if (t - d.lastAttempt < CONNECT_RETRY_MS) return
         d.lastAttempt = t
         d.connecting = true
+        diagnostics.record(DiagnosticLayer.BLE, "CONNECT_ATTEMPT", deviceId = d.id, rssiDbm = d.scanRssi?.toDouble())
         link.connect(d.id)
     }
 
     private suspend fun onConnected(e: LinkEvent.Connected) {
+        diagnostics.record(DiagnosticLayer.BLE, "CONNECTED", deviceId = e.deviceId, detail = "mtu=${e.mtu}; central=${e.asCentral}")
         val d = device(e.deviceId)
         d.connected = true
         d.connecting = false
@@ -363,6 +402,7 @@ class MeshEngine(
     }
 
     private fun onDisconnected(deviceId: String) {
+        diagnostics.record(DiagnosticLayer.BLE, "DISCONNECTED", DiagnosticLevel.WARN, deviceId)
         val d = devices[deviceId] ?: return
         d.connected = false
         d.connecting = false
@@ -385,20 +425,38 @@ class MeshEngine(
     //  Paket masuk
     // ----------------------------------------------------------------------------------------------
     private suspend fun onReceived(deviceId: String, data: ByteArray) {
-        val packet = WireProtocol.decode(data) ?: return
+        diagnostics.record(DiagnosticLayer.BLE, "RX_BYTES", deviceId = deviceId, bytes = data.size)
+        val packet = WireProtocol.decode(data) ?: run {
+            diagnostics.record(DiagnosticLayer.MESH, "RX_INVALID", DiagnosticLevel.WARN, deviceId, bytes = data.size)
+            return
+        }
         val d = device(deviceId)
         // Data ukur dari node: simpan, lalu pasangkan ke paket berikutnya dari node yang sama.
         if (packet.type == MessageType.NODE_RX_META.value) {
-            if (d.isNode) LoraRxMeta.decode(packet.payload)?.let { pendingRxMeta[d.id] = it to now() }
+            val meta = if (d.isNode) LoraRxMeta.decode(packet.payload) else null
+            if (meta != null) pendingRxMeta[d.id] = meta to now()
+            else diagnostics.record(DiagnosticLayer.LORA, "RX_META_INVALID", DiagnosticLevel.WARN, deviceId)
             return
         }
         val rx = if (d.isNode) takeRxMeta(d.id, data) else null
+        rx?.let {
+            diagnostics.record(DiagnosticLayer.LORA, if (it.matched) "RX_META_MATCHED" else "RX_META_MISMATCH", if (it.matched) DiagnosticLevel.INFO else DiagnosticLevel.WARN,
+                deviceId, bytes = data.size, rssiDbm = if (it.matched) it.rssiDbm.toDouble() else null,
+                snrDb = if (it.matched) it.snrDb.toDouble() else null, sf = if (it.matched) it.spreadingFactor else null,
+                detail = "Last LoRa frame completing packet; bw_khz=${it.bandwidthKHz}; hop_left=${it.hopLeft}")
+        }
         learnDirectPeer(d, packet)
-        when (guard.check(packet)) {
+        when (val verdict = guard.check(packet)) {
             GuardVerdict.Accept -> {}
-            else -> return
+            else -> {
+                diagnostics.record(DiagnosticLayer.MESH, if (verdict == GuardVerdict.Duplicate) "RX_DUPLICATE" else "RX_GUARD_DROP",
+                    deviceId = deviceId, detail = "${verdict}; type=${packet.type}; ttl=${packet.ttl}")
+                return
+            }
         }
         receivedCount++
+        diagnostics.record(DiagnosticLayer.MESH, "RX_PACKET", deviceId = deviceId, bytes = data.size,
+            detail = "type=${packet.type}; sender=${packet.senderHex}; ttl=${packet.ttl}")
         processPacket(packet, d, rx)
     }
 
@@ -408,7 +466,10 @@ class MeshEngine(
      */
     private fun takeRxMeta(deviceId: String, raw: ByteArray): LoraRxMeta? {
         val (meta, at) = pendingRxMeta.remove(deviceId) ?: return null
-        if (now() - at > RX_META_MAX_AGE_MS) return null
+        if (now() - at > RX_META_MAX_AGE_MS) {
+            diagnostics.record(DiagnosticLayer.LORA, "RX_META_EXPIRED", DiagnosticLevel.WARN, deviceId)
+            return null
+        }
         return meta.copy(matched = meta.msgId == LoraRxMeta.msgIdOf(raw))
     }
 
@@ -450,6 +511,7 @@ class MeshEngine(
             MessageType.LEAVE -> { peers.remove(sender); topology.removePeer(sender) }
             MessageType.MESSAGE -> if (forMe || broadcast) {
                 MeshMessage.decode(p.payload)?.let { m ->
+                    diagnostics.record(DiagnosticLayer.MESSAGE, "MESSAGE_RECEIVED", deviceId = from.id, messageId = m.id, bytes = p.payload.size)
                     _messages.tryEmit(IncomingMessage(m, sender, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
                 }
             }
@@ -467,7 +529,10 @@ class MeshEngine(
             MessageType.NODE_LORA_HEALTH -> onNodeHealth(sender, p.payload)
             MessageType.NODE_REGISTER_ACK -> if (forMe) onRegisterAck(sender, p.payload)
             MessageType.FILE_TRANSFER -> if (forMe || broadcast) emitFile(p, from, forMe, rx)
-            MessageType.DELIVERY_ACK -> if (forMe) _acks.tryEmit(IncomingAck(p.payload.decodeToString(), sender))
+            MessageType.DELIVERY_ACK -> if (forMe) {
+                diagnostics.acknowledgement(p.payload.decodeToString(), sender)
+                _acks.tryEmit(IncomingAck(p.payload.decodeToString(), sender))
+            }
             else -> if (forMe) _packets.tryEmit(p to sender)
         }
         if (forMe && p.messageType == MessageType.MESSAGE) _packets.tryEmit(p to sender)
@@ -482,9 +547,11 @@ class MeshEngine(
 
     /** [rx] = data ukur fragmen yang melengkapi paket (fragmen terakhir yang tiba). */
     private suspend fun processInner(inner: WirePacket, from: Device, rx: LoraRxMeta? = null) {
+        diagnostics.record(DiagnosticLayer.MESH, "REASSEMBLED", deviceId = from.id, bytes = inner.payload.size, detail = "type=${inner.type}")
         val forMe = inner.recipientHex == myPeerId
         when (inner.messageType) {
             MessageType.MESSAGE -> MeshMessage.decode(inner.payload)?.let { m ->
+                diagnostics.record(DiagnosticLayer.MESSAGE, "MESSAGE_RECEIVED", deviceId = from.id, messageId = m.id, bytes = inner.payload.size)
                 _messages.tryEmit(IncomingMessage(m, inner.senderHex, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
             }
             MessageType.FILE_TRANSFER -> if (forMe || SpecialRecipients.isBroadcast(inner.recipientId)) emitFile(inner, from, forMe, rx)
@@ -495,6 +562,7 @@ class MeshEngine(
 
     private fun emitFile(p: WirePacket, from: Device, forMe: Boolean, rx: LoraRxMeta? = null) {
         FilePacket.decode(p.payload)?.let {
+            diagnostics.record(DiagnosticLayer.MESSAGE, "FILE_RECEIVED", deviceId = from.id, bytes = it.content.size)
             _files.tryEmit(IncomingFile(it, p.senderHex, p.timestamp, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
         }
     }
@@ -518,6 +586,7 @@ class MeshEngine(
             }
         }
         relayedCount++
+        diagnostics.record(DiagnosticLayer.MESH, "RELAYED", deviceId = from.id, detail = "type=${p.type}; ttl=${p.ttl}")
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -535,6 +604,8 @@ class MeshEngine(
         // Firmware uji QoS: [5] = SF aktif, [6] = mode uji jarak.
         if (payload.size >= 6) h.sf = (payload[5].toInt() and 0xFF).takeIf { it in 7..12 }
         if (payload.size >= 7) h.testMode = payload[6].toInt() != 0
+        diagnostics.record(DiagnosticLayer.LORA, "NODE_HEALTH", deviceId = nodeId, rssiDbm = h.bestRssi?.toDouble(),
+            snrDb = h.bestSnr?.toDouble(), sf = h.sf, detail = "neighbors=${h.neighbors}; source=strongest_neighbor; test_mode=${h.testMode}")
         // Registrasi berkala / ulang bila ACK belum datang.
         registerWithNode(nodeId, force = false)
     }
@@ -647,9 +718,12 @@ class MeshEngine(
         allowLora: Boolean = true,
         onProgress: ((Float) -> Unit)? = null,
         onComplete: ((Boolean) -> Unit)? = null,
+        onEstimate: ((TransferEstimate) -> Unit)? = null,
+        trackingId: String? = null,
     ) {
         val targets = devices.values.filter { it.connected && it.id != except && (allowLora || !it.isNode) }
         if (targets.isEmpty()) {
+            diagnostics.record(DiagnosticLayer.QUEUE, "NO_PATH", DiagnosticLevel.WARN, detail = "type=${packet.type}")
             onComplete?.invoke(false)
             return
         }
@@ -658,7 +732,16 @@ class MeshEngine(
         var sentUnits = 0
         var completedTargets = 0
         var failed = false
-        for (d in targets) {
+        val estimates = arrayOfNulls<Long>(targets.size)
+        val usesNodePacing = targets.any { it.queue != null }
+        val assumesSf = targets.any { it.queue != null && it.peerId?.let { id -> nodeHealth[id]?.sf } == null }
+        fun publishEstimate() {
+            if(completedTargets < targets.size) onEstimate?.invoke(TransferEstimate(
+                if(estimates.all { it!=null }) estimates.filterNotNull().maxOrNull() else null,
+                sentUnits,totalUnits,usesNodePacing,assumesSf))
+        }
+        publishEstimate()
+        for ((index,d) in targets.withIndex()) {
             var previous = 0
             sendParts(
                 d,
@@ -671,8 +754,12 @@ class MeshEngine(
                 onComplete = { success ->
                     failed = failed || !success
                     completedTargets += 1
+                    estimates[index] = 0L
+                    publishEstimate()
                     if (completedTargets == targets.size) onComplete?.invoke(!failed)
                 },
+                messageId = trackingId ?: if (packet.messageType == MessageType.MESSAGE) MeshMessage.decode(packet.payload)?.id else null,
+                onEstimate = onEstimate?.let { { ms -> estimates[index]=ms; publishEstimate() } },
             )
         }
     }
@@ -684,21 +771,54 @@ class MeshEngine(
         parts: List<WirePacket>,
         onProgress: (Int, Int) -> Unit = { _, _ -> },
         onComplete: (Boolean) -> Unit = {},
+        messageId: String? = null,
+        onEstimate: ((Long?) -> Unit)? = null,
     ) {
         val encoded = parts.map { WireProtocol.encode(it, random = random) }
         val q = d.queue
+        val enqueued = diagnostics.elapsedMs()
+        suspend fun transmit(bytes: ByteArray): Boolean {
+            if (q != null) diagnostics.record(DiagnosticLayer.QUEUE, "QUEUE_DEQUEUED", deviceId = d.id,
+                messageId = messageId, bytes = bytes.size, durationMs = diagnostics.elapsedMs() - enqueued)
+            val started = diagnostics.elapsedMs()
+            diagnostics.record(DiagnosticLayer.BLE, "TX_START", deviceId = d.id, messageId = messageId, bytes = bytes.size)
+            val success = try { link.send(d.id, bytes) } catch (cancelled: CancellationException) {
+                diagnostics.record(DiagnosticLayer.BLE, "TX_CANCELLED", DiagnosticLevel.WARN, d.id, messageId, bytes.size)
+                throw cancelled
+            } catch (_: Exception) { false }
+            diagnostics.record(DiagnosticLayer.BLE, if (success) "TX_ACCEPTED" else "TX_FAILED",
+                if (success) DiagnosticLevel.INFO else DiagnosticLevel.ERROR, d.id, messageId, bytes.size,
+                diagnostics.elapsedMs() - started, detail = "Stack BLE only; type=${parts.firstOrNull()?.type}; node=${d.isNode}")
+            dirty = true
+            return success
+        }
         if (q != null) {
             // Ke Nusa Node: lewat antrean berjeda (airtime LoRa) dengan kebijakan HCMA.
-            q.offerBatch(encoded, { bytes -> link.send(d.id, bytes) }, onProgress, onComplete)
+            val accepted = q.offerBatch(encoded, { bytes -> transmit(bytes) }, onProgress, { success ->
+                diagnostics.record(DiagnosticLayer.QUEUE, if (success) "BATCH_COMPLETE" else "BATCH_FAILED",
+                    if (success) DiagnosticLevel.INFO else DiagnosticLevel.WARN, d.id, messageId,
+                    detail = "fragments=${encoded.size}; pending=${q.size}")
+                onComplete(success)
+            }, onEstimate = onEstimate?.let { { ms -> it(ms) } })
+            diagnostics.record(DiagnosticLayer.QUEUE, if (accepted) "QUEUE_ACCEPTED" else "QUEUE_REJECTED",
+                if (accepted) DiagnosticLevel.INFO else DiagnosticLevel.WARN, d.id, messageId,
+                detail = "fragments=${encoded.size}; pending=${q.size}; modeled_airtime_ms=${encoded.sumOf { NodeQueue.airtimeMs(it, d.peerId?.let { id -> nodeHealth[id]?.sf } ?: NodeQueue.DEFAULT_SF) }.toLong()}")
+            dirty = true
             return
         }
         scope.launch {
+            var writeDuration = 0L
+            onEstimate?.invoke(null)
             for ((i, bytes) in encoded.withIndex()) {
-                if (!link.send(d.id, bytes)) {
+                val started = diagnostics.elapsedMs()
+                if (!transmit(bytes)) {
                     onComplete(false)
                     return@launch
                 }
+                writeDuration += (diagnostics.elapsedMs()-started).coerceAtLeast(0)
                 onProgress(i + 1, encoded.size)
+                val remaining = encoded.size-i-1
+                onEstimate?.invoke((writeDuration/(i+1)+FRAGMENT_GAP_MS)*remaining)
                 if (i < encoded.lastIndex) delay(FRAGMENT_GAP_MS)
             }
             onComplete(true)
@@ -769,6 +889,7 @@ class MeshEngine(
                     loraNeighbors = h?.neighbors, loraBestRssi = h?.bestRssi, loraBestSnr = h?.bestSnr,
                     userSlots = h?.slots, registered = registerAcked == pid, locked = lockedNode == pid,
                     spreadingFactor = h?.sf, testMode = h?.testMode == true,
+                    queuedPackets = d.queue?.size ?: 0,
                 )
             }.sortedByDescending { it.rssi ?: -999 },
             nebeng = nebeng,

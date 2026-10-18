@@ -268,6 +268,7 @@ class AndroidBleLink(private val context: Context) : BleLink {
         }
 
         override fun onNotificationSent(device: BluetoothDevice, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) _events.tryEmit(LinkEvent.TransmissionError(device.address, "notify_callback status=$status"))
             servers[device.address]?.pendingNotify?.complete(status == BluetoothGatt.GATT_SUCCESS)
         }
     }
@@ -354,6 +355,7 @@ class AndroidBleLink(private val context: Context) : BleLink {
         }
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) _events.tryEmit(LinkEvent.TransmissionError(gatt.device.address, "write_callback status=$status"))
             clients[gatt.device.address]?.pendingWrite?.complete(status == BluetoothGatt.GATT_SUCCESS)
         }
 
@@ -386,8 +388,9 @@ class AndroidBleLink(private val context: Context) : BleLink {
     }
 
     private suspend fun writeAsClient(link: ClientLink, data: ByteArray): Boolean {
-        val characteristic = link.characteristic ?: return false
-        if (data.size > link.mtu - 3) return false
+        val id = link.gatt.device.address
+        val characteristic = link.characteristic ?: return sendError(id, "characteristic_unavailable")
+        if (data.size > link.mtu - 3) return sendError(id, "mtu_exceeded bytes=${data.size}; mtu=${link.mtu}")
         val done = CompletableDeferred<Boolean>()
         link.pendingWrite = done
         val accepted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -401,15 +404,15 @@ class AndroidBleLink(private val context: Context) : BleLink {
             @Suppress("DEPRECATION")
             link.gatt.writeCharacteristic(characteristic)
         }
-        if (!accepted) return false
-        return withTimeoutOrNull(WRITE_TIMEOUT_MS) { done.await() } ?: false
+        if (!accepted) return sendError(id, "write_rejected_by_stack")
+        return withTimeoutOrNull(WRITE_TIMEOUT_MS) { done.await() } ?: sendError(id, "write_timeout_ms=$WRITE_TIMEOUT_MS")
     }
 
     private suspend fun notifyAsServer(deviceId: String, data: ByteArray): Boolean {
-        val link = servers[deviceId]?.takeIf { it.subscribed } ?: return false
-        val server = gattServer ?: return false
-        val characteristic = serverCharacteristic ?: return false
-        if (data.size > link.mtu - 3) return false
+        val link = servers[deviceId]?.takeIf { it.subscribed } ?: return sendError(deviceId, "not_subscribed_or_disconnected")
+        val server = gattServer ?: return sendError(deviceId, "gatt_server_unavailable")
+        val characteristic = serverCharacteristic ?: return sendError(deviceId, "characteristic_unavailable")
+        if (data.size > link.mtu - 3) return sendError(deviceId, "mtu_exceeded bytes=${data.size}; mtu=${link.mtu}")
         val done = CompletableDeferred<Boolean>()
         link.pendingNotify = done
         val accepted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -420,7 +423,12 @@ class AndroidBleLink(private val context: Context) : BleLink {
             @Suppress("DEPRECATION")
             server.notifyCharacteristicChanged(link.device, characteristic, false)
         }
-        if (!accepted) return false
-        return withTimeoutOrNull(NOTIFY_TIMEOUT_MS) { done.await() } ?: false
+        if (!accepted) return sendError(deviceId, "notify_rejected_by_stack")
+        return withTimeoutOrNull(NOTIFY_TIMEOUT_MS) { done.await() } ?: sendError(deviceId, "notify_timeout_ms=$NOTIFY_TIMEOUT_MS")
+    }
+
+    private fun sendError(deviceId: String, reason: String): Boolean {
+        _events.tryEmit(LinkEvent.TransmissionError(deviceId, reason))
+        return false
     }
 }

@@ -1,0 +1,3 @@
+numpy>=2.1,<3
+rasterio>=1.4,<2
+tifffile>=2025.1

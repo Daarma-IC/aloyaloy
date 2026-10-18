@@ -1,0 +1,50 @@
+﻿{
+    "repository":  "google/earthengine-api",
+    "commit":  "9ec29fe12a009862f25c6613a5fc8648b89aacaf",
+    "importedAt":  "2026-10-14T08:10:05.4367192Z",
+    "scope":  "selected upstream source, not full clone or installed runtime",
+    "files":  [
+                  {
+                      "path":  "README.md",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/README.md",
+                      "downloaded":  true,
+                      "sha256":  "b9f97d52c620c5c0945b5c76c78dfca623295c49e502246eccfc180de03a10d5"
+                  },
+                  {
+                      "path":  "LICENSE",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/LICENSE",
+                      "downloaded":  true,
+                      "sha256":  "0acebb5577c8f693e14259ff745ee61319da86733ea28d5ee0791d9526618b9b"
+                  },
+                  {
+                      "path":  "AGENTS.md",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/AGENTS.md",
+                      "downloaded":  false,
+                      "sha256":  null
+                  },
+                  {
+                      "path":  "python/ee/batch.py",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/python/ee/batch.py",
+                      "downloaded":  true,
+                      "sha256":  "72041d1dd93b67be13dd7171c58d8347a7753304529908d3d058100ea2a0f977"
+                  },
+                  {
+                      "path":  "python/ee/image.py",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/python/ee/image.py",
+                      "downloaded":  true,
+                      "sha256":  "d278b2a372f4ff33f80d67c4b1d875d23733562adf81dc71064a4255ba327635"
+                  },
+                  {
+                      "path":  "python/ee/data.py",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/python/ee/data.py",
+                      "downloaded":  true,
+                      "sha256":  "0895ec45843cc2ed9f80db5c31fbe76f8dcdb2bf3d8b92733aad63f46982e408"
+                  },
+                  {
+                      "path":  "python/ee/tests/batch_test.py",
+                      "url":  "https://raw.githubusercontent.com/google/earthengine-api/9ec29fe12a009862f25c6613a5fc8648b89aacaf/python/ee/tests/batch_test.py",
+                      "downloaded":  true,
+                      "sha256":  "020c49208c5dc76bebcbb7687d6c19a10362ba49641a958b404f2e14f324b6dc"
+                  }
+              ]
+}

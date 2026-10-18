@@ -1,0 +1,4170 @@
+
+
+
+
+
+
+
+
+
+<!doctype html>
+<html 
+      lang="en"
+      dir="ltr">
+  <head>
+    <meta name="google-signin-client-id" content="721724668570-nbkv1cfusk7kk4eni4pjvepaus73b13t.apps.googleusercontent.com"><meta name="google-signin-scope"
+          content="profile email https://www.googleapis.com/auth/developerprofiles https://www.googleapis.com/auth/developerprofiles.award https://www.googleapis.com/auth/devprofiles.full_control.firstparty"><meta property="og:site_name" content="Google for Developers">
+    <meta property="og:type" content="website"><meta name="theme-color" content="#1a73e8"><meta charset="utf-8">
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+
+    <link rel="manifest" href="/_pwa/developers/manifest.json"
+          crossorigin="use-credentials">
+    <link rel="preconnect" href="//www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="//fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="//www.google-analytics.com" crossorigin><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Google+Sans:400,500|Roboto:400,400italic,500,500italic,700,700italic|Roboto+Mono:400,500,700&display=swap">
+      <link rel="stylesheet"
+            href="//fonts.googleapis.com/css2?family=Material+Icons&family=Material+Symbols+Outlined&display=block"><link rel="stylesheet" href="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/css/app.css">
+      <link rel="shortcut icon" href="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/favicon-new.png">
+    <link rel="apple-touch-icon" href="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/touchicon-180-new.png"><link rel="canonical" href="https://developers.google.com/earth-engine/guides/exporting_images"><link rel="search" type="application/opensearchdescription+xml"
+            title="Google for Developers" href="https://developers.google.com/s/opensearch.xml">
+      <title>Exporting Images &nbsp;|&nbsp; Google Earth Engine &nbsp;|&nbsp; Google for Developers</title>
+
+<meta property="og:title" content="Exporting Images &nbsp;|&nbsp; Google Earth Engine &nbsp;|&nbsp; Google for Developers"><meta property="og:url" content="https://developers.google.com/earth-engine/guides/exporting_images"><meta property="og:image" content="https://developers.google.com/static/earth-engine/images/og_social_media.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="675"><meta property="og:locale" content="en"><meta name="twitter:card" content="summary_large_image"><script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    
+    "headline": "Exporting Images"
+  }
+</script><script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Google Earth Engine",
+      "item": "https://developers.google.com/earth-engine"
+    },{
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Exporting Images",
+      "item": "https://developers.google.com/earth-engine/guides/exporting_images"
+    }]
+  }
+  </script>
+  
+
+  
+
+  
+
+
+    </head>
+  <body class="color-scheme--light"
+        template="page"
+        theme="google-blue"
+        type="article"
+        
+        
+        
+        layout="docs"
+        
+        
+        
+        
+        
+          
+            concierge='closed'
+          
+        
+        display-toc
+        pending>
+  
+    <devsite-progress type="indeterminate" id="app-progress"></devsite-progress>
+  
+  
+    <a href="#main-content" class="skip-link button">
+      
+      Skip to main content
+    </a>
+    <section class="devsite-wrapper">
+      <devsite-cookie-notification-bar></devsite-cookie-notification-bar>
+        <devsite-header role="banner">
+  
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="devsite-header--inner" data-nosnippet>
+  <div class="devsite-top-logo-row-wrapper-wrapper">
+    <div class="devsite-top-logo-row-wrapper">
+      <div class="devsite-top-logo-row">
+        <button type="button" id="devsite-hamburger-menu"
+          class="devsite-header-icon-button button-flat material-icons gc-analytics-event"
+          data-category="Site-Wide Custom Events"
+          data-label="Navigation menu button"
+          visually-hidden
+          aria-label="Open menu">
+        </button>
+        
+<div class="devsite-product-name-wrapper">
+
+  
+    
+  
+
+
+
+  
+  
+  <span class="devsite-product-name">
+    <ul class="devsite-breadcrumb-list"
+  >
+  
+  <li class="devsite-breadcrumb-item
+             devsite-has-google-wordmark">
+    
+    
+    
+      
+      
+        
+  <a href="https://developers.google.com/earth-engine"
+      
+        class="devsite-breadcrumb-link gc-analytics-event"
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Upper Header"
+      
+        data-value="1"
+      
+        track-type="globalNav"
+      
+        track-name="breadcrumb"
+      
+        track-metadata-position="1"
+      
+        track-metadata-eventdetail="Google Earth Engine"
+      
+    >
+    
+          <svg class="devsite-google-wordmark"
+       xmlns="http://www.w3.org/2000/svg"
+       viewBox="0 0 148 48">
+    <title>Google</title>
+    <path class="devsite-google-wordmark-svg-path" d="M19.58,37.65c-9.87,0-18.17-8.04-18.17-17.91c0-9.87,8.3-17.91,18.17-17.91c5.46,0,9.35,2.14,12.27,4.94l-3.45,3.45c-2.1-1.97-4.93-3.49-8.82-3.49c-7.21,0-12.84,5.81-12.84,13.02c0,7.21,5.64,13.02,12.84,13.02c4.67,0,7.34-1.88,9.04-3.58c1.4-1.4,2.32-3.41,2.66-6.16H19.58v-4.89h16.47c0.18,0.87,0.26,1.92,0.26,3.06c0,3.67-1.01,8.21-4.24,11.44C28.93,35.9,24.91,37.65,19.58,37.65z M61.78,26.12c0,6.64-5.1,11.53-11.36,11.53s-11.36-4.89-11.36-11.53c0-6.68,5.1-11.53,11.36-11.53S61.78,19.43,61.78,26.12z M56.8,26.12c0-4.15-2.96-6.99-6.39-6.99c-3.43,0-6.39,2.84-6.39,6.99c0,4.11,2.96,6.99,6.39,6.99C53.84,33.11,56.8,30.22,56.8,26.12z M87.25,26.12c0,6.64-5.1,11.53-11.36,11.53c-6.26,0-11.36-4.89-11.36-11.53c0-6.68,5.1-11.53,11.36-11.53C82.15,14.59,87.25,19.43,87.25,26.12zM82.28,26.12c0-4.15-2.96-6.99-6.39-6.99c-3.43,0-6.39,2.84-6.39,6.99c0,4.11,2.96,6.99,6.39,6.99C79.32,33.11,82.28,30.22,82.28,26.12z M112.09,15.29v20.7c0,8.52-5.02,12.01-10.96,12.01c-5.59,0-8.95-3.76-10.22-6.81l4.41-1.83c0.79,1.88,2.71,4.1,5.81,4.1c3.8,0,6.16-2.36,6.16-6.77v-1.66h-0.18c-1.14,1.4-3.32,2.62-6.07,2.62c-5.76,0-11.05-5.02-11.05-11.49c0-6.51,5.28-11.57,11.05-11.57c2.75,0,4.93,1.22,6.07,2.58h0.18v-1.88H112.09z M107.64,26.16c0-4.06-2.71-7.03-6.16-7.03c-3.49,0-6.42,2.97-6.42,7.03c0,4.02,2.93,6.94,6.42,6.94C104.93,33.11,107.64,30.18,107.64,26.16z M120.97,3.06v33.89h-5.07V3.06H120.97z M140.89,29.92l3.93,2.62c-1.27,1.88-4.32,5.11-9.61,5.11c-6.55,0-11.28-5.07-11.28-11.53c0-6.86,4.77-11.53,10.71-11.53c5.98,0,8.91,4.76,9.87,7.34l0.52,1.31l-15.42,6.38c1.18,2.31,3.01,3.49,5.59,3.49C137.79,33.11,139.58,31.84,140.89,29.92zM128.79,25.77l10.31-4.28c-0.57-1.44-2.27-2.45-4.28-2.45C132.24,19.04,128.66,21.31,128.79,25.77z"/>
+  </svg>Earth Engine
+        
+  </a>
+  
+      
+    
+  </li>
+  
+</ul>
+  </span>
+
+</div>
+        <div class="devsite-top-logo-row-middle">
+          <div class="devsite-header-upper-tabs">
+            
+           </div>
+          
+<devsite-search
+    enable-signin
+    enable-search
+    enable-suggestions
+      enable-query-completion
+    
+    enable-search-summaries
+    project-name="Google Earth Engine"
+    tenant-name="Google for Developers"
+    project-scope="/earth-engine"
+    url-scoped="https://developers.google.com/s/results/earth-engine"
+    
+    
+    
+    >
+  <form class="devsite-search-form" action="https://developers.google.com/s/results" method="GET">
+    <div class="devsite-search-container">
+      <button type="button"
+              search-open
+              class="devsite-search-button devsite-header-icon-button button-flat material-icons"
+              
+              aria-label="Open search"></button>
+      <div class="devsite-searchbox">
+        <input
+          aria-activedescendant=""
+          aria-autocomplete="list"
+          
+          aria-label="Search"
+          aria-expanded="false"
+          aria-haspopup="listbox"
+          autocomplete="off"
+          class="devsite-search-field devsite-search-query"
+          name="q"
+          
+          placeholder="Search"
+          role="combobox"
+          type="text"
+          value=""
+          >
+          <div class="devsite-search-image material-icons" aria-hidden="true">
+            
+              <svg class="devsite-search-ai-image" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g clip-path="url(#clip0_6641_386)">
+                    <path d="M19.6 21L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16C7.68333 16 6.14167 15.375 4.875 14.125C3.625 12.8583 3 11.3167 3 9.5C3 7.68333 3.625 6.15 4.875 4.9C6.14167 3.63333 7.68333 3 9.5 3C10.0167 3 10.5167 3.05833 11 3.175C11.4833 3.275 11.9417 3.43333 12.375 3.65L10.825 5.2C10.6083 5.13333 10.3917 5.08333 10.175 5.05C9.95833 5.01667 9.73333 5 9.5 5C8.25 5 7.18333 5.44167 6.3 6.325C5.43333 7.19167 5 8.25 5 9.5C5 10.75 5.43333 11.8167 6.3 12.7C7.18333 13.5667 8.25 14 9.5 14C10.6667 14 11.6667 13.625 12.5 12.875C13.35 12.1083 13.8417 11.15 13.975 10H15.975C15.925 10.6333 15.7833 11.2333 15.55 11.8C15.3333 12.3667 15.05 12.8667 14.7 13.3L21 19.6L19.6 21ZM17.5 12C17.5 10.4667 16.9667 9.16667 15.9 8.1C14.8333 7.03333 13.5333 6.5 12 6.5C13.5333 6.5 14.8333 5.96667 15.9 4.9C16.9667 3.83333 17.5 2.53333 17.5 0.999999C17.5 2.53333 18.0333 3.83333 19.1 4.9C20.1667 5.96667 21.4667 6.5 23 6.5C21.4667 6.5 20.1667 7.03333 19.1 8.1C18.0333 9.16667 17.5 10.4667 17.5 12Z" fill="#5F6368"/>
+                  </g>
+                <defs>
+                <clipPath id="clip0_6641_386">
+                <rect width="24" height="24" fill="white"/>
+                </clipPath>
+                </defs>
+              </svg>
+            
+          </div>
+          <div class="devsite-search-shortcut-icon-container" aria-hidden="true">
+            <kbd class="devsite-search-shortcut-icon">/</kbd>
+          </div>
+      </div>
+    </div>
+  </form>
+  <button type="button"
+          search-close
+          class="devsite-search-button devsite-header-icon-button button-flat material-icons"
+          
+          aria-label="Close search"></button>
+</devsite-search>
+
+        </div>
+
+        
+
+          
+
+          
+
+          
+
+          
+
+          
+<devsite-language-selector>
+  <ul role="presentation">
+    
+    
+    <li role="presentation">
+      <a role="menuitem" lang="en"
+        >English</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="de"
+        >Deutsch</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="es"
+        >Español</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="fr"
+        >Français</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="id"
+        >Indonesia</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="pt_br"
+        >Português – Brasil</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="ru"
+        >Русский</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="zh_cn"
+        >中文 – 简体</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="ja"
+        >日本語</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="ko"
+        >한국어</a>
+    </li>
+    
+  </ul>
+</devsite-language-selector>
+
+
+          
+
+        
+
+        
+          <devsite-user 
+                        
+                        
+                          enable-profiles
+                        
+                        
+                          fp-auth
+                        
+                        id="devsite-user">
+            
+              
+              <span class="button devsite-top-button" aria-hidden="true" visually-hidden>Sign in</span>
+            
+          </devsite-user>
+        
+        
+        
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="devsite-collapsible-section
+    ">
+    <div class="devsite-header-background">
+      
+        
+      
+      
+        <div class="devsite-doc-set-nav-row">
+          
+          
+            
+            
+  <devsite-tabs class="lower-tabs">
+
+    <nav class="devsite-tabs-wrapper" aria-label="Lower tabs">
+      
+        
+          <tab  >
+            
+    <a href="https://developers.google.com/earth-engine"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine"
+    
+       track-type="nav"
+       track-metadata-position="nav - home"
+       track-metadata-module="primary nav"
+       
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Home"
+         
+           track-name="home"
+         
+       >
+    Home
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+        
+          <tab  class="devsite-active">
+            
+    <a href="https://developers.google.com/earth-engine/guides"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine/guides"
+    
+       track-type="nav"
+       track-metadata-position="nav - guides"
+       track-metadata-module="primary nav"
+       aria-label="Guides, selected" 
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Guides"
+         
+           track-name="guides"
+         
+       >
+    Guides
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+        
+          <tab  >
+            
+    <a href="https://developers.google.com/earth-engine/apidocs"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine/apidocs"
+    
+       track-type="nav"
+       track-metadata-position="nav - reference"
+       track-metadata-module="primary nav"
+       
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Reference"
+         
+           track-name="reference"
+         
+       >
+    Reference
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+        
+          <tab  >
+            
+    <a href="https://developers.google.com/earth-engine/help"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine/help"
+    
+       track-type="nav"
+       track-metadata-position="nav - support"
+       track-metadata-module="primary nav"
+       
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Support"
+         
+           track-name="support"
+         
+       >
+    Support
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+        
+          <tab  >
+            
+    <a href="https://developers.google.com/earth-engine/tutorials"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine/tutorials"
+    
+       track-type="nav"
+       track-metadata-position="nav - community"
+       track-metadata-module="primary nav"
+       
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Community"
+         
+           track-name="community"
+         
+       >
+    Community
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+        
+          <tab  >
+            
+    <a href="https://developers.google.com/earth-engine/datasets"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine/datasets"
+    
+       track-type="nav"
+       track-metadata-position="nav - data catalog"
+       track-metadata-module="primary nav"
+       
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Data Catalog"
+         
+           track-name="data catalog"
+         
+       >
+    Data Catalog
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+        
+          <tab  >
+            
+    <a href="https://developers.google.com/earth-engine/timelapse/about"
+    class="devsite-tabs-content gc-analytics-event "
+      track-metadata-eventdetail="https://developers.google.com/earth-engine/timelapse/about"
+    
+       track-type="nav"
+       track-metadata-position="nav - timelapse"
+       track-metadata-module="primary nav"
+       
+       
+         
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Tab: Timelapse"
+         
+           track-name="timelapse"
+         
+       >
+    Timelapse
+  
+    </a>
+    
+  
+          </tab>
+        
+      
+    </nav>
+
+  </devsite-tabs>
+
+          
+          
+        </div>
+      
+    </div>
+  </div>
+
+</div>
+
+
+
+  
+</devsite-header>
+        <devsite-book-nav scrollbars >
+          
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="devsite-book-nav-filter"
+     >
+  <span class="filter-list-icon material-icons" aria-hidden="true"></span>
+  <input type="text"
+         placeholder="Filter"
+         
+         aria-label="Type to filter"
+         role="searchbox">
+  
+  <span class="filter-clear-button hidden"
+        data-title="Clear filter"
+        aria-label="Clear filter"
+        role="button"
+        tabindex="0"></span>
+</div>
+
+<nav class="devsite-book-nav devsite-nav nocontent" data-nosnippet
+     aria-label="Side menu">
+  <div class="devsite-mobile-header">
+    <button type="button"
+            id="devsite-close-nav"
+            class="devsite-header-icon-button button-flat material-icons gc-analytics-event"
+            data-category="Site-Wide Custom Events"
+            data-label="Close navigation"
+            aria-label="Close navigation">
+    </button>
+    <div class="devsite-product-name-wrapper">
+
+  
+    
+  
+
+
+  
+      <span class="devsite-product-name">
+        
+        
+        <ul class="devsite-breadcrumb-list"
+  >
+  
+  <li class="devsite-breadcrumb-item
+             devsite-has-google-wordmark">
+    
+    
+    
+      
+      
+        
+  <a href="https://developers.google.com/earth-engine"
+      
+        class="devsite-breadcrumb-link gc-analytics-event"
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Upper Header"
+      
+        data-value="1"
+      
+        track-type="globalNav"
+      
+        track-name="breadcrumb"
+      
+        track-metadata-position="1"
+      
+        track-metadata-eventdetail="Google Earth Engine"
+      
+    >
+    
+          <svg class="devsite-google-wordmark"
+       xmlns="http://www.w3.org/2000/svg"
+       viewBox="0 0 148 48">
+    <title>Google</title>
+    <path class="devsite-google-wordmark-svg-path" d="M19.58,37.65c-9.87,0-18.17-8.04-18.17-17.91c0-9.87,8.3-17.91,18.17-17.91c5.46,0,9.35,2.14,12.27,4.94l-3.45,3.45c-2.1-1.97-4.93-3.49-8.82-3.49c-7.21,0-12.84,5.81-12.84,13.02c0,7.21,5.64,13.02,12.84,13.02c4.67,0,7.34-1.88,9.04-3.58c1.4-1.4,2.32-3.41,2.66-6.16H19.58v-4.89h16.47c0.18,0.87,0.26,1.92,0.26,3.06c0,3.67-1.01,8.21-4.24,11.44C28.93,35.9,24.91,37.65,19.58,37.65z M61.78,26.12c0,6.64-5.1,11.53-11.36,11.53s-11.36-4.89-11.36-11.53c0-6.68,5.1-11.53,11.36-11.53S61.78,19.43,61.78,26.12z M56.8,26.12c0-4.15-2.96-6.99-6.39-6.99c-3.43,0-6.39,2.84-6.39,6.99c0,4.11,2.96,6.99,6.39,6.99C53.84,33.11,56.8,30.22,56.8,26.12z M87.25,26.12c0,6.64-5.1,11.53-11.36,11.53c-6.26,0-11.36-4.89-11.36-11.53c0-6.68,5.1-11.53,11.36-11.53C82.15,14.59,87.25,19.43,87.25,26.12zM82.28,26.12c0-4.15-2.96-6.99-6.39-6.99c-3.43,0-6.39,2.84-6.39,6.99c0,4.11,2.96,6.99,6.39,6.99C79.32,33.11,82.28,30.22,82.28,26.12z M112.09,15.29v20.7c0,8.52-5.02,12.01-10.96,12.01c-5.59,0-8.95-3.76-10.22-6.81l4.41-1.83c0.79,1.88,2.71,4.1,5.81,4.1c3.8,0,6.16-2.36,6.16-6.77v-1.66h-0.18c-1.14,1.4-3.32,2.62-6.07,2.62c-5.76,0-11.05-5.02-11.05-11.49c0-6.51,5.28-11.57,11.05-11.57c2.75,0,4.93,1.22,6.07,2.58h0.18v-1.88H112.09z M107.64,26.16c0-4.06-2.71-7.03-6.16-7.03c-3.49,0-6.42,2.97-6.42,7.03c0,4.02,2.93,6.94,6.42,6.94C104.93,33.11,107.64,30.18,107.64,26.16z M120.97,3.06v33.89h-5.07V3.06H120.97z M140.89,29.92l3.93,2.62c-1.27,1.88-4.32,5.11-9.61,5.11c-6.55,0-11.28-5.07-11.28-11.53c0-6.86,4.77-11.53,10.71-11.53c5.98,0,8.91,4.76,9.87,7.34l0.52,1.31l-15.42,6.38c1.18,2.31,3.01,3.49,5.59,3.49C137.79,33.11,139.58,31.84,140.89,29.92zM128.79,25.77l10.31-4.28c-0.57-1.44-2.27-2.45-4.28-2.45C132.24,19.04,128.66,21.31,128.79,25.77z"/>
+  </svg>Earth Engine
+        
+  </a>
+  
+      
+    
+  </li>
+  
+</ul>
+      </span>
+    
+
+</div>
+  </div>
+
+  <div class="devsite-book-nav-wrapper">
+    <div class="devsite-mobile-nav-top">
+      
+        <ul class="devsite-nav-list">
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine"
+    
+       class="devsite-nav-title gc-analytics-event
+              
+              "
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Home"
+      
+        track-name="home"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Home"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Home
+   </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine/guides"
+    
+       class="devsite-nav-title gc-analytics-event
+              devsite-nav-has-children
+              devsite-nav-active"
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Guides"
+      
+        track-name="guides"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Guides"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Guides
+   </span>
+    
+    <span class="devsite-nav-icon material-icons" data-icon="forward"
+          >
+    </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine/apidocs"
+    
+       class="devsite-nav-title gc-analytics-event
+              devsite-nav-has-children
+              "
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Reference"
+      
+        track-name="reference"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Reference"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Reference
+   </span>
+    
+    <span class="devsite-nav-icon material-icons" data-icon="forward"
+          >
+    </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine/help"
+    
+       class="devsite-nav-title gc-analytics-event
+              devsite-nav-has-children
+              "
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Support"
+      
+        track-name="support"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Support"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Support
+   </span>
+    
+    <span class="devsite-nav-icon material-icons" data-icon="forward"
+          >
+    </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine/tutorials"
+    
+       class="devsite-nav-title gc-analytics-event
+              devsite-nav-has-children
+              "
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Community"
+      
+        track-name="community"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Community"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Community
+   </span>
+    
+    <span class="devsite-nav-icon material-icons" data-icon="forward"
+          >
+    </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine/datasets"
+    
+       class="devsite-nav-title gc-analytics-event
+              
+              "
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Data Catalog"
+      
+        track-name="data catalog"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Data Catalog"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Data Catalog
+   </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+            
+<li class="devsite-nav-item">
+
+  
+  <a href="/earth-engine/timelapse/about"
+    
+       class="devsite-nav-title gc-analytics-event
+              devsite-nav-has-children
+              "
+    
+
+    
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Tab: Timelapse"
+      
+        track-name="timelapse"
+      
+    
+     data-category="Site-Wide Custom Events"
+     data-label="Responsive Tab: Timelapse"
+     track-type="navMenu"
+     track-metadata-eventDetail="globalMenu"
+     track-metadata-position="nav">
+  
+    <span class="devsite-nav-text" tooltip >
+      Timelapse
+   </span>
+    
+    <span class="devsite-nav-icon material-icons" data-icon="forward"
+          >
+    </span>
+    
+  
+  </a>
+  
+
+</li>
+
+          
+          
+          
+        </ul>
+      
+    </div>
+    
+      <div class="devsite-mobile-nav-bottom">
+        
+          
+          <ul class="devsite-nav-list" menu="_book">
+            <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Discover</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Product overview</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/bigquery_integrations"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>BigQuery integrations</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Get started</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/access"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Earth Engine access</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/auth"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Authentication and initialization</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Quickstarts</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/quickstart_python"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Python client</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/quickstart_javascript"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>JavaScript Code Editor</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/tutorials/videos"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Video tutorials</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Development environments</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Earth Engine Code Editor</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/playground"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Overview</span></a></li><li class="devsite-nav-item
+           devsite-nav-preview"><a href="/earth-engine/guides/code_editor_assistant"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>AI assistant</span><span class="devsite-nav-icon material-icons"
+        data-icon="preview"
+        data-title="Preview"
+        aria-hidden="true"></span></a></li></ul></div></li><li class="devsite-nav-item"><a href="/earth-engine/guides/python_install"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Python installation</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Concepts</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/client_server"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Client versus server</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/processing_environments"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Processing environments</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/computation_overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Computation overview</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/deferred_execution"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Deferred execution</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/scale"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Scale</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/projections"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Projections</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/resample"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Resampling and reducing resolution</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Analyze data</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/objects_methods_overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Objects and methods overview</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Image</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/image_overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_visualization"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image visualization</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_info"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image information and metadata</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_math"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Mathematical operations</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_relational"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Relational, conditional and boolean operations</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_convolutions"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Convolutions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_morph"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Morphological operations</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_gradients"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Gradients</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_edges"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Edge detection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_transforms"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Spectral transformations</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_texture"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Texture</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_objects"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Object-based methods</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/image_cumulative_cost"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Cumulative cost mapping</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/register"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Registering images</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>ImageCollection</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_creating"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>ImageCollection overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_visualization"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>ImageCollection visualization</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_info"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>ImageCollection information and metadata</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_filtering"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Filtering an ImageCollection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_mapping"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Mapping over an ImageCollection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_reducing"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Reducing an ImageCollection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_composite_mosaic"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Compositing and mosaicking</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ic_iterating"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Iterating over an ImageCollection</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Geometry</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/geometries"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Geometry overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/geometries_planar_geodesic"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Geodesic versus planar geometries</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/geometry_visualization_info"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Geometry visualization and information</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/geometric_operations"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Geometric operations</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Feature &amp; FeatureCollection</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/features"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Feature overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/feature_collections"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>FeatureCollection overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/feature_collections_visualizing"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Feature and FeatureCollection visualization</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/feature_collection_info"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>FeatureCollection information and metadata</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/feature_collection_filtering"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Filtering a FeatureCollection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/feature_collection_mapping"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Mapping over a FeatureCollection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/feature_collection_reducing"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Reducing a FeatureCollection</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/interpolation"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Vector to raster interpolation</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/read_from_bigquery"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Read tables from BigQuery</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>FeatureView</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/featureview_overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>FeatureView overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/featureview_optimization"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>FeatureView optimization</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/featureview_styling"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>FeatureView styling</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Reducer</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_intro"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Reducer overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_image_collection"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>ImageCollection reductions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_image"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image reductions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_reduce_region"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Statistics of an image region</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_reduce_regions"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Statistics of image regions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_reduce_neighborhood"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Statistics of image neighborhoods</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_reduce_columns"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Statistics of FeatureCollection columns</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_reduce_to_vectors"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Raster to vector conversion</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_reduce_to_image"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Vector to raster conversion</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_grouping"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Grouped reductions and zonal statistics</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_weighting"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Weighted reductions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/reducers_regression"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Linear regression</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Join</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_intro"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Join overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_simple"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Simple joins</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_inverted"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Inverted joins</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_inner"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Inner joins</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_save_all"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Save-all joins</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_save_best"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Save-best joins</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_save_first"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Save-first joins</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/joins_spatial"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Spatial joins</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Array</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/arrays_intro"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Array overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/arrays_array_images"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Array and array images</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/arrays_transformations"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Array transformations</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/arrays_eigen_analysis"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Eigen analysis</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/arrays_sorting_reducing"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Array sorting and reducing</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Visualize data</span>
+      </div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Earth Engine Code Editor Charts</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Chart overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_feature"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Feature and FeatureCollection charts</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_image"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image charts</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_image_collection"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>ImageCollection charts</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_array"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Array and list charts</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_datatable"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>DataTable charts</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/charts_style"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Chart styling</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Earth Engine apps</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/apps"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>About Earth Engine apps</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ui"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>User interface API overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ui_widgets"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Widgets</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ui_panels"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Panels and layouts</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ui_events"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Events</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Machine learning</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/machine-learning"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Overview of ML in Earth Engine</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/classification"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Supervised classification</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/clustering"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Unsupervised classification</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Custom Models in Vertex AI</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/ee-vertex-overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Custom models overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ee-vertex-hosting-a-model"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Hosting a model in Vertex AI</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ee-vertex-payload-formats"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Prediction payload formats</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ee-vertex-image-predictions"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image predictions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ee-vertex-property-predictions"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Property predictions</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ml_examples"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Example workflows notebooks</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/tfrecord"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>TFRecord data format</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/ee-vertex-migrate"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Cloud AI Platform Migration Guide</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Import data</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/image_upload"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Importing raster data</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Cloud optimized GeoTIFF (COG)</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/cog_overview"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/cog_registration"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Registration guide</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/image_manifest"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image manifest upload</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/table_upload"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Importing table data</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/table_manifest"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Table manifest upload</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Export data</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/exporting"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Overview</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/exporting_images"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Exporting images</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/exporting_tables"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Exporting table and vector data</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/exporting_video"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Exporting video and animations</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/exporting_map_tiles"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Exporting map tiles</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/exporting_to_bigquery"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Exporting to BigQuery</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/data_extraction"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Extracting image data programmatically</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Manage</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/access_control"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Control access to resources</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/noncommercial_tiers"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Noncommercial tiers</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/manage_assets"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Managing assets</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/usage"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Usage quota and limits</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/monitoring_usage"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Monitoring usage</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/cost_controls"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Cost controls</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/computation_benchmarks"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Computation benchmarks</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/service_account"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Service accounts</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/audit_logging"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Audit logs</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Troubleshoot</span>
+      </div></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/best_practices"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Coding best practices</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/debugging"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Debugging</span></a></li>
+
+  <li class="devsite-nav-item"><a href="/earth-engine/guides/script_recovery"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Script recovery and migration</span></a></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-heading"><div class="devsite-nav-title devsite-nav-title-no-path">
+        <span class="devsite-nav-text" tooltip>Archive</span>
+      </div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Custom applications</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/guides/app_engine_intro"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>App Engine and Earth Engine overview</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/app_engine_examples"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>App Engine example apps</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/guides/npm_install"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>NPM installation</span></a></li></ul></div></li>
+
+  <li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Samples</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorials"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Overview</span></a></li><li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Introduction to JavaScript for Earth Engine</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_js_01"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Introduction</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_js_02"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Earth Engine objects and methods</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_js_03"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Functional programming concepts</span></a></li></ul></div></li><li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>The Earth Engine API</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_01"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Introduction</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_02"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Visualizing images and image bands</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_03"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Computations using images</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_04"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Image collections</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_05"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Compositing, masking, and mosaicking</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_06"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>NDVI, mapping a function over a collection, quality mosaicking</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_api_07"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Exporting charts and images</span></a></li></ul></div></li><li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Global forest change</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_forest_01"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Introduction</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_forest_02"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Introduction to Hansen global forest change data</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_forest_03"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Quantifying forest change</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_forest_03a"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Charting yearly forest loss</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_forest_04"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Introduction to forest monitoring for action (FORMA) data</span></a></li></ul></div></li><li class="devsite-nav-item
+           devsite-nav-expandable"><div class="devsite-expandable-nav">
+      <a class="devsite-nav-toggle" aria-hidden="true"></a><div class="devsite-nav-title devsite-nav-title-no-path" tabindex="0" role="button">
+        <span class="devsite-nav-text" tooltip>Global Surface Water</span>
+      </div><ul class="devsite-nav-section"><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_global_surface_water_01"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Introduction</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_global_surface_water_02"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Water occurrence (1984-2015)</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_global_surface_water_03"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Water occurrence change intensity</span></a></li><li class="devsite-nav-item"><a href="/earth-engine/tutorials/tutorial_global_surface_water_04"
+        class="devsite-nav-title"
+      ><span class="devsite-nav-text" tooltip>Water class transition</span></a></li></ul></div></li></ul></div></li>
+          </ul>
+        
+        
+        
+          
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+        
+      </div>
+    
+  </div>
+</nav>
+          
+        </devsite-book-nav>
+      
+      <section id="gc-wrapper">
+        <main role="main" id="main-content" class="devsite-main-content"
+            
+              has-book-nav
+              has-sidebar
+            >
+          <div class="devsite-sidebar">
+            <div class="devsite-sidebar-content">
+                
+                <devsite-toc class="devsite-nav"
+                            role="navigation"
+                            aria-label="On this page"
+                            depth="2"
+                            scrollbars
+                            data-nosnippet
+                  ></devsite-toc>
+                <devsite-recommendations-sidebar class="nocontent devsite-nav" data-nosnippet>
+                </devsite-recommendations-sidebar>
+            </div>
+          </div>
+          <devsite-content>
+            
+              
+
+
+
+
+
+
+
+
+
+
+<article class="devsite-article">
+  
+  
+  
+    <div class="devsite-banner devsite-banner-announcement nocontent" data-nosnippet
+      
+        
+    background="google-yellow"
+  
+      >
+      <div class="devsite-banner-message">
+        <div class="devsite-banner-message-text">
+          Earth Engine has introduced <a href="/earth-engine/guides/noncommercial_tiers">noncommercial quota tiers</a> to safeguard shared compute resources and ensure reliable performance for everyone. Noncommercial projects use the Community Tier by default, though you can change a project's tier at any time.
+        </div>
+      </div>
+    </div>
+  
+  
+  
+
+  <div class="devsite-article-meta nocontent" role="navigation" data-nosnippet>
+    
+    
+    <ul class="devsite-breadcrumb-list"
+  
+    aria-label="Breadcrumb">
+  
+  <li class="devsite-breadcrumb-item
+             ">
+    
+    
+    
+      
+        
+  <a href="https://developers.google.com/"
+      
+        class="devsite-breadcrumb-link gc-analytics-event"
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Breadcrumbs"
+      
+        data-value="1"
+      
+        track-type="globalNav"
+      
+        track-name="breadcrumb"
+      
+        track-metadata-position="1"
+      
+        track-metadata-eventdetail=""
+      
+    >
+    
+          Home
+        
+  </a>
+  
+      
+    
+  </li>
+  
+  <li class="devsite-breadcrumb-item
+             ">
+    
+      
+      <div class="devsite-breadcrumb-guillemet material-icons" aria-hidden="true"></div>
+    
+    
+    
+      
+        
+  <a href="https://developers.google.com/products"
+      
+        class="devsite-breadcrumb-link gc-analytics-event"
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Breadcrumbs"
+      
+        data-value="2"
+      
+        track-type="globalNav"
+      
+        track-name="breadcrumb"
+      
+        track-metadata-position="2"
+      
+        track-metadata-eventdetail=""
+      
+    >
+    
+          Products
+        
+  </a>
+  
+      
+    
+  </li>
+  
+  <li class="devsite-breadcrumb-item
+             ">
+    
+      
+      <div class="devsite-breadcrumb-guillemet material-icons" aria-hidden="true"></div>
+    
+    
+    
+      
+        
+  <a href="https://developers.google.com/earth-engine"
+      
+        class="devsite-breadcrumb-link gc-analytics-event"
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Breadcrumbs"
+      
+        data-value="3"
+      
+        track-type="globalNav"
+      
+        track-name="breadcrumb"
+      
+        track-metadata-position="3"
+      
+        track-metadata-eventdetail="Google Earth Engine"
+      
+    >
+    
+          Google Earth Engine
+        
+  </a>
+  
+      
+    
+  </li>
+  
+  <li class="devsite-breadcrumb-item
+             ">
+    
+      
+      <div class="devsite-breadcrumb-guillemet material-icons" aria-hidden="true"></div>
+    
+    
+    
+      
+        
+  <a href="https://developers.google.com/earth-engine/guides"
+      
+        class="devsite-breadcrumb-link gc-analytics-event"
+      
+        data-category="Site-Wide Custom Events"
+      
+        data-label="Breadcrumbs"
+      
+        data-value="4"
+      
+        track-type="globalNav"
+      
+        track-name="breadcrumb"
+      
+        track-metadata-position="4"
+      
+        track-metadata-eventdetail=""
+      
+    >
+    
+          Guides
+        
+  </a>
+  
+      
+    
+  </li>
+  
+</ul>
+    
+      
+    <devsite-thumb-rating position="header">
+    </devsite-thumb-rating>
+  
+    
+  </div>
+  
+    <devsite-feedback
+  position="header"
+  project-name="Google Earth Engine"
+  product-id="82525"
+  bucket=""
+  context=""
+  version="t-devsite-webserver-20261006-r00-rc02.480918341286594632"
+  data-label="Send Feedback Button"
+  track-type="feedback"
+  track-name="sendFeedbackLink"
+  track-metadata-position="header"
+  class="nocontent"
+  data-nosnippet
+  
+  
+  
+    project-icon="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/touchicon-180-new.png"
+  
+  
+  
+  >
+
+  <button>
+  
+    
+    Send feedback
+  
+  </button>
+</devsite-feedback>
+  
+    <h1 class="devsite-page-title" tabindex="-1">
+      Exporting Images<devsite-actions hidden data-nosnippet><devsite-feature-tooltip
+      ack-key="AckCollectionsBookmarkTooltipDismiss"
+      analytics-category="Site-Wide Custom Events"
+      analytics-action-show="Callout Profile displayed"
+      analytics-action-close="Callout Profile dismissed"
+      analytics-label="Create Collection Callout"
+      class="devsite-page-bookmark-tooltip nocontent"
+      data-nosnippet
+      dismiss-button="true"
+      id="devsite-collections-dropdown"
+      
+      dismiss-button-text="Dismiss"
+
+      
+      close-button-text="Got it">
+
+    
+    
+      <devsite-bookmark></devsite-bookmark>
+    
+
+    <span slot="popout-heading">
+      
+      Stay organized with collections
+    </span>
+    <span slot="popout-contents">
+      
+      Save and categorize content based on your preferences.
+    </span>
+  </devsite-feature-tooltip>
+    <devsite-llm-tools></devsite-llm-tools></devsite-actions>
+  
+      
+    </h1>
+  <div class="devsite-page-title-meta"><devsite-view-release-notes></devsite-view-release-notes></div>
+  
+
+  <devsite-toc class="devsite-nav"
+    depth="2"
+    devsite-toc-embedded
+    >
+  </devsite-toc>
+  <div class="devsite-article-body clearfix
+  ">
+
+  
+    
+      <devsite-key-takeaways-panel role="region" aria-labelledby="key-takeaways-panel-title">
+  <div class="devsite-key-takeaways-panel-header" aria-labelledby="key-takeaways-panel-title" aria-expanded="false" role="button" tabindex="0">
+    
+    <img src="/_static/images/icons/spark.svg" alt="Spark icon" />
+    <div class="devsite-key-takeaways-panel-title">
+      
+      <h2 class="no-link hide-from-toc" id="key-takeaways-panel-title" data-tooltip="Generated with AI">Page Summary</h2>
+    </div>
+    <span
+      class="material-icons devsite-key-takeaways-panel-toggle-button" aria-hidden="true"></span>
+  </div>
+  <div class="devsite-key-takeaways-panel-content">
+    <devsite-feedback
+      product-id="5123748"
+      bucket="8963846920012181156"
+      disable-product-feedback>
+      <button
+        class="button-flat button-primary devsite-key-takeaways-report-button"
+        
+        data-title="Report Key Takeaways!"
+        
+        aria-label="Report Key Takeaways!">
+        <span
+          class="material-icons"
+          
+          aria-label="Report Key Takeaways!"
+          >outlined_flag</span
+        >
+      </button>
+    </devsite-feedback>
+    <ul class="devsite-key-takeaways-panel-list">
+      
+        <li>
+          <p>Earth Engine allows exporting images in GeoTIFF or TFRecord format with various configuration options.</p>
+
+        </li>
+      
+        <li>
+          <p>Exporting images to Google Drive, Google Cloud Storage, or as an Earth Engine asset is supported.</p>
+
+        </li>
+      
+        <li>
+          <p>Precision in exported images can be achieved by specifying the Coordinate Reference System (CRS) and affine transformation matrix (<code>crsTransform</code>).</p>
+
+        </li>
+      
+        <li>
+          <p>Using the <code>scale</code> parameter alone may result in shifted output images compared to the original data due to how the translation values are calculated.</p>
+
+        </li>
+      
+        <li>
+          <p>Configuration parameters like <code>fileFormat</code>, <code>formatOptions</code> (including <code>cloudOptimized</code> and <code>noData</code> for GeoTIFF), and <code>maxPixels</code> offer further control over the export process.</p>
+
+        </li>
+      
+    </ul>
+  </div>
+</devsite-key-takeaways-panel>
+    
+    
+
+
+<p>You can export images from Earth Engine in
+<a href="https://github.com/OSGeo/libgeotiff">GeoTIFF</a> or <a href="https://www.tensorflow.org/api_guides/python/python_io#TFRecords_Format_Details">TFRecord
+format</a>.
+See <a href="/earth-engine/guides/exporting#configuration_parameters">Configuration Parameters</a> for more
+output options.</p>
+
+<h2 id="example_setup" data-text="Example Setup" tabindex="-1">Example Setup</h2>
+
+<p>Start by defining the image data that will be exported:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_setup" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Load a landsat image and select three bands.</span>
+<span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">ee</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Image</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'LANDSAT/LC08/C02/T1_TOA/LC08_123032_20140515'</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">select</span><span class="devsite-syntax-p">([</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'B3'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'B2'</span><span class="devsite-syntax-p">]);</span>
+
+<span class="devsite-syntax-c1">// Create a geometry representing an export region.</span>
+<span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">geometry</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">ee</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Geometry</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Rectangle</span><span class="devsite-syntax-p">([</span><span class="devsite-syntax-mf">116.2621</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">39.8412</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">116.4849</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">40.01236</span><span class="devsite-syntax-p">]);</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_setup" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Load a landsat image and select three bands.</span>
+<span class="devsite-syntax-n">landsat</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Image</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'LANDSAT/LC08/C02/T1_TOA/LC08_123032_20140515'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">select</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-s1">'B3'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-s1">'B2'</span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-c1"># Create a geometry representing an export region.</span>
+<span class="devsite-syntax-n">geometry</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Geometry</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Rectangle</span><span class="devsite-syntax-p">([</span><span class="devsite-syntax-mf">116.2621</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-mf">39.8412</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-mf">116.4849</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-mf">40.01236</span><span class="devsite-syntax-p">])</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+
+<p>Next define the <a href="/earth-engine/guides/projections">projection</a> parameters that will be used in the
+following exports. We use the <code translate="no" dir="ltr">crs</code> parameter to specify the coordinate system,
+and the <code translate="no" dir="ltr">crsTransform</code> parameter to precisely specify the pixel grid. The
+<code translate="no" dir="ltr">crsTransform</code> parameter is a list of parameters from an affine transformation
+matrix in row-major order
+<code translate="no" dir="ltr">[xScale, xShearing, xTranslation, yShearing, yScale,         yTranslation]</code>. An
+image&#39;s origin is defined by the <code translate="no" dir="ltr">xTranslation</code> and <code translate="no" dir="ltr">yTranslation</code> values, and
+the image&#39;s pixel size is defined by the <code translate="no" dir="ltr">xScale</code> and <code translate="no" dir="ltr">yScale</code> values. See
+<a href="https://en.wikipedia.org/wiki/Affine_transformation#Image_transformation">examples of affine
+matrices</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript_1" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_projection" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Retrieve the projection information from a band of the original image.</span>
+<span class="devsite-syntax-c1">// Call getInfo() on the projection to request a client-side object containing</span>
+<span class="devsite-syntax-c1">// the crs and transform information needed for the client-side Export function.</span>
+<span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B2'</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-nx">getInfo</span><span class="devsite-syntax-p">();</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python_1" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_projection" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Retrieve the projection information from a band of the original image.</span>
+<span class="devsite-syntax-c1"># Call getInfo() on the projection to request a client-side object containing</span>
+<span class="devsite-syntax-c1"># the crs and transform information needed for the client-side Export function.</span>
+<span class="devsite-syntax-n">projection</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B2'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">getInfo</span><span class="devsite-syntax-p">()</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+<aside class="warning"><strong>Warning:</strong><span> The <code translate="no" dir="ltr">scale</code> parameter can be subtly misleading. If you&#39;re trying to
+match an existing projection exactly, you shouldn&#39;t use <code translate="no" dir="ltr">scale</code> - see the
+<a href="#setting_scale">following section</a> for details.</span></aside>
+<h3 id="setting_scale" data-text="Setting scale" tabindex="-1">Setting <code translate="no" dir="ltr">scale</code></h3>
+
+<p>As a shortcut, you can specify a <code translate="no" dir="ltr">scale</code> parameter and Earth Engine will
+calculate a <code translate="no" dir="ltr">crsTransform</code> parameter for you. However, simply setting the scale
+of an image does not specify the origin of the projection, and may result in an
+image that is shifted relative to another image with the same pixel size!</p>
+
+<p>The reason for the potential shift is that the <code translate="no" dir="ltr">scale</code> parameter is used to
+populate the <code translate="no" dir="ltr">xScale</code> and <code translate="no" dir="ltr">yScale</code> values of the <code translate="no" dir="ltr">crsTransform</code>, but the
+<code translate="no" dir="ltr">xTranslation</code> and <code translate="no" dir="ltr">yTranslation</code> values are calculated so that if they are
+divided by the corresponding <code translate="no" dir="ltr">xScale</code> and <code translate="no" dir="ltr">yScale</code> values the remainder will be
+zero. These parameters specify a pixel grid where the projection&#39;s origin is at
+the corner of a pixel. This convention differs from the translation parameters
+used by some data providers, which use grids that are offset from the
+projection&#39;s origin. For example, Landsat images provided by USGS use
+translation parameters that are offset by a 1/2 pixel from the projection&#39;s
+origin (15m offset for the 30m bands) while Sentinel-2 images provided by ESA
+use translation parameters that are aligned with the projection&#39;s origin. If
+the <code translate="no" dir="ltr">crsTransform</code> specified in an export do not match the <code translate="no" dir="ltr">crsTransform</code> of the
+original image, the output pixels will be resampled (using nearest neighbor by
+default), which will make the resulting image be shifted relative to the
+original image.</p>
+
+<p>To sum up, if you need to match the exported image&#39;s pixels to a specific
+image, make sure to use the <code translate="no" dir="ltr">crs</code> and <code translate="no" dir="ltr">crsTransform</code> parameters for full control
+of the grid.</p>
+
+<h2 id="to_drive" data-text="to Drive" tabindex="-1">to Drive</h2>
+
+<p>To export an image to your Drive account, use <code translate="no" dir="ltr">Export.image.toDrive()</code>. For
+example, to export portions of a Landsat image, define a region to export, then
+call <code translate="no" dir="ltr">Export.image.toDrive()</code>:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript_2" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_image" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Export the image, specifying the CRS, transform, and region.</span>
+<span class="devsite-syntax-nx">Export</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">toDrive</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">description</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'imageToDriveExample_transform'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crsTransform</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">transform</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">region</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">geometry</span>
+<span class="devsite-syntax-p">});</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python_2" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_image" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Export the image, specifying the CRS, transform, and region.</span>
+<span class="devsite-syntax-n">task</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">batch</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Export</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">toDrive</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">description</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'imageToDriveExample_transform'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">crs</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'crs'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">crsTransform</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'transform'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">region</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">geometry</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-n">task</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">()</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+
+<p>When this code is run, an export task will be created in the Code Editor
+<strong>Tasks</strong> tab. Click the <strong>Run</strong> button next to the task to start it. (Learn
+more about the Task Manager from the <a href="/earth-engine/guides/playground#tasks-tab">Code Editor
+section</a>). The image will be created in your Drive account
+with the specified <code translate="no" dir="ltr">fileFormat</code>.</p>
+
+<h2 id="to_cloud_storage" data-text="to Cloud Storage" tabindex="-1">to Cloud Storage</h2>
+
+<p>To export an image to a Google Cloud Storage bucket, use
+<code translate="no" dir="ltr">Export.image.toCloudStorage()</code>. To export the Landsat image in the previous
+example to Cloud Storage instead of Drive, use:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript_3" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__image_to_cloud" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Export the image to Cloud Storage.</span>
+<span class="devsite-syntax-nx">Export</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">toCloudStorage</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">description</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'imageToCloudExample'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">bucket</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'your-bucket-name'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">fileNamePrefix</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'exampleExport'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crsTransform</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">transform</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">region</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">geometry</span>
+<span class="devsite-syntax-p">});</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python_3" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__image_to_cloud" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Export the image to Cloud Storage.</span>
+<span class="devsite-syntax-n">task</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">batch</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Export</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">toCloudStorage</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">description</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'imageToCloudExample'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">bucket</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'your-bucket-name'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">fileNamePrefix</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'exampleExport'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">crs</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'crs'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">crsTransform</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'transform'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">region</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">geometry</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-n">task</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">()</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+
+<p>As with exports to Drive, start the export from the <strong>Tasks</strong> tab. The Cloud
+Storage bucket location can affect performance and storage costs, see the <a href="/earth-engine/faq#what_cloud_storage_bucket_location_should_i_use_to_store_cog_assets">FAQ
+entry on location
+considerations</a>
+for more information.</p>
+
+<h2 id="to_asset" data-text="to Asset" tabindex="-1">to Asset</h2>
+
+<p>To export an image to an asset in your Earth Engine assets folder, use
+<code translate="no" dir="ltr">Export.image.toAsset()</code>. To manage your Earth Engine assets, or check how much
+of your storage quota is in use, use the <a href="/earth-engine/guides/asset_manager">Asset Manager</a>. The
+following example illustrates exporting portions of a Landsat image using
+different pyramiding policies for the same band. The pyramiding policy indicates
+how Earth Engine computes lower-resolution versions of the asset. Learn more
+about how Earth Engine handles multiple resolutions in the <a href="/earth-engine/guides/scale">scale doc</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript_4" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__image_to_asset" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Get band 4 from the Landsat image, copy it.</span>
+<span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">band4</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">rename</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'b4_mean'</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">addBands</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">rename</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'b4_sample'</span><span class="devsite-syntax-p">))</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">addBands</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">rename</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'b4_max'</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-c1">// Export the image to an Earth Engine asset.</span>
+<span class="devsite-syntax-nx">Export</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">toAsset</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">band4</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">description</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'imageToAssetExample'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">assetId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'exampleExport'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crsTransform</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">transform</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">region</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">geometry</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">pyramidingPolicy</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'b4_mean'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'mean'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'b4_sample'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'sample'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'b4_max'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'max'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">});</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python_4" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__image_to_asset" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Get band 4 from the Landsat image, copy it.</span>
+<span class="devsite-syntax-n">band_4</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">)</span>
+    <span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">rename</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'b4_mean'</span><span class="devsite-syntax-p">)</span>
+    <span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">addBands</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">rename</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'b4_sample'</span><span class="devsite-syntax-p">))</span>
+    <span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">addBands</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">select</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'B4'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">rename</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'b4_max'</span><span class="devsite-syntax-p">))</span>
+<span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-c1"># Export the image to an Earth Engine asset.</span>
+<span class="devsite-syntax-n">task</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">batch</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Export</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">toAsset</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">band_4</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">description</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'imageToAssetExample'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">assetId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'projects/your-project/assets/exampleExport'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">crs</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'crs'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">crsTransform</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'transform'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">region</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">geometry</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">pyramidingPolicy</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-p">{</span>
+        <span class="devsite-syntax-s1">'b4_mean'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'mean'</span><span class="devsite-syntax-p">,</span>
+        <span class="devsite-syntax-s1">'b4_sample'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'sample'</span><span class="devsite-syntax-p">,</span>
+        <span class="devsite-syntax-s1">'b4_max'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'max'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-n">task</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">()</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+
+<p>You can provide a default pyramiding policy for every band that isn&#39;t
+explicitly specified by using the <code translate="no" dir="ltr">&#39;.default&#39;</code> key. You may also pass in just
+the <code translate="no" dir="ltr">&#39;.default&#39;</code> key. For example, to make all bands default to the &#39;sample&#39;
+pyramiding policy, use <code translate="no" dir="ltr">{&#39;.default&#39;: &#39;sample&#39;}</code>.</p>
+
+<h2 id="configuration_parameters" data-text="Configuration parameters" tabindex="-1">Configuration parameters</h2>
+
+<p>Observe that the dictionary of configuration parameters passed to <code translate="no" dir="ltr">Export.image</code>
+includes <code translate="no" dir="ltr">scale</code> (in meters) and the export region as an <code translate="no" dir="ltr">ee.Geometry</code>. The
+exported image will cover the specified region with pixels at the specified
+scale. If not explicitly specified, the CRS of the output will be taken from the
+first band of the image to be exported.</p>
+
+<p>You may also specify the <code translate="no" dir="ltr">dimensions</code>, <code translate="no" dir="ltr">crs</code> and/or <code translate="no" dir="ltr">crsTransform</code> of the
+exported image. See <a href="/earth-engine/glossary">the glossary</a> for more information
+on <code translate="no" dir="ltr">crs</code> and <code translate="no" dir="ltr">crsTransform</code>. For example, to get a block of pixels precisely
+aligned to another data source, specify <code translate="no" dir="ltr">dimensions</code>, <code translate="no" dir="ltr">crs</code> and <code translate="no" dir="ltr">crsTransform</code>.
+To get a block of pixels of predefined size (for example a 256x256 thumbnail
+image) that covers a region, specify <code translate="no" dir="ltr">dimensions</code> and <code translate="no" dir="ltr">region</code>.</p>
+
+<p>You can specify image output format (if the destination is not <code translate="no" dir="ltr">toAsset()</code>) with
+the <code translate="no" dir="ltr">fileFormat</code> parameter (<code translate="no" dir="ltr">&#39;GeoTIFF&#39;</code> by default).</p>
+
+<h3 id="formatoptions_parameter" data-text="formatOptions parameter" tabindex="-1"><code translate="no" dir="ltr">formatOptions</code> parameter</h3>
+
+<p>Other configuration options are set with the <code translate="no" dir="ltr">formatOptions</code> parameter, which
+should be a dictionary keyed by other format options, specific to each
+<code translate="no" dir="ltr">fileFormat</code> as described below.</p>
+
+<h4 id="geotiff" data-text="GeoTIFF" tabindex="-1">GeoTIFF</h4>
+
+<h5 id="cloud_optimized_geotiff" data-text="Cloud optimized GeoTIFF" tabindex="-1">Cloud optimized GeoTIFF</h5>
+
+<p>To export a <a href="https://cogeo.org/">cloud optimized GeoTIFF</a>, pass a JavaScript
+literal for <code translate="no" dir="ltr">formatOptions</code> in which the <code translate="no" dir="ltr">cloudOptimized</code> key is set to
+<strong>true</strong>. Continuing the previous example:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript_5" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_cogeo" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Export a cloud-optimized GeoTIFF.</span>
+<span class="devsite-syntax-nx">Export</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">toDrive</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">description</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'imageToCOGeoTiffExample'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crsTransform</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">transform</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">region</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">geometry</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">fileFormat</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'GeoTIFF'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">formatOptions</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">cloudOptimized</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">true</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">});</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python_5" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_cogeo" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Export a cloud-optimized GeoTIFF.</span>
+<span class="devsite-syntax-n">task</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">batch</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Export</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">toDrive</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">description</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'imageToCOGeoTiffExample'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">crs</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'crs'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">crsTransform</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'transform'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">region</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">geometry</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">fileFormat</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'GeoTIFF'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">formatOptions</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'cloudOptimized'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-kc">True</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-n">task</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">()</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+
+<p>Cloud optimized GeoTIFFs can be reloaded from Cloud Storage into an <code translate="no" dir="ltr">Image</code> or
+registered as assets. See the
+<a href="/earth-engine/guides/cog_overview#earth_engine_cog_export_specifications">Cloud optimized GeoTIFF (COG) overview</a>
+for full export specifications and options.</p>
+
+<h5 id="nodata" data-text="Nodata" tabindex="-1">Nodata</h5>
+
+<p>Specify the GeoTIFF nodata value using the <code translate="no" dir="ltr">noData</code> key within the
+<code translate="no" dir="ltr">formatOptions</code> parameter. For example:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <devsite-selector>
+    
+  
+
+
+
+
+
+  
+    
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+
+    
+    
+      <h3 id="code-editor-javascript_6" data-text="Code Editor (JavaScript)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Code Editor (JavaScript)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_nodata" is-upgraded syntax="JavaScript"><span class="devsite-syntax-c1">// Set a nodata value and replace masked pixels around the image edge with it.</span>
+<span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">noDataVal</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">-</span><span class="devsite-syntax-mf">9999</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">unmask</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">noDataVal</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-nx">Export</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">toDrive</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">image</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">description</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'imageNoDataExample'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">crs</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">scale</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">2000</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// large scale for minimal demo</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">region</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">landsat</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">geometry</span><span class="devsite-syntax-p">(),</span><span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// full image bounds</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">fileFormat</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'GeoTIFF'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">formatOptions</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">noData</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">noDataVal</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">});</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+    
+  
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+  <section>
+    
+  
+    
+
+<style>
+  .expand-title {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .expand-icon {
+    margin: 2px 0;
+  }
+
+  .expand-info {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5em;
+  }
+</style>
+
+<devsite-expandable class="arrow-icon" style="margin: 0;">
+  <p class="showalways expand-title">Python setup</p>
+  <p class="expand-info">See the <a href="/earth-engine/guides/python_install">
+    Python Environment</a> page for information on the Python API and using
+    <code translate="no" dir="ltr">geemap</code> for interactive development.</p>
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">ee</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap.core</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">as</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">geemap</span></pre></devsite-code>
+</devsite-expandable>
+  
+
+
+    
+    
+      <h3 id="colab-python_6" data-text="Colab (Python)" tabindex="-1"><span class="one-line-tab" tab-label="sample">Colab (Python)</span></h3>
+    
+
+    
+  <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" data-code-snippet="true" data-google3-path data-region-tag="earthengine__import_export01__export_nodata" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># Set a nodata value and replace masked pixels around the image edge with it.</span>
+<span class="devsite-syntax-n">no_data_val</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-o">-</span><span class="devsite-syntax-mi">9999</span>
+<span class="devsite-syntax-n">landsat</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">unmask</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">no_data_val</span><span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-n">task</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">ee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">batch</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">Export</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">toDrive</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">image</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">description</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'imageNoDataExample'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">crs</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'crs'</span><span class="devsite-syntax-p">],</span>
+    <span class="devsite-syntax-n">scale</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-mi">2000</span><span class="devsite-syntax-p">,</span>  <span class="devsite-syntax-c1"># large scale for minimal demo</span>
+    <span class="devsite-syntax-n">region</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">geometry</span><span class="devsite-syntax-p">(),</span>  <span class="devsite-syntax-c1"># full image bounds</span>
+    <span class="devsite-syntax-n">fileFormat</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'GeoTIFF'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">formatOptions</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'noData'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-n">no_data_val</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-n">task</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">()</span></pre></devsite-code>
+
+  </section>
+
+
+
+
+
+
+
+
+  </devsite-selector>
+
+
+
+
+
+<p>Note that the nodata value should be inside the valid range for the image&#39;s
+<code translate="no" dir="ltr">PixelType</code>. You can check <code translate="no" dir="ltr">PixelType</code> by
+<a href="/earth-engine/guides/image_info">printing image metadata</a> and looking at
+the first band&#39;s <code translate="no" dir="ltr">data_type</code> property. You can also set the image&#39;s<code translate="no" dir="ltr">PixelType</code>
+by casting the data to a specific type using image methods <code translate="no" dir="ltr">toShort()</code> or
+<code translate="no" dir="ltr">toInt()</code>, for example.</p>
+
+<h4 id="tfrecord" data-text="TFRecord" tabindex="-1">TFRecord</h4>
+
+<p>See the <a href="/earth-engine/guides/tfrecord#exporting-images">TFRecord data format</a> page.</p>
+
+<h2 id="maxpixels" data-text="maxPixels" tabindex="-1"><code translate="no" dir="ltr">maxPixels</code></h2>
+
+<p>The <code translate="no" dir="ltr">maxPixels</code> parameter is intended to prevent very large exports from
+inadvertently being created. If the default value is too low for your intended
+output image, you can increase <code translate="no" dir="ltr">maxPixels</code>. For example:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy devsite-code-highlight" translate="no" dir="ltr" is-upgraded syntax="verilog" syntax-guessed><span class="devsite-syntax-n">Export</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">image</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">toDrive</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nl">image:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">landsat</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nl">description:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">'</span><span class="devsite-syntax-n">maxPixelsExample</span><span class="devsite-syntax-p">',</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nl">crs:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">crs</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nl">crsTransform:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">projection</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">transform</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nl">region:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">geometry</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><strong><span class="devsite-syntax-nl">maxPixels:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">1e9</span></strong>
+<span class="devsite-syntax-p">});</span></pre></devsite-code>
+
+<h2 id="large_file_exports" data-text="Large file exports" tabindex="-1">Large file exports</h2>
+
+<p>If the output image is large, it will be exported as multiple files. If you are
+exporting to GeoTIFF(s), the image is split into tiles. The filename of each
+tile will be in the form <code translate="no" dir="ltr">baseFilename-yMin-xMin</code> where <code translate="no" dir="ltr">xMin</code> and <code translate="no" dir="ltr">yMin</code> are
+the coordinates of each tile within the overall bounding box of the exported
+image.</p>
+
+<p>If you are exporting to TFRecord, the files will be appended by <code translate="no" dir="ltr">-00000</code>,
+<code translate="no" dir="ltr">-00001</code>,... <code translate="no" dir="ltr">-0000N</code> for <em>N+1</em> files. Maintaining this order is important if
+you intend to perform inference on the files and upload the predictions back to
+Earth Engine as an image. See <a href="/earth-engine/guides/image_upload#tfrecord">uploading images as TFRecord
+files</a> for details.</p>
+
+<h2 id="exporting_images_as_they_appear_in_the_code_editor" data-text="Exporting images as they appear in the Code Editor" tabindex="-1">Exporting images as they appear in the Code Editor</h2>
+
+<p>To export imagery as rendered on screen in Earth Engine, create visualization
+images as demonstrated in the <a href="/earth-engine/guides/image_visualization#visualization-images">Visualization
+images</a> and the <a href="/earth-engine/guides/ic_composite_mosaic">Compositing and
+Mosaicking</a> sections. Since the Code Editor uses the
+<code translate="no" dir="ltr">&#39;EPSG:3857&#39;</code> CRS, specify a CRS of <code translate="no" dir="ltr">&#39;EPSG:3857&#39;</code> in the export to get an image
+in the same projection as that displayed in the Code Editor map. See <a href="/earth-engine/guides/exporting#configuration-parameters">the
+section on configuring image exports</a> for
+details on specifying the resolution and coordinate system of the output.</p>
+
+  
+
+  
+</div>
+
+  
+    
+      <devsite-recommendations display="in-page" hidden yield>
+      </devsite-recommendations>
+    
+    
+      
+    <devsite-thumb-rating position="footer">
+    </devsite-thumb-rating>
+  
+       
+         <devsite-feedback
+  position="footer"
+  project-name="Google Earth Engine"
+  product-id="82525"
+  bucket=""
+  context=""
+  version="t-devsite-webserver-20261006-r00-rc02.480918341286594632"
+  data-label="Send Feedback Button"
+  track-type="feedback"
+  track-name="sendFeedbackLink"
+  track-metadata-position="footer"
+  class="nocontent"
+  data-nosnippet
+  
+  
+  
+    project-icon="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/touchicon-180-new.png"
+  
+  
+  
+  >
+
+  <button>
+  
+    
+    Send feedback
+  
+  </button>
+</devsite-feedback>
+       
+    
+    
+      <devsite-recommendations id="recommendations-link" yield></devsite-recommendations>
+    
+  
+
+  <div class="devsite-floating-action-buttons"></div></article>
+
+
+<devsite-content-footer class="nocontent" data-nosnippet>
+  <p>Except as otherwise noted, the content of this page is licensed under the <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 License</a>, and code samples are licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0 License</a>. For details, see the <a href="https://developers.google.com/site-policies">Google Developers Site Policies</a>. Java is a registered trademark of Oracle and/or its affiliates.</p>
+  <p>Last updated 2026-10-12 UTC.</p>
+</devsite-content-footer>
+
+
+<devsite-notification
+>
+</devsite-notification>
+
+
+  
+<div class="devsite-content-data">
+  
+    
+    
+    <template class="devsite-thumb-rating-feedback">
+      <devsite-feedback
+  position="thumb-rating"
+  project-name="Google Earth Engine"
+  product-id="82525"
+  bucket=""
+  context=""
+  version="t-devsite-webserver-20261006-r00-rc02.480918341286594632"
+  data-label="Send Feedback Button"
+  track-type="feedback"
+  track-name="sendFeedbackLink"
+  track-metadata-position="thumb-rating"
+  class="nocontent"
+  data-nosnippet
+  
+  
+  
+    project-icon="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/touchicon-180-new.png"
+  
+  
+  
+  >
+
+  <button>
+  
+    Need to tell us more?
+  
+  </button>
+</devsite-feedback>
+    </template>
+  
+  
+    <template class="devsite-content-data-template">
+      [[["Easy to understand","easyToUnderstand","thumb-up"],["Solved my problem","solvedMyProblem","thumb-up"],["Other","otherUp","thumb-up"]],[["Missing the information I need","missingTheInformationINeed","thumb-down"],["Too complicated / too many steps","tooComplicatedTooManySteps","thumb-down"],["Out of date","outOfDate","thumb-down"],["Samples / code issue","samplesCodeIssue","thumb-down"],["Other","otherDown","thumb-down"]],["Last updated 2026-10-12 UTC."],[],[]]
+    </template>
+  
+</div>
+            
+          </devsite-content>
+        </main>
+        <devsite-footer-promos class="devsite-footer">
+          
+            
+
+<nav class="devsite-footer-promos nocontent"
+     aria-label="Promotions"
+     data-nosnippet>
+  <ul class="devsite-footer-promos-list">
+    
+    <li class="devsite-footer-promo">
+      <a href="https://github.com/google/earthengine-api"
+         class="devsite-footer-promo-title gc-analytics-event"
+         data-category="Site-Wide Custom Events"
+       
+         
+         data-label="Footer Promo Link (index 1)"
+       
+       >
+        
+        
+        <picture>
+          
+          <img class="devsite-footer-promo-icon"
+                src="/static/site-assets/logo-github.svg"
+                loading="lazy"
+                alt="GitHub">
+        </picture>
+        
+        <span class="devsite-footer-promo-label">
+          GitHub
+        </span>
+      </a>
+      <div class="devsite-footer-promo-description">Earth Engine on GitHub</div>
+    </li>
+    
+    <li class="devsite-footer-promo">
+      <a href="https://medium.com/google-earth"
+         class="devsite-footer-promo-title gc-analytics-event"
+         data-category="Site-Wide Custom Events"
+       
+         
+         data-label="Footer Promo Link (index 2)"
+       
+       >
+        
+        
+        <picture>
+          
+          <img class="devsite-footer-promo-icon"
+                src="/static/site-assets/logo-medium.svg"
+                loading="lazy"
+                alt="Medium">
+        </picture>
+        
+        <span class="devsite-footer-promo-label">
+          Medium
+        </span>
+      </a>
+      <div class="devsite-footer-promo-description">Follow our blog on Medium</div>
+    </li>
+    
+    <li class="devsite-footer-promo">
+      <a href="https://gis.stackexchange.com/questions/tagged/google-earth-engine"
+         class="devsite-footer-promo-title gc-analytics-event"
+         data-category="Site-Wide Custom Events"
+       
+         
+         data-label="Footer Promo Link (index 3)"
+       
+       >
+        
+        
+        <picture>
+          
+          <img class="devsite-footer-promo-icon"
+                src="/static/site-assets/logo-gis-stack-exchange.svg"
+                loading="lazy"
+                alt="GIS Stack Exchange">
+        </picture>
+        
+        <span class="devsite-footer-promo-label">
+          GIS Stack Exchange
+        </span>
+      </a>
+      <div class="devsite-footer-promo-description">Ask questions using the google-earth-engine tag</div>
+    </li>
+    
+    <li class="devsite-footer-promo">
+      <a href="https://twitter.com/googleearth"
+         class="devsite-footer-promo-title gc-analytics-event"
+         data-category="Site-Wide Custom Events"
+       
+         
+         data-label="Footer Promo Link (index 4)"
+       
+       >
+        
+        
+        <picture>
+          
+          <img class="devsite-footer-promo-icon"
+                src="/static/site-assets/logo-twitter.svg"
+                loading="lazy"
+                alt="Twitter">
+        </picture>
+        
+        <span class="devsite-footer-promo-label">
+          Twitter
+        </span>
+      </a>
+      <div class="devsite-footer-promo-description">Follow @googleearth on Twitter</div>
+    </li>
+    
+    <li class="devsite-footer-promo">
+      <a href="https://www.youtube.com/googleearth"
+         class="devsite-footer-promo-title gc-analytics-event"
+         data-category="Site-Wide Custom Events"
+       
+         
+         data-label="Footer Promo Link (index 5)"
+       
+       >
+        
+        
+        <picture>
+          
+          <img class="devsite-footer-promo-icon"
+                src="https://www.gstatic.com/images/icons/material/product/2x/youtube_64dp.png"
+                loading="lazy"
+                alt="Videos">
+        </picture>
+        
+        <span class="devsite-footer-promo-label">
+          Videos
+        </span>
+      </a>
+      <div class="devsite-footer-promo-description">Earth Engine on YouTube</div>
+    </li>
+    
+  </ul>
+</nav>
+
+          
+        </devsite-footer-promos>
+        <devsite-footer-linkboxes class="devsite-footer">
+          
+            
+<nav class="devsite-footer-linkboxes nocontent"
+     aria-label="Footer links"
+     data-nosnippet>
+  
+  <ul class="devsite-footer-linkboxes-list">
+    
+    <li class="devsite-footer-linkbox ">
+    <h3 class="devsite-footer-linkbox-heading no-link">Engage</h3>
+      <ul class="devsite-footer-linkbox-list">
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="/program"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 1)"
+            >
+            
+          
+            Google Developer Program
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="/community"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 2)"
+            >
+            
+          
+            Google Developer Groups
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="/community/experts"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 3)"
+            >
+            
+          
+            Google Developer Experts
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="/community/accelerators"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 4)"
+            >
+            
+          
+            Accelerators
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="/community/nvidia"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 5)"
+            >
+            
+              
+              
+            
+          
+            Google Cloud & NVIDIA
+          
+          </a>
+          
+          
+        </li>
+        
+      </ul>
+    </li>
+    
+    <li class="devsite-footer-linkbox ">
+    <h3 class="devsite-footer-linkbox-heading no-link">Connect</h3>
+      <ul class="devsite-footer-linkbox-list">
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="//googledevelopers.blogspot.com"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 1)"
+            >
+            
+          
+            Blog
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://bsky.app/profile/developers.google.com"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 2)"
+            >
+            
+          
+            Bluesky
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://www.instagram.com/googlefordevs/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 3)"
+            >
+            
+          
+            Instagram
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://www.linkedin.com/showcase/googledevelopers/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 4)"
+            >
+            
+          
+            LinkedIn
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="//twitter.com/googledevs"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 5)"
+            >
+            
+          
+            X (Twitter)
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="//www.youtube.com/user/GoogleDevelopers"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 6)"
+            >
+            
+              
+              
+            
+          
+            YouTube
+          
+          </a>
+          
+          
+        </li>
+        
+      </ul>
+    </li>
+    
+    <li class="devsite-footer-linkbox ">
+    <h3 class="devsite-footer-linkbox-heading no-link">Build</h3>
+      <ul class="devsite-footer-linkbox-list">
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://developer.android.com/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 1)"
+            >
+            
+          
+            Android
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://developer.chrome.com/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 2)"
+            >
+            
+          
+            Chrome
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://firebase.google.com/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 3)"
+            >
+            
+          
+            Firebase
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://aistudio.google.com/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 4)"
+            >
+            
+          
+            Google AI Studio
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://antigravity.google/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 5)"
+            >
+            
+          
+            Google Antigravity
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://cloud.google.com/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 6)"
+            >
+            
+          
+            Google Cloud
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="https://play.google.com/console/about/"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 7)"
+            >
+            
+          
+            Google Play
+          
+          </a>
+          
+          
+        </li>
+        
+        <li class="devsite-footer-linkbox-item">
+          
+          <a href="/products"
+             class="devsite-footer-linkbox-link gc-analytics-event"
+             data-category="Site-Wide Custom Events"
+            
+             data-label="Footer Link (index 8)"
+            >
+            
+              
+              
+            
+          
+            View all
+          
+          </a>
+          
+          
+        </li>
+        
+      </ul>
+    </li>
+    
+  </ul>
+  
+</nav>
+          
+        </devsite-footer-linkboxes>
+        <devsite-footer-utility class="devsite-footer">
+          
+            
+
+<div class="devsite-footer-utility nocontent" data-nosnippet>
+  
+  
+  <nav class="devsite-footer-sites" aria-label="Other Google Developers websites">
+    <a href="https://developers.google.com/"
+       class="devsite-footer-sites-logo-link gc-analytics-event"
+       data-category="Site-Wide Custom Events"
+       data-label="Footer Google Developers Link">
+      <picture>
+        
+        <img class="devsite-footer-sites-logo"
+             src="https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/lockup-google-for-developers.svg"
+             loading="lazy"
+             alt="Google Developers">
+      </picture>
+    </a>
+    <ul class="devsite-footer-sites-list">
+      
+      <li class="devsite-footer-sites-item">
+        <a href="//developer.android.com"
+           class="devsite-footer-sites-link
+                  gc-analytics-event"
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Footer Android Link"
+         
+         >
+          Android
+        </a>
+      </li>
+      
+      <li class="devsite-footer-sites-item">
+        <a href="//developer.chrome.com/home"
+           class="devsite-footer-sites-link
+                  gc-analytics-event"
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Footer Chrome Link"
+         
+         >
+          Chrome
+        </a>
+      </li>
+      
+      <li class="devsite-footer-sites-item">
+        <a href="//firebase.google.com"
+           class="devsite-footer-sites-link
+                  gc-analytics-event"
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Footer Firebase Link"
+         
+         >
+          Firebase
+        </a>
+      </li>
+      
+      <li class="devsite-footer-sites-item">
+        <a href="//cloud.google.com"
+           class="devsite-footer-sites-link
+                  gc-analytics-event"
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Footer Google Cloud Platform Link"
+         
+         >
+          Google Cloud Platform
+        </a>
+      </li>
+      
+      <li class="devsite-footer-sites-item">
+        <a href="//ai.google.dev/"
+           class="devsite-footer-sites-link
+                  gc-analytics-event"
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Footer Google AI Link"
+         
+         >
+          Google AI
+        </a>
+      </li>
+      
+      <li class="devsite-footer-sites-item">
+        <a href="/products"
+           class="devsite-footer-sites-link
+                  gc-analytics-event"
+           data-category="Site-Wide Custom Events"
+         
+           data-label="Footer All products Link"
+         
+         >
+          All products
+        </a>
+      </li>
+      
+    </ul>
+  </nav>
+  
+
+  
+  <nav class="devsite-footer-utility-links" aria-label="Utility links">
+    
+    <ul class="devsite-footer-utility-list">
+      
+      <li class="devsite-footer-utility-item
+                 ">
+        
+        
+        <a class="devsite-footer-utility-link gc-analytics-event"
+           href="/terms/site-terms"
+           data-category="Site-Wide Custom Events"
+           data-label="Footer Terms link"
+         >
+          Terms
+        </a>
+        
+      </li>
+      
+      <li class="devsite-footer-utility-item
+                 ">
+        
+        
+        <a class="devsite-footer-utility-link gc-analytics-event"
+           href="//policies.google.com/privacy"
+           data-category="Site-Wide Custom Events"
+           data-label="Footer Privacy link"
+         >
+          Privacy
+        </a>
+        
+      </li>
+      
+      <li class="devsite-footer-utility-item
+                 glue-cookie-notification-bar-control">
+        
+        
+        <a class="devsite-footer-utility-link gc-analytics-event"
+           href="#"
+           data-category="Site-Wide Custom Events"
+           data-label="Footer Manage cookies link"
+         
+           aria-hidden="true"
+         >
+          Manage cookies
+        </a>
+        
+      </li>
+      
+    </ul>
+    
+    
+<devsite-language-selector>
+  <ul role="presentation">
+    
+    
+    <li role="presentation">
+      <a role="menuitem" lang="en"
+        >English</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="de"
+        >Deutsch</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="es"
+        >Español</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="fr"
+        >Français</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="id"
+        >Indonesia</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="pt_br"
+        >Português – Brasil</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="ru"
+        >Русский</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="zh_cn"
+        >中文 – 简体</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="ja"
+        >日本語</a>
+    </li>
+    
+    <li role="presentation">
+      <a role="menuitem" lang="ko"
+        >한국어</a>
+    </li>
+    
+  </ul>
+</devsite-language-selector>
+
+  </nav>
+</div>
+          
+        </devsite-footer-utility>
+        <devsite-panel>
+          
+        </devsite-panel>
+        
+          <devsite-concierge
+  
+  
+    data-info-panel
+  
+  
+    data-ai-panel
+  
+  
+  
+  
+    data-api-explorer-panel
+  >
+</devsite-concierge>
+        
+      </section>
+      </section>
+    <devsite-sitemask></devsite-sitemask>
+    <devsite-snackbar></devsite-snackbar>
+    <devsite-tooltip ></devsite-tooltip>
+    <devsite-heading-link></devsite-heading-link>
+    <devsite-analytics>
+      
+        <script type="application/json" analytics>[{&#34;dimensions&#34;: {&#34;dimension11&#34;: false, &#34;dimension3&#34;: false, &#34;dimension5&#34;: &#34;en&#34;, &#34;dimension6&#34;: &#34;en&#34;, &#34;dimension4&#34;: &#34;Google Earth Engine&#34;, &#34;dimension1&#34;: &#34;Signed out&#34;}, &#34;gaid&#34;: &#34;UA-24532603-1&#34;, &#34;metrics&#34;: {&#34;ratings_value&#34;: &#34;metric1&#34;, &#34;ratings_count&#34;: &#34;metric2&#34;}, &#34;purpose&#34;: 1}, {&#34;dimensions&#34;: {&#34;dimension11&#34;: false, &#34;dimension3&#34;: false, &#34;dimension5&#34;: &#34;en&#34;, &#34;dimension6&#34;: &#34;en&#34;, &#34;dimension4&#34;: &#34;Google Earth Engine&#34;, &#34;dimension1&#34;: &#34;Signed out&#34;}, &#34;gaid&#34;: &#34;UA-60111163-2&#34;, &#34;metrics&#34;: {&#34;ratings_value&#34;: &#34;metric1&#34;, &#34;ratings_count&#34;: &#34;metric2&#34;}, &#34;purpose&#34;: 0}]</script>
+<script type="application/json" tag-management>{&#34;at&#34;: &#34;True&#34;, &#34;ga4&#34;: [{&#34;id&#34;: &#34;G-272J68FCRF&#34;, &#34;purpose&#34;: 1}, {&#34;id&#34;: &#34;G-30ZTVK7M7Q&#34;, &#34;purpose&#34;: 0}, {&#34;id&#34;: &#34;G-CW83BZF8N3&#34;, &#34;purpose&#34;: 0}], &#34;ga4p&#34;: [{&#34;id&#34;: &#34;G-272J68FCRF&#34;, &#34;purpose&#34;: 1}], &#34;gtm&#34;: [{&#34;id&#34;: &#34;GTM-T98GCPGN&#34;, &#34;purpose&#34;: 1}], &#34;parameters&#34;: {&#34;internalUser&#34;: &#34;False&#34;, &#34;language&#34;: {&#34;machineTranslated&#34;: &#34;False&#34;, &#34;requested&#34;: &#34;en&#34;, &#34;served&#34;: &#34;en&#34;}, &#34;pageType&#34;: &#34;article&#34;, &#34;projectName&#34;: &#34;Google Earth Engine&#34;, &#34;signedIn&#34;: &#34;False&#34;, &#34;tenant&#34;: &#34;developers&#34;, &#34;recommendations&#34;: {&#34;sourcePage&#34;: &#34;&#34;, &#34;sourceType&#34;: 0, &#34;sourceRank&#34;: 0, &#34;sourceIdenticalDescriptions&#34;: 0, &#34;sourceTitleWords&#34;: 0, &#34;sourceDescriptionWords&#34;: 0, &#34;experiment&#34;: &#34;&#34;}, &#34;experiment&#34;: {&#34;ids&#34;: &#34;&#34;}}}</script>
+      
+    </devsite-analytics>
+    
+      <devsite-badger></devsite-badger>
+    
+    
+    
+    
+<script nonce="CYDvWzDLQci76liAXOBQsgqYQguohM">
+  
+  (function(d,e,v,s,i,t,E){d['GoogleDevelopersObject']=i;
+    t=e.createElement(v);t.async=1;t.src=s;E=e.getElementsByTagName(v)[0];
+    E.parentNode.insertBefore(t,E);})(window, document, 'script',
+    'https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/js/app_loader.js', '[1,"en",null,"/js/devsite_app_module.js","https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31","https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers","https://developers-dot-devsite-v2-prod.appspot.com",null,null,["/_pwa/developers/manifest.json","https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/images/video-placeholder.svg","https://www.gstatic.com/devrel-devsite/prod/v097103d8ccd7b257790809ea4cc5e5fee6daa6e24890a4af388296e58364bc31/developers/images/favicon-new.png","https://fonts.googleapis.com/css?family=Google+Sans:400,500|Roboto:400,400italic,500,500italic,700,700italic|Roboto+Mono:400,500,700&display=swap"],1,null,[1,6,8,12,14,17,21,25,50,52,63,70,75,76,80,87,91,92,93,97,98,100,101,102,103,104,105,107,108,109,110,112,113,116,117,118,120,122,124,125,126,127,129,130,131,132,133,134,135,136,138,140,141,147,148,149,151,152,156,157,158,159,161,163,164,168,169,170,179,180,182,183,186,191,193,196],"AIzaSyAP-jjEJBzmIyKR4F-3XITp8yM9T1gEEI8","AIzaSyB6xiKGDR5O3Ak2okS4rLkauxGUG7XP0hg","developers.google.com","AIzaSyAQk0fBONSGUqCNznf6Krs82Ap1-NV6J4o","AIzaSyCCxcqdrZ_7QMeLCRY20bh_SXdAYqy70KY",null,null,null,["Profiles__enable_complete_playlist_endpoint","MiscFeatureFlags__enable_variable_operator","DevPro__enable_credits_banner","MiscFeatureFlags__developers_footer_image","Search__enable_ai_eligibility_checks","DevPro__enable_google_one_card","MiscFeatureFlags__enable_variable_operator_index_yaml","DevPro__enable_g1_integration","Concierge__enable_key_takeaways","MiscFeatureFlags__enable_framebox_badge_methods","Cloud__enable_legacy_calculator_redirect","Profiles__enable_page_saving","Concierge__enable_actions_menu","DevPro__enable_code_assist","Analytics__enable_clearcut_logging","Profiles__enable_auto_apply_credits","Analytics__enable_devpro_interaction_logging","Profiles__enable_developer_profile_pages_as_content","Significatio__enable_by_tenant","MiscFeatureFlags__enable_explain_this_code","Search__enable_dynamic_content_confidential_banner","DevPro__enable_cloud_innovators_plus","Profiles__enable_stripe_subscription_management","Profiles__enable_developer_profiles_callout","DevPro__enable_g1_ineligible_redirect","Cloud__enable_cloudx_experiment_ids","Profiles__enable_awarding_url","DevPro__enable_developer_subscriptions","DevPro__enable_google_payments_buyflow","Profiles__enable_developer_profile_benefits_ui_redesign","Cloud__enable_cloud_dlp_service","DevPro__enable_devsite_captcha","Profiles__enable_dashboard_curated_recommendations","Cloud__enable_cloud_shell","DevPro__enable_free_benefits","Profiles__enable_profile_collections","Profiles__enable_join_program_group_endpoint","DevPro__enable_vertex_credit_card","MiscFeatureFlags__enable_firebase_utm","MiscFeatureFlags__remove_cross_domain_tracking_params","Profiles__enable_public_developer_profiles","MiscFeatureFlags__gdp_dashboard_reskin_enabled","Cloud__cache_serialized_dynamic_content","DevPro__enable_devpro_offers","Cloud__fast_free_trial","MiscFeatureFlags__enable_explicit_template_dependencies","Profiles__enable_playlist_community_acl","Profiles__enable_completecodelab_endpoint","Profiles__enable_targeted_hero","SignIn__enable_l1_signup_flow","TpcFeatures__enable_unmirrored_page_left_nav","Profiles__require_profile_eligibility_for_signin","Search__enable_page_map","MiscFeatureFlags__enable_project_variables","MiscFeatureFlags__fix_lower_breadcrumbs","Profiles__enable_release_notes_notifications","Search__enable_ai_search_summaries_for_all","DevPro__enable_embed_profile_creation","DevPro__remove_eu_tax_intake_form","Concierge__enable_concierge","Profiles__enable_callout_notifications","MiscFeatureFlags__enable_view_transitions","Cloud__enable_cloud_shell_fte_user_flow","TpcFeatures__proxy_prod_host","CloudShell__cloud_code_overflow_menu","CloudShell__cloud_shell_button","EngEduTelemetry__enable_engedu_telemetry","Concierge__enable_pushui","Concierge__enable_key_takeaways_new_ui","Concierge__enable_concierge_restricted","MiscFeatureFlags__enable_appearance_cookies","BookNav__enable_tenant_cache_key","Experiments__reqs_query_experiments","DevPro__enable_firebase_workspaces_card","Cloud__enable_free_trial_server_call","Concierge__enable_remove_info_panel_tags","Search__enable_ai_search_summaries","AIStudioInteractionsToggle__interactions_are_default","Concierge__enable_devsite_llm_tools","Profiles__enable_user_type","Search__enable_suggestions_from_borg","Profiles__enable_completequiz_endpoint","Search__enable_ai_search_summaries_restricted","Profiles__enable_purchase_prompts","MiscFeatureFlags__developers_footer_dark_image","DevPro__enable_nvidia_credits_card","DevPro__enable_enterprise","Profiles__enable_recognition_badges"],null,null,"AIzaSyBLEMok-5suZ67qRPzx0qUtbnLmyT_kCVE","https://developerscontentserving-pa.clients6.google.com","AIzaSyCM4QpTRSqP5qI4Dvjt4OAScIN8sOUlO-k","https://developerscontentsearch-pa.clients6.google.com",1,4,null,"https://developerprofiles-pa.clients6.google.com",[1,"developers","Google for Developers","developers.google.com",null,"developers-dot-devsite-v2-prod.appspot.com",null,null,[1,1,[1],null,null,null,null,null,null,null,null,[1],null,null,null,null,null,null,[1],[1,null,null,[1,20],"/recommendations/information"],null,null,null,[1,1,1],[1,1,null,1,1,null,null,["/meridian"]],[1,null,null,null,null,null,null,["/admob","/ad-manager/mobile-ads-sdk","/ml-kit"]],null,[null,["/meridian","/youtube/devices/"]],1,null,[1]],null,[null,null,null,null,null,null,"/images/lockup-new.svg","/images/touchicon-180-new.png",null,null,null,null,1,null,null,null,null,null,null,null,null,1,null,null,null,"/images/lockup-dark-theme-new.svg",[]],[],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,[6,1,14,15,20,22,23,29,32,36],null,[[null,null,null,[3,7,10,2,39,17,4,32,24,11,12,13,34,15,25],null,null,[1,[["docType","Choose a content type",[["Tutorial",null,null,null,null,null,null,null,null,"Tutorial"],["Guide",null,null,null,null,null,null,null,null,"Guide"],["Sample",null,null,null,null,null,null,null,null,"Sample"]]],["product","Choose a product",[["Android",null,null,null,null,null,null,null,null,"Android"],["ARCore",null,null,null,null,null,null,null,null,"ARCore"],["ChromeOS",null,null,null,null,null,null,null,null,"ChromeOS"],["Firebase",null,null,null,null,null,null,null,null,"Firebase"],["Flutter",null,null,null,null,null,null,null,null,"Flutter"],["Assistant",null,null,null,null,null,null,null,null,"Google Assistant"],["GoogleCloud",null,null,null,null,null,null,null,null,"Google Cloud"],["GoogleMapsPlatform",null,null,null,null,null,null,null,null,"Google Maps Platform"],["GooglePay",null,null,null,null,null,null,null,null,"Google Pay & Google Wallet"],["GooglePlay",null,null,null,null,null,null,null,null,"Google Play"],["Tensorflow",null,null,null,null,null,null,null,null,"TensorFlow"]]],["category","Choose a topic",[["AiAndMachineLearning",null,null,null,null,null,null,null,null,"AI and Machine Learning"],["Data",null,null,null,null,null,null,null,null,"Data"],["Enterprise",null,null,null,null,null,null,null,null,"Enterprise"],["Gaming",null,null,null,null,null,null,null,null,"Gaming"],["Mobile",null,null,null,null,null,null,null,null,"Mobile"],["Web",null,null,null,null,null,null,null,null,"Web"]]]]]],[1,1],null,1],[[["UA-24532603-1"],["UA-22084204-5"],null,null,["UA-24532603-5"],["GTM-T98GCPGN"],null,[["G-272J68FCRF"],null,null,[["G-272J68FCRF",2]]],[["UA-24532603-1",2]],null,[["UA-24532603-5",2]],[["GTM-T98GCPGN",2]],1],[[1,1],[6,5],[4,3],[11,8],[3,2],[12,9],[15,12],[5,4],[14,11],[13,10],[16,13]],[[1,1],[2,2]]],null,4,null,null,null,null,null,null,null,null,null,null,null,null,null,"developers.devsite.google",null,null,null,null,null,[]],null,"pk_live_5170syrHvgGVmSx9sBrnWtA5luvk9BwnVcvIi7HizpwauFG96WedXsuXh790rtij9AmGllqPtMLfhe2RSwD6Pn38V00uBCydV4m",1,null,"https://developerscontentinsights-pa.clients6.google.com","AIzaSyCg-ZUslalsEbXMfIo9ZP8qufZgo3LSBDU","AIzaSyDxT0vkxnY_KeINtA4LSePJO-4MAZPMRsE","https://developers.clients6.google.com",["https://codeassist.google.com","https://code-assist-free-tier.corp.google.com"],null,"AIzaSyBQom12tzI-rybN7Sf-KfeL4nwm-Rf7PmI\n",null,null,"https://developers.googleapis.com"]')
+  
+</script>
+
+    <devsite-a11y-announce></devsite-a11y-announce>
+  </body>
+</html>

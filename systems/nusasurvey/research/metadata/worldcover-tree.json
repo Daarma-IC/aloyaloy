@@ -1,0 +1,92 @@
+{
+  "sha": "82bdd1d342685de9ff1782dff96ad875844a142f",
+  "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/trees/82bdd1d342685de9ff1782dff96ad875844a142f",
+  "tree": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ed15ccf4b75ee3598abc6f70365f74903c6b258f",
+      "size": 36,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/ed15ccf4b75ee3598abc6f70365f74903c6b258f"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "size": 35149,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/f288702d2fa16d3cdf0035b15a9fcbc552cd88e7"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c5081b58f034cc34e7550727b8db62cd570cf22",
+      "size": 5704,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/9c5081b58f034cc34e7550727b8db62cd570cf22"
+    },
+    {
+      "path": "notebooks",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ec7fd179f340404af1fd37b418f6f9f1fcabb6ec",
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/trees/ec7fd179f340404af1fd37b418f6f9f1fcabb6ec"
+    },
+    {
+      "path": "notebooks/01-Explore_dataset_STAC.ipynb",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "967fc11899daa871dd548ab9281ac31c894fb35d",
+      "size": 534701,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/967fc11899daa871dd548ab9281ac31c894fb35d"
+    },
+    {
+      "path": "notebooks/02-Compare_2020_2021_maps.ipynb",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5e1a3ec1119d0df05e65103bfc9e9f6cbe43c6e0",
+      "size": 6428211,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/5e1a3ec1119d0df05e65103bfc9e9f6cbe43c6e0"
+    },
+    {
+      "path": "notebooks/utils",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "61a462470715cecef205b79f24c0827bba5f1a6f",
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/trees/61a462470715cecef205b79f24c0827bba5f1a6f"
+    },
+    {
+      "path": "notebooks/utils/labels.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c7d5744255bb8c34c2047f7dd6e9e5a46ab2588e",
+      "size": 2604,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/c7d5744255bb8c34c2047f7dd6e9e5a46ab2588e"
+    },
+    {
+      "path": "notebooks/utils/stac.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "58713f21cab8883a73206a924d24c1f5fc499f3f",
+      "size": 651,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/58713f21cab8883a73206a924d24c1f5fc499f3f"
+    },
+    {
+      "path": "scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6e3b3f3d56f715923720c9e23558f8bb8793cb62",
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/trees/6e3b3f3d56f715923720c9e23558f8bb8793cb62"
+    },
+    {
+      "path": "scripts/download.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f64ae45dfaab57cf6cd998a2c0f2a1c2bcb07548",
+      "size": 3314,
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/blobs/f64ae45dfaab57cf6cd998a2c0f2a1c2bcb07548"
+    }
+  ],
+  "truncated": false
+}

@@ -1,0 +1,8 @@
+{
+  "model": "osm-terrain-langmuir-v1",
+  "package": "copdem2021-worldcover2021-osm-obstacles-v2",
+  "packageSha256": "d23144d8a9d5df2dc1de73de7f7f2fd9281e093820e5e457bc3898b75dce5478",
+  "solverSha256": "66f62c138b26bd1696838da218da93eead241b87bbdb7ec9d603963819de8a06",
+  "source": "apps/geofence-prototype/src/routing/hybrid.js",
+  "generatedAt": "2026-10-17T11:05:40.323Z"
+}

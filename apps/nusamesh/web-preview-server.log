@@ -1,33 +1,3 @@
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if "Windows_NT" == "Windows_NT" setlocal
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set DIRNAME=C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\ 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if "C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\" == "" set DIRNAME=. 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set APP_BASE_NAME=gradlew 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set APP_HOME=C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\ 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>for %i in ("C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\") do set APP_HOME=%~fi 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set APP_HOME=C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\ 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set DEFAULT_JVM_OPTS=-Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m" 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if defined JAVA_HOME goto findJavaFromJavaHome 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set JAVA_EXE=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot/bin/java.exe 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if exist "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot/bin/java.exe" goto execute 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set CLASSPATH= 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>"C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot/bin/java.exe" -Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m"   "-Dorg.gradle.appname=gradlew" -classpath "" -jar "C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh\\gradle\wrapper\gradle-wrapper.jar" :composeApp:wasmJsBrowserDevelopmentRun --offline --no-daemon 
-To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
-Daemon will be stopped at the end of the build 
 Configuration 'wasmJsNpmAggregated' was resolved during configuration time.
 This is a build performance and scalability issue.
 See https://github.com/gradle/gradle/issues/2298
@@ -38,11 +8,11 @@ See https://github.com/gradle/gradle/issues/2298
 Run with --info for a stacktrace.
 > Task :kotlinWasmKotlinNpmCachesSetup
 > Task :composeApp:kmpPartiallyResolvedDependenciesChecker
+> Task :composeApp:wasmJsPackageJson UP-TO-DATE
+> Task :composeApp:wasmJsTestPackageJson UP-TO-DATE
 > Task :kotlinWasmNodeJsSetup UP-TO-DATE
 > Task :kotlinWasmRestoreYarnLock UP-TO-DATE
-> Task :composeApp:wasmJsPackageJson UP-TO-DATE
 > Task :kotlinWasmYarnSetup UP-TO-DATE
-> Task :composeApp:wasmJsTestPackageJson UP-TO-DATE
 > Task :composeApp:wasmJsPublicPackageJson UP-TO-DATE
 > Task :composeApp:wasmJsTestPublicPackageJson UP-TO-DATE
 > Task :composeApp:checkKotlinGradlePluginConfigurationErrors SKIPPED
@@ -61,45 +31,71 @@ Run with --info for a stacktrace.
 > Task :composeApp:generateActualResourceCollectorsForWasmJsMain UP-TO-DATE
 > Task :composeApp:generateComposeResClass UP-TO-DATE
 > Task :composeApp:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
-> Task :composeApp:compileKotlinWasmJs UP-TO-DATE
 > Task :composeApp:wasmJsResolveResourcesFromDependencies UP-TO-DATE
 > Task :composeApp:assembleWasmJsMainResources UP-TO-DATE
 > Task :composeApp:wasmJsResolveSelfResourcesCopyHierarchicalMultiplatformResources UP-TO-DATE
 > Task :composeApp:wasmJsAggregateResources UP-TO-DATE
 > Task :composeApp:wasmJsProcessResources UP-TO-DATE
-> Task :composeApp:wasmJsMainClasses UP-TO-DATE
-> Task :composeApp:compileDevelopmentExecutableKotlinWasmJs UP-TO-DATE
 > Task :composeApp:unpackSkikoWasmRuntime UP-TO-DATE
 > Task :composeApp:processSkikoRuntimeForKWasm UP-TO-DATE
-> Task :composeApp:wasmJsDevelopmentExecutableCompileSync UP-TO-DATE
 > Task :kotlinWasmToolingSetup UP-TO-DATE
 > Task :kotlinWasmPackageJsonUmbrella UP-TO-DATE
 > Task :wasmRootPackageJson UP-TO-DATE
 > Task :kotlinWasmNpmInstall UP-TO-DATE
 > Task :kotlinWasmStoreYarnLock UP-TO-DATE
 
+> Task :composeApp:compileKotlinWasmJs
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/commonMain/kotlin/id/nusamesh/app/mesh/protocol/WireProtocol.kt:125:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/commonMain/kotlin/id/nusamesh/app/ui/MapScreen.kt:296:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/data/Clock.wasmJs.kt:10:5 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/mesh/protocol/Zlib.wasmJs.kt:4:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/security/SecureRandom.wasmJs.kt:4:2 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/ui/LeafletMap.wasmJs.kt:13:2 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/ui/LeafletMap.wasmJs.kt:16:2 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/ui/LeafletMap.wasmJs.kt:18:2 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/ui/LeafletMap.wasmJs.kt:20:2 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+w: file:///D:/TAA/aloyaloy/apps/nusamesh/composeApp/src/wasmJsMain/kotlin/id/nusamesh/app/ui/LeafletMap.wasmJs.kt:24:2 This declaration needs opt-in. Its usage should be marked with '@kotlin.js.ExperimentalWasmJsInterop' or '@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)'
+
+> Task :composeApp:wasmJsMainClasses
+> Task :composeApp:compileDevelopmentExecutableKotlinWasmJs
+> Task :composeApp:wasmJsDevelopmentExecutableCompileSync
 > Task :composeApp:wasmJsBrowserDevelopmentRun
 <i> [webpack-dev-server] Project is running at:
 <i> [webpack-dev-server] Loopback: http://localhost:8080/, http://[::1]:8080/
-<i> [webpack-dev-server] On Your Network (IPv4): http://100.98.4.126:8080/
-<i> [webpack-dev-server] On Your Network (IPv6): http://[fd7a:115c:a1e0::6832:47f]:8080/
+<i> [webpack-dev-server] On Your Network (IPv4): http://169.254.83.107:8080/
 <i> [webpack-dev-middleware] wait until bundle finished: /
 <i> [webpack-dev-server] Content not from webpack is served from 'kotlin, ..\..\..\..\composeApp\build\processedResources\wasmJs\main, ..\..\..\..' directory
 <i> [webpack-dev-middleware] wait until bundle finished: /
+webpack 5.100.2 compiled successfully in 34800 ms
+webpack 5.100.2 compiled successfully in 548 ms
+webpack 5.100.2 compiled successfully in 515 ms
+webpack 5.100.2 compiled successfully in 581 ms
+webpack 5.100.2 compiled successfully in 604 ms
+webpack 5.100.2 compiled successfully in 573 ms
 <i> [webpack-dev-middleware] wait until bundle finished: /
-webpack 5.100.2 compiled successfully in 68629 ms
-
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if 1 EQU 0 goto mainEnd 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>rem the _cmd.exe /c_ return code! 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>set EXIT_CODE=1 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if 1 EQU 0 set EXIT_CODE=1 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>if not "" == "" exit 1 
-
-C:\Users\darma\OneDrive\Dokumen\taa\apps\nusamesh>exit /b 1 
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/font/inter_light.ttf
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/font/inter_regular.ttf
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/font/inter_medium.ttf
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/font/inter_semibold.ttf
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/drawable/avatar.png
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/drawable/bluetooth.xml
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/drawable/nav_message.xml
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/drawable/nav_home.xml
+<i> [webpack-dev-middleware] wait until bundle finished: /composeResources/nusamesh.composeapp.generated.resources/drawable/nav_map.xml
+<i> [webpack-dev-middleware] wait until bundle finished: /
+<i> [webpack-dev-middleware] wait until bundle finished: /
+webpack 5.100.2 compiled successfully in 682 ms
+webpack 5.100.2 compiled successfully in 657 ms
+webpack 5.100.2 compiled successfully in 342 ms
+webpack 5.100.2 compiled successfully in 357 ms
+webpack 5.100.2 compiled successfully in 380 ms
+webpack 5.100.2 compiled successfully in 331 ms
+webpack 5.100.2 compiled successfully in 585 ms
+webpack 5.100.2 compiled successfully in 494 ms
+webpack 5.100.2 compiled successfully in 606 ms
+webpack 5.100.2 compiled successfully in 527 ms
+webpack 5.100.2 compiled successfully in 505 ms
+webpack 5.100.2 compiled successfully in 555 ms
+<i> [webpack-dev-middleware] wait until bundle finished: /composeApp.js
+webpack 5.100.2 compiled successfully in 561 ms
+webpack 5.100.2 compiled successfully in 171 ms

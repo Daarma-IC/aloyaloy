@@ -27,6 +27,11 @@ import id.nusamesh.app.domain.QosRun
 import id.nusamesh.app.domain.RoadRouteInfo
 import id.nusamesh.app.routing.RoadGraph
 import id.nusamesh.app.routing.TravelMode
+import id.nusamesh.app.routing.SarNavigation
+import id.nusamesh.app.routing.SarRequest
+import id.nusamesh.app.routing.SarRouteCodec
+import id.nusamesh.app.routing.sarProgress
+import kotlinx.serialization.json.*
 import id.nusamesh.app.domain.QosSample
 import id.nusamesh.app.domain.QosSending
 import id.nusamesh.app.domain.RxMeasurement
@@ -74,8 +79,9 @@ class AppController(
     private val batteryLevel: () -> Int? = { null },
     /** Isi file graf jalan offline (dibaca sekali saat rute pertama diminta); null = tidak tersedia. */
     private val roadGraph: () -> ByteArray? = { null },
+    appScope: CoroutineScope? = null,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope = appScope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val _state = MutableStateFlow(
         AppUiState(
             page = initialPage,
@@ -90,6 +96,10 @@ class AppController(
     )
     val state: StateFlow<AppUiState> = _state.asStateFlow()
     val mobilityLog: StateFlow<List<MobilityLogEntry>> = repository.mobilityLog
+    val transmissionDiagnostics = repository.transmissionDiagnostics
+    fun clearTransmissionLog() = repository.clearTransmissionLog()
+    fun transmissionLogCsv() = repository.transmissionLogCsv()
+    fun transmissionSummaryCsv() = repository.transmissionSummaryCsv()
 
     /** true bila pengguna terakhir kali menyalakan mesh: aplikasi menyalakannya lagi saat dibuka. */
     val resumeMeshOnLaunch: Boolean get() = store.get(KEY_ACTIVE) == "1"
@@ -100,6 +110,10 @@ class AppController(
     init {
         restoreOperationKey()
         restoreMapData()
+        scope.launch { while (isActive) { delay(2000); _state.update(::refreshSarStatus) } }
+        runCatching { store.get("sar-navigation-v1")?.takeIf { it.isNotEmpty() }?.let(SarRouteCodec::restore) }.getOrNull()?.let { route ->
+            _state.update { it.copy(sarNavigation = SarNavigation(route = route, status = "PAUSED", message = "Rute dipulihkan; tujuan memakai koordinat terakhir")) }
+        }
         _state.update { it.copy(qosRuns = QosRecords.decode(store.get(KEY_QOS))) }
         _state.update { it.copy(chats = withChannelPreviews(it.chats, it.role, it.team)) }
         scope.launch { repository.snapshot.collect(::onSnapshot) }
@@ -286,7 +300,7 @@ class AppController(
             return
         }
         val message = ChatMessage(
-            id = "file-${incoming.timestampMs}-${incoming.fromPeerId}",
+            id = id.nusamesh.app.mesh.engine.fileTransferId(incoming.fromPeerId, incoming.timestampMs),
             conversationId = conversationId,
             senderName = sender,
             body = labelOf(kind, fileName),
@@ -304,6 +318,8 @@ class AppController(
         )
         if (_state.value.messages.any { it.id == message.id }) return
         appendIncoming(message, message.body)
+        // Only acknowledge after reassembly, successful opening and channel acceptance.
+        if(kind == ChatMessageKind.Voice) acknowledge(message.id, incoming.fromPeerId)
     }
 
     private fun appendIncoming(message: ChatMessage, preview: String) = _state.update { current ->
@@ -383,7 +399,7 @@ class AppController(
         val (path, via) = currentPath()
         val loraSkipped = path != DeliveryPath.Ble && attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES
         val now = currentEpochMillis()
-        val messageId = "file-$now-${repository.myPeerId}"
+        val messageId = id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId, now)
         val outgoing = ChatMessage(
             id = messageId,
             conversationId = conversationId,
@@ -399,6 +415,7 @@ class AppController(
             attachmentData = attachment.bytes,
             durationSeconds = attachment.durationSeconds,
             transferProgress = 0f,
+            transferStartedAtMs = now,
             path = if (loraSkipped) DeliveryPath.Ble else path,
             viaName = if (loraSkipped) null else via,
         )
@@ -409,10 +426,19 @@ class AppController(
                 notice = if (loraSkipped) "Lampiran di atas 96 KB hanya dikirim lewat Bluetooth, tidak lewat LoRa" else current.notice,
             )
         }
+        if(attachment.kind == ChatMessageKind.Voice) rememberAckTarget(messageId, AckTarget.Chat(messageId))
         repository.sendAttachment(
             // Paket file tidak punya field channel: channel ikut di nama file.
             attachment.copy(name = FieldChannels.tagAttachmentName(conversationId, attachment.name)),
             encrypt = conversationId != GLOBAL_CHAT_ID,
+            timestampMs = now,
+            onEstimate = { estimate ->
+                val at = currentEpochMillis()
+                _state.update { current -> current.copy(messages = current.messages.map { message ->
+                    if(message.id == messageId && message.delivery == DeliveryState.Sending)
+                        message.copy(transferEstimate = estimate, transferEstimatedAtMs = at) else message
+                }) }
+            },
             onProgress = { progress ->
                 _state.update { current ->
                     current.copy(messages = current.messages.map { message ->
@@ -426,6 +452,9 @@ class AppController(
                         if (message.id == messageId) message.copy(
                             delivery = if (success) DeliveryState.Sent else DeliveryState.Failed,
                             transferProgress = if (success) 1f else message.transferProgress,
+                            transferCompletedAtMs = currentEpochMillis(),
+                            transferEstimate = null,
+                            transferEstimatedAtMs = null,
                         ) else message
                     })
                 }
@@ -734,6 +763,7 @@ class AppController(
      * aktif (unit/titik). Hasilnya jadi draft rute: bisa diikuti (kompas per titik) atau dikirim ke tim.
      */
     fun planRoadRoute(mode: TravelMode) {
+        if (mode == TravelMode.Foot) { planSarNavigation(); return }
         val current = _state.value
         if (current.routing) return
         val own = current.trackedUsers.firstOrNull { it.own } ?: return showNotice("Menunggu GPS untuk titik awal rute")
@@ -872,8 +902,10 @@ class AppController(
             selectedWaypointId = valid,
             selectedTargetPeerId = if (valid != null) null else current.selectedTargetPeerId,
             followedRouteId = if (valid != null) null else current.followedRouteId,
+            sarNavigation = SarNavigation(),
+            pickedPoint = if (valid != null) null else current.pickedPoint,
         )
-    }
+    }.also { store.put("sar-navigation-v1", ""); if (id != null) planSarNavigation() }
 
     fun followRoute(id: String?) = _state.update { current ->
         val valid = id?.takeIf { wanted -> current.routes.any { it.id == wanted } }
@@ -881,8 +913,10 @@ class AppController(
             followedRouteId = valid,
             selectedTargetPeerId = if (valid != null) null else current.selectedTargetPeerId,
             selectedWaypointId = if (valid != null) null else current.selectedWaypointId,
+            sarNavigation = SarNavigation(),
+            pickedPoint = if (valid != null) null else current.pickedPoint,
         )
-    }
+    }.also { store.put("sar-navigation-v1", "") }
 
     private fun canSendTelemetry(): Boolean {
         if (!_state.value.mesh.active) {
@@ -998,7 +1032,8 @@ class AppController(
         _state.update { current ->
             when (target) {
                 is AckTarget.Chat -> current.copy(messages = current.messages.map {
-                    if (it.id == target.messageId) it.copy(ackedBy = it.ackedBy.with(name)) else it
+                    if (it.id == target.messageId) it.copy(ackedBy = it.ackedBy.with(name),
+                        acknowledgedAtMs = it.acknowledgedAtMs ?: currentEpochMillis()) else it
                 })
                 AckTarget.Sos -> if (current.sosActive) current.copy(sosAckedBy = current.sosAckedBy.with(name)) else current
                 is AckTarget.Waypoint -> current.copy(waypoints = current.waypoints.map {
@@ -1044,7 +1079,81 @@ class AppController(
             selectedTargetPeerId = valid,
             selectedWaypointId = if (valid != null) null else current.selectedWaypointId,
             followedRouteId = if (valid != null) null else current.followedRouteId,
+            sarNavigation = SarNavigation(),
+            pickedPoint = if (valid != null) null else current.pickedPoint,
         )
+    }.also { store.put("sar-navigation-v1", ""); if (peerId != null) planSarNavigation() }
+
+    fun planSarNavigation() {
+        val current = _state.value
+        val own = current.trackedUsers.firstOrNull { it.own } ?: return failSarNavigation("Menunggu GPS untuk awal navigasi")
+        if (currentEpochMillis() - own.updatedAtMs > 60_000) return failSarNavigation("Posisi GPS sudah lama; tunggu pembaruan posisi")
+        val unit = current.trackedUsers.firstOrNull { it.peerId == current.selectedTargetPeerId }
+        val wp = current.waypoints.firstOrNull { it.id == current.selectedWaypointId }
+        val saved = current.sarNavigation.route?.request
+        val to = current.pickedPoint ?: wp?.point ?: unit?.let { GeoPoint(it.latitude, it.longitude) } ?: saved?.to
+            ?: return failSarNavigation("Pilih korban/unit, titik, atau tujuan di peta dulu")
+        val key = if (current.pickedPoint != null) "point:${currentEpochMillis()}" else wp?.let { "waypoint:${it.id}" } ?: unit?.let { "unit:${it.peerId}" } ?: saved?.targetKey ?: "point:${currentEpochMillis()}"
+        val title = if (current.pickedPoint != null) "Titik peta" else wp?.let { "${it.type.label}: ${it.label}" } ?: unit?.name ?: saved?.title ?: "Titik peta"
+        if (RoutePolyline.distanceMeters(GeoPoint(own.latitude, own.longitude), to) < 1) {
+            _state.update { it.copy(sarNavigation = SarNavigation(status = "ARRIVED", message = "Sudah di koordinat tujuan; temuan belum dikonfirmasi")) }; return
+        }
+        val request = SarRequest("sar-${currentEpochMillis()}-${Random.nextInt()}", GeoPoint(own.latitude, own.longitude), to, key, title)
+        _state.update { it.copy(sarNavigation = SarNavigation(request, it.sarNavigation.route, "CALCULATING"), followedRouteId = null) }
+    }
+
+    fun receiveSarNavigation(text: String) {
+        val envelope = runCatching { SarRouteCodec.objectOf(text) }.getOrNull() ?: return
+        fun field(key: String) = (envelope[key] as? JsonPrimitive)?.contentOrNull
+        if (field("action") == "select") {
+            val id = field("targetId") ?: return
+            when (field("kind")) { "unit" -> selectNavigationTarget(id); "waypoint" -> selectWaypoint(id) }
+            return
+        }
+        val pending = _state.value.sarNavigation.request ?: return
+        if (field("id") != pending.id) return
+        val result = runCatching { SarRouteCodec.decode(text, pending) }
+        val own = _state.value.trackedUsers.firstOrNull { it.own }
+        val unit = _state.value.trackedUsers.firstOrNull { pending.targetKey == "unit:${it.peerId}" }
+        val wp = _state.value.waypoints.firstOrNull { pending.targetKey == "waypoint:${it.id}" }
+        val newTo = wp?.point ?: unit?.let { GeoPoint(it.latitude, it.longitude) } ?: pending.to
+        if (own == null || RoutePolyline.distanceMeters(GeoPoint(own.latitude, own.longitude), pending.from) > 15 || RoutePolyline.distanceMeters(newTo, pending.to) > 1) {
+            _state.update { it.copy(sarNavigation = it.sarNavigation.copy(request = null, status = "STALE", message = "Posisi berubah saat perhitungan; hitung ulang")) }; return
+        }
+        result.fold(onSuccess = { route ->
+            _state.update { it.copy(sarNavigation = SarNavigation(route = route, status = "READY"), pickedPoint = null) }
+            runCatching { store.put("sar-navigation-v1", SarRouteCodec.save(text, pending)) }.onFailure { showNotice("Rute tersedia tetapi penyimpanan gagal") }
+        }, onFailure = {
+            val message = ((envelope["result"] as? JsonObject)?.get("message") as? JsonPrimitive)?.contentOrNull ?: "Hasil routing tidak valid"
+            _state.update { it.copy(sarNavigation = it.sarNavigation.copy(request = null, status = if (it.sarNavigation.route != null) "STALE" else "UNAVAILABLE", message = message)) }
+            showNotice(message)
+        })
+    }
+    private fun failSarNavigation(message: String) {
+        _state.update { it.copy(sarNavigation = it.sarNavigation.copy(request = null, status = if (it.sarNavigation.route == null) "UNAVAILABLE" else "STALE", message = message)) }
+        showNotice(message)
+    }
+
+    fun setSarNavigationActive(active: Boolean) = _state.update { current ->
+        val checked = refreshSarStatus(current); val nav = checked.sarNavigation
+        val own = checked.trackedUsers.firstOrNull { it.own }
+        if (nav.route == null || active && (nav.status !in listOf("READY", "PAUSED") || own == null || currentEpochMillis() - own.updatedAtMs > 60_000)) checked
+        else checked.copy(sarNavigation = nav.copy(status = if (active) "ACTIVE" else "PAUSED"))
+    }
+    fun stopSarNavigation() { _state.update { it.copy(sarNavigation = SarNavigation(), selectedTargetPeerId = null, selectedWaypointId = null, followedRouteId = null) }; store.put("sar-navigation-v1", "") }
+    private fun refreshSarStatus(current: AppUiState): AppUiState {
+        val nav = current.sarNavigation; val route = nav.route ?: return current
+        if (nav.status !in listOf("READY", "PAUSED", "ACTIVE")) return current
+        val own = current.trackedUsers.firstOrNull { it.own }
+        val unit = current.trackedUsers.firstOrNull { route.request.targetKey == "unit:${it.peerId}" }
+        val wp = current.waypoints.firstOrNull { route.request.targetKey == "waypoint:${it.id}" }
+        val destination = wp?.point ?: unit?.let { GeoPoint(it.latitude, it.longitude) }
+        val checked = id.nusamesh.app.routing.checkedSarNavigation(nav,
+            own?.let { GeoPoint(it.latitude, it.longitude) },
+            own?.let { currentEpochMillis() - it.updatedAtMs } ?: Long.MAX_VALUE,
+            own?.accuracyMeters?.toDouble() ?: 0.0, destination)
+        if (checked != nav) return current.copy(sarNavigation = checked)
+        return current
     }
 
     private fun receiveLocation(incoming: IncomingMessage) {

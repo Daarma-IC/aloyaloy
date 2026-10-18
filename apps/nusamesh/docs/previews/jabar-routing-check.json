@@ -1,0 +1,78 @@
+{
+  "status": "PASS",
+  "tests": [
+    "automatic spatial selection",
+    "missing coverage",
+    "operation-size bounds",
+    "invalid package rejection",
+    "real Jawa Barat routing and elevation"
+  ],
+  "results": [
+    {
+      "id": "jabar-cibodas",
+      "bbox": [
+        106.971,
+        -6.766,
+        107.021,
+        -6.716
+      ],
+      "cells": 25600,
+      "paths": 412,
+      "from": [
+        -6.748428,
+        106.9779351
+      ],
+      "to": [
+        -6.724954,
+        107.0106185
+      ],
+      "length": 6031.614923373368,
+      "eta": 7580.687377200765,
+      "computeMs": 5930.0506
+    },
+    {
+      "id": "jabar-tangkuban",
+      "bbox": [
+        107.585,
+        -6.785,
+        107.635,
+        -6.735
+      ],
+      "cells": 25600,
+      "paths": 219,
+      "from": [
+        -6.7754901,
+        107.5948486
+      ],
+      "to": [
+        -6.756759,
+        107.6171609
+      ],
+      "length": 6809.170745674725,
+      "eta": 10916.005535855084,
+      "computeMs": 7098.1026
+    },
+    {
+      "id": "jabar-papandayan",
+      "bbox": [
+        107.708,
+        -7.337,
+        107.758,
+        -7.287
+      ],
+      "cells": 25600,
+      "paths": 85,
+      "from": [
+        -7.3263449,
+        107.7237469
+      ],
+      "to": [
+        -7.2944128,
+        107.7461639
+      ],
+      "length": 5559.514071893389,
+      "eta": 8272.552889201701,
+      "computeMs": 5092.2642
+    }
+  ]
+}

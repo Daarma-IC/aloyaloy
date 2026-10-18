@@ -1,0 +1,50 @@
+﻿{
+    "repository":  "OSGeo/grass",
+    "commit":  "ba898e78d725dce81c6218dac1ceffee7f93e29f",
+    "importedAt":  "2026-10-14T08:10:05.0897058Z",
+    "scope":  "selected upstream source, not full clone or installed runtime",
+    "files":  [
+                  {
+                      "path":  "README.md",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/README.md",
+                      "downloaded":  true,
+                      "sha256":  "6094a9ba49e23e976190ea688bf36c5830bde9b76e5d3c10e40201b21db1e9ef"
+                  },
+                  {
+                      "path":  "COPYING",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/COPYING",
+                      "downloaded":  true,
+                      "sha256":  "13de2b69a2c071b6f5facf7e10b81ca6fb6a1a5aacf85d04d3960193055671ca"
+                  },
+                  {
+                      "path":  "AGENTS.md",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/AGENTS.md",
+                      "downloaded":  true,
+                      "sha256":  "40550c40a16a9d308dfcff4b753ac53ea74383148fbc44beada8fda38f7da00b"
+                  },
+                  {
+                      "path":  "raster/r.walk/main.c",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/raster/r.walk/main.c",
+                      "downloaded":  true,
+                      "sha256":  "65c27727f8803532133be3d2779f6ab508292cc7cada2748b340680ff2e5780a"
+                  },
+                  {
+                      "path":  "raster/r.walk/r.walk.md",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/raster/r.walk/r.walk.md",
+                      "downloaded":  true,
+                      "sha256":  "f55531768b5e48c156de36f8197faaf9a7960f9b1004f7c7e2cbe50394f13901"
+                  },
+                  {
+                      "path":  "raster/r.walk/heap.c",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/raster/r.walk/heap.c",
+                      "downloaded":  true,
+                      "sha256":  "5ee964d9f8773bde18f26aa0fdb9517826a6b5fbe942e1d5b672bfa3d403f8db"
+                  },
+                  {
+                      "path":  "raster/r.path/main.c",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/grass/ba898e78d725dce81c6218dac1ceffee7f93e29f/raster/r.path/main.c",
+                      "downloaded":  true,
+                      "sha256":  "c7c09fe741b43833d3be4c0c9b35f8e261507c8eb10cd17f9ca45badbf69719e"
+                  }
+              ]
+}

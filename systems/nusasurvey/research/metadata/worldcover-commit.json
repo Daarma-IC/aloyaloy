@@ -1,0 +1,146 @@
+{
+  "sha": "82bdd1d342685de9ff1782dff96ad875844a142f",
+  "node_id": "C_kwDOITdlWNoAKDgyYmRkMWQzNDI2ODVkZTlmZjE3ODJkZmY5NmFkODc1ODQ0YTE0MmY",
+  "commit": {
+    "author": {
+      "name": "Daniele Zanaga",
+      "email": "gugout@gmail.com",
+      "date": "2022-11-24T16:03:28Z"
+    },
+    "committer": {
+      "name": "Daniele Zanaga",
+      "email": "gugout@gmail.com",
+      "date": "2022-11-24T16:03:28Z"
+    },
+    "message": "Update notebooks",
+    "tree": {
+      "sha": "b8f311c5678588b16747857cd971ca05fa5ee737",
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/trees/b8f311c5678588b16747857cd971ca05fa5ee737"
+    },
+    "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/git/commits/82bdd1d342685de9ff1782dff96ad875844a142f",
+    "comment_count": 0,
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/commits/82bdd1d342685de9ff1782dff96ad875844a142f",
+  "html_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/commit/82bdd1d342685de9ff1782dff96ad875844a142f",
+  "comments_url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/commits/82bdd1d342685de9ff1782dff96ad875844a142f/comments",
+  "author": {
+    "login": "dzanaga",
+    "id": 8113766,
+    "node_id": "MDQ6VXNlcjgxMTM3NjY=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/8113766?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/dzanaga",
+    "html_url": "https://github.com/dzanaga",
+    "followers_url": "https://api.github.com/users/dzanaga/followers",
+    "following_url": "https://api.github.com/users/dzanaga/following{/other_user}",
+    "gists_url": "https://api.github.com/users/dzanaga/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/dzanaga/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/dzanaga/subscriptions",
+    "organizations_url": "https://api.github.com/users/dzanaga/orgs",
+    "repos_url": "https://api.github.com/users/dzanaga/repos",
+    "events_url": "https://api.github.com/users/dzanaga/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/dzanaga/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "dzanaga",
+    "id": 8113766,
+    "node_id": "MDQ6VXNlcjgxMTM3NjY=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/8113766?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/dzanaga",
+    "html_url": "https://github.com/dzanaga",
+    "followers_url": "https://api.github.com/users/dzanaga/followers",
+    "following_url": "https://api.github.com/users/dzanaga/following{/other_user}",
+    "gists_url": "https://api.github.com/users/dzanaga/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/dzanaga/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/dzanaga/subscriptions",
+    "organizations_url": "https://api.github.com/users/dzanaga/orgs",
+    "repos_url": "https://api.github.com/users/dzanaga/repos",
+    "events_url": "https://api.github.com/users/dzanaga/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/dzanaga/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "898525930c683768f4553b5ecc101bb9704c1137",
+      "url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/commits/898525930c683768f4553b5ecc101bb9704c1137",
+      "html_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/commit/898525930c683768f4553b5ecc101bb9704c1137"
+    }
+  ],
+  "stats": {
+    "total": 1865,
+    "additions": 1017,
+    "deletions": 848
+  },
+  "files": [
+    {
+      "sha": "967fc11899daa871dd548ab9281ac31c894fb35d",
+      "filename": "notebooks/01-Explore_dataset_STAC.ipynb",
+      "status": "modified",
+      "additions": 350,
+      "deletions": 237,
+      "changes": 587,
+      "blob_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/blob/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2F01-Explore_dataset_STAC.ipynb",
+      "raw_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/raw/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2F01-Explore_dataset_STAC.ipynb",
+      "contents_url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/contents/notebooks%2F01-Explore_dataset_STAC.ipynb?ref=82bdd1d342685de9ff1782dff96ad875844a142f"
+    },
+    {
+      "sha": "5e1a3ec1119d0df05e65103bfc9e9f6cbe43c6e0",
+      "filename": "notebooks/02-Compare_2020_2021_maps.ipynb",
+      "status": "added",
+      "additions": 571,
+      "deletions": 0,
+      "changes": 571,
+      "blob_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/blob/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2F02-Compare_2020_2021_maps.ipynb",
+      "raw_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/raw/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2F02-Compare_2020_2021_maps.ipynb",
+      "contents_url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/contents/notebooks%2F02-Compare_2020_2021_maps.ipynb?ref=82bdd1d342685de9ff1782dff96ad875844a142f"
+    },
+    {
+      "sha": "22f110a6209a4b5185cb6c6f2fb98d6a10e6766d",
+      "filename": "notebooks/02-Landcover_change.ipynb",
+      "status": "removed",
+      "additions": 0,
+      "deletions": 611,
+      "changes": 611,
+      "blob_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/blob/898525930c683768f4553b5ecc101bb9704c1137/notebooks%2F02-Landcover_change.ipynb",
+      "raw_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/raw/898525930c683768f4553b5ecc101bb9704c1137/notebooks%2F02-Landcover_change.ipynb",
+      "contents_url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/contents/notebooks%2F02-Landcover_change.ipynb?ref=898525930c683768f4553b5ecc101bb9704c1137"
+    },
+    {
+      "sha": "c7d5744255bb8c34c2047f7dd6e9e5a46ab2588e",
+      "filename": "notebooks/utils/labels.py",
+      "status": "added",
+      "additions": 74,
+      "deletions": 0,
+      "changes": 74,
+      "blob_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/blob/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2Futils%2Flabels.py",
+      "raw_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/raw/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2Futils%2Flabels.py",
+      "contents_url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/contents/notebooks%2Futils%2Flabels.py?ref=82bdd1d342685de9ff1782dff96ad875844a142f",
+      "patch": "@@ -0,0 +1,74 @@\n+import enum\n+\n+import numpy as np\n+\n+\n+class LabelsColors(enum.Enum):\n+\n+    # 10,0,100,0,255,Trees covered area\n+    # 20,255,187,34,255,Shrub covered area\n+    # 30,255,255,76,255,Grassland\n+    # 40,240,150,255,255,Cropland\n+    # 50,250,0,0,255,Built-up\n+    # 60,180,180,180,255,Bare areas\n+    # 70,240,240,240,255,Snow and/or ice cover\n+    # 80,0,100,200,255,Permament water bodies\n+    # 90,0,150,160,255,Herbaceous wetland\n+    # 95,0,207,117,255,Mangroves\n+    # 100,250,230,160,255,Lichens and mosses\n+\n+    NO_DATA = (0, 'nodata', 'Not sure', 'No Data', np.array([0, 0, 0]))\n+    TREE = (10, 'tree', 'tree', 'Trees covered area',\n+            np.array([0, 100, 0]) / 255)\n+    SHRUB = (20, 'shrub', 'shrub', 'Shrub cover area',\n+             np.array([255, 187, 34]) / 255)\n+    GRASS = (30, 'grass', 'grassland', 'Grassland',\n+             np.array([255, 255, 76]) / 255)\n+    CROP = (40, 'crop', 'crops', 'Cropland', np.array([240, 150, 255]) / 255)\n+    BUILT = (50, 'built', 'urban/built-up',\n+             'Built-up', np.array([250, 0, 0]) / 255)\n+    BARE = (60, 'bare', 'bare', 'Bare areas', np.array([180, 180, 180]) / 255)\n+    SNOW_AND_ICE = (70, 'snow', 'snow and ice', 'Snow and/or ice cover',\n+                    np.array([240, 240, 240]) / 255)\n+    WATER = (80, 'water', 'water', 'Permanent water',\n+             np.array([0, 100, 200]) / 255)\n+    WETLAND = (90, 'wetland', 'wetland (herbaceous)', 'Herbaceous wetland',\n+               np.array([0, 150, 160]) / 255)\n+    MANGROVES = (95, 'mangroves', None, 'Mangroves',\n+                 np.array([0, 207, 117]) / 255)\n+    LICHENS = (100, 'lichens_mosses', 'Lichen and moss', 'Lichen and moss',\n+               np.array([250, 230, 160]) / 255)\n+\n+    def __init__(self, val1, val2, val3, val4, val5):\n+        self.id = val1\n+        self.class_name = val2\n+        self.iiasa_name = val3\n+        self.esa_class_name = val4\n+        self.color = val5\n+\n+\n+def label_to_rgb(lc_pred, colors_enum=None):\n+\n+    colors_enum = LabelsColors if colors_enum is None else colors_enum\n+\n+    colors = {lc.id: {'name': lc.class_name,\n+                      'color': lc.color}\n+              for lc in colors_enum}\n+\n+    rgb_pred = np.zeros((lc_pred.shape[0],\n+                         lc_pred.shape[1],\n+                         3))\n+\n+    for k, v in colors.items():\n+        for ch in range(3):\n+            im = rgb_pred[:, :, ch]\n+            im[lc_pred == k] = v['color'][ch]\n+\n+    return rgb_pred\n+\n+colors = {lc.id: {'name': lc.class_name,\n+                  'color': lc.color}\n+          for lc in LabelsColors}\n+\n+legend_dict = {lc.id: lc.esa_class_name\n+               for lc in LabelsColors}"
+    },
+    {
+      "sha": "58713f21cab8883a73206a924d24c1f5fc499f3f",
+      "filename": "notebooks/utils/stac.py",
+      "status": "added",
+      "additions": 22,
+      "deletions": 0,
+      "changes": 22,
+      "blob_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/blob/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2Futils%2Fstac.py",
+      "raw_url": "https://github.com/ESA-WorldCover/esa-worldcover-datasets/raw/82bdd1d342685de9ff1782dff96ad875844a142f/notebooks%2Futils%2Fstac.py",
+      "contents_url": "https://api.github.com/repos/ESA-WorldCover/esa-worldcover-datasets/contents/notebooks%2Futils%2Fstac.py?ref=82bdd1d342685de9ff1782dff96ad875844a142f",
+      "patch": "@@ -0,0 +1,22 @@\n+\n+def query_products(bbox, max_items=None, year=2021):\n+    \n+    from pystac_client import Client\n+\n+    stac_endopoint = 'https://services.terrascope.be/stac/'\n+\n+    # collection ids for both maps in the Terrascope STAC Catalogue\n+    collection_ids = {2020: 'urn:eop:VITO:ESA_WorldCover_10m_2020_AWS_V1',\n+                      2021: 'urn:eop:VITO:ESA_WorldCover_10m_2021_AWS_V2'}\n+\n+    client = Client.open(stac_endopoint)\n+\n+    search_results = client.search(\n+        collections=[collection_ids[year]],\n+        bbox=bbox\n+    )\n+\n+    # Search results fetched and represented as dictionary\n+    results = search_results.get_all_items()\n+    \n+    return results\n\\ No newline at end of file"
+    }
+  ]
+}

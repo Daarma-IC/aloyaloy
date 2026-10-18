@@ -1,0 +1,36 @@
+import { chromium } from '../../../geofence-prototype/node_modules/@playwright/test/index.mjs';
+import { readFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+import { demoHybridCoordinates, routeHybrid } from '../../../geofence-prototype/src/routing/hybrid.js';
+const regional = process.env.NUSA_TEST_REGION;
+const pack = regional ? JSON.parse(await readFile(new URL('../../composeApp/src/commonMain/composeResources/files/navigation/regions.json', import.meta.url))).packages.find(p=>p.id===regional) : JSON.parse(await readFile(new URL('../../composeApp/src/commonMain/composeResources/files/navigation/kaliurang-terrain.json', import.meta.url)));
+const demo = regional ? (await import('./fixtures.mjs')).regionalTestEndpoints(pack) : demoHybridCoordinates(pack), result = routeHybrid({pack,from:demo.from,to:demo.to});
+Object.assign(result,{packageName:pack.name||pack.id,packageResolutionM:pack.grid.resolutionM,verticalDatum:pack.verticalDatum});
+const saved = JSON.stringify({id:'preview-saved-route',result,savedRequest:{id:'preview-saved-route',from:demo.from,to:demo.to,targetKey:'point:preview',title:'Rute uji pemulihan '+(pack.name||'Kaliurang')}});
+const browser = await chromium.launch({headless:true,channel:'chromium'});
+try {
+  const context = await browser.newContext({viewport:{width:430,height:900}}), page = await context.newPage(), errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await context.addInitScript(value=>{try{localStorage.setItem('nusamesh.sar-navigation-v1',value)}catch{}},saved);
+  await page.goto((process.env.NUSA_PREVIEW_URL || 'http://127.0.0.1:8081/') + '#map');
+  await page.waitForSelector('iframe',{timeout:60000});
+  const frame=page.frames().find(f=>f.parentFrame()); assert.ok(frame);
+  await frame.waitForFunction(()=>typeof window.setNusaData==='function',null,{timeout:60000});
+  await frame.waitForSelector('path[stroke="#2563eb"]',{timeout:30000});
+  await frame.waitForFunction(points=>window.nusaMap.getBounds().contains(points[0]) && window.nusaMap.getBounds().contains(points[points.length-1]),result.geometry,{timeout:15000});
+  const data=await page.locator('iframe').evaluate(el=>JSON.parse(el.dataset.nusaData));
+  assert.equal(data.navigationPlan.status,'PAUSED'); assert.equal(data.navigationRequest,null);
+  assert.equal(data.navigationPlan.geometry.length,result.geometry.length);
+  data.navigationPlan.geometry.forEach((p,i)=>p.forEach((value,j)=>assert.ok(Math.abs(value-result.geometry[i][j])<1e-10)));
+  await mkdir(new URL('../../docs/previews/',import.meta.url),{recursive:true});
+  await page.screenshot({path:fileURLToPath(new URL('../../docs/previews/'+(regional?'jabar-navigation-app.png':'sar-navigation-app.png'),import.meta.url)),fullPage:true});
+  assert.equal(await frame.locator('#region-button, #region-panel').count(),0);
+  const reopened=await context.newPage();
+  reopened.on('pageerror',e=>errors.push(e.message));
+  await reopened.goto((process.env.NUSA_PREVIEW_URL || 'http://127.0.0.1:8081/') + '#map');
+  await reopened.waitForSelector('iframe',{timeout:60000});
+  const again=reopened.frames().find(f=>f.parentFrame()); await again.waitForSelector('path[stroke="#2563eb"]',{timeout:30000});
+  assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({status:'PASS',tests:['real Compose app boots with navigation assets','saved route is restored paused','no unsolicited routing query','reopen restores route']}));
+} finally {await browser.close()}

@@ -106,6 +106,7 @@ private class LocalMapWebView(context: Context) : WebView(context) {
     private var dataJson = "null"
     var onMapReady: (() -> Unit)? = null
     var onMapTap: ((Double, Double) -> Unit)? = null
+    var onNavigationResult: ((String) -> Unit)? = null
 
     init {
         webViewClient = object : WebViewClient() {
@@ -165,6 +166,8 @@ private class LocalMapWebView(context: Context) : WebView(context) {
 
     /** Dipanggil JavaScript (thread binder WebView) saat peta diketuk. */
     private inner class TapBridge {
+        @JavascriptInterface
+        fun navigation(result: String) { post { onNavigationResult?.invoke(result) } }
         @JavascriptInterface
         fun tap(latitude: Double, longitude: Double) {
             post { onMapTap?.invoke(latitude, longitude) }
@@ -269,9 +272,10 @@ private class OfflineMapContainer(context: Context) : FrameLayout(context) {
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
-    fun render(html: String, dataJson: String, onMapTap: (Double, Double) -> Unit) {
+    fun render(html: String, dataJson: String, onMapTap: (Double, Double) -> Unit, onNavigationResult: (String) -> Unit) {
         backdrop.loadFromHtml(html)
         webView.onMapTap = onMapTap
+        webView.onNavigationResult = onNavigationResult
         webView.render(html)
         webView.setData(dataJson)
     }
@@ -295,10 +299,10 @@ private fun splitScripts(source: String): MapDocument {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit) {
+actual fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit, onNavigationResult: (String) -> Unit) {
     AndroidView(
         modifier = modifier,
         factory = { context -> OfflineMapContainer(context) },
-        update = { container -> container.render(html, dataJson, onMapTap) },
+        update = { container -> container.render(html, dataJson, onMapTap, onNavigationResult) },
     )
 }

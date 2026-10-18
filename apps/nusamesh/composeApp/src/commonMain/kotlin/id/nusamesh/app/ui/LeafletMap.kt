@@ -18,20 +18,22 @@ import id.nusamesh.app.domain.TrackedUser
 import id.nusamesh.app.mesh.protocol.GeoPoint
 
 /**
- * Leaflet dan peta vektor regional dibundel di aplikasi. Ubin OpenStreetMap bersifat opsional dan
- * hanya menambah detail jalan saat jaringan tersedia.
+ * Leaflet, peta wilayah dan data routing dibundel di aplikasi.
+ * Peta utama memakai tile OSM seperti semula; MBTiles dan cache Android tersedia offline.
  *
  * HTML dimuat sekali; perubahan data (unit, jejak, rute, titik) dikirim ke `window.setNusaData`
  * tanpa memuat ulang halaman, jadi zoom/geser peta tidak ter-reset saat GPS atau rute berubah.
  */
 @Composable
-fun LeafletMap(modifier: Modifier, data: MapData = MapData(), onMapTap: (GeoPoint) -> Unit = {}) {
+fun LeafletMap(modifier: Modifier, data: MapData = MapData(), onMapTap: (GeoPoint) -> Unit = {}, onNavigationResult: (String) -> Unit = {}) {
     val htmlResult by produceState<Result<String>?>(null) {
         value = runCatching {
             buildLeafletHtml(
                 js = Res.readBytes("files/leaflet/leaflet.js").decodeToString(),
                 css = Res.readBytes("files/leaflet/leaflet.css").decodeToString(),
                 offlineRegion = Res.readBytes("files/maps/natural-earth-se-asia.geojson").decodeToString(),
+                solver = Res.readBytes("files/navigation/solver.js").decodeToString(),
+                terrain = Res.readBytes("files/navigation/regions.json").decodeToString(),
             )
         }
     }
@@ -40,9 +42,7 @@ fun LeafletMap(modifier: Modifier, data: MapData = MapData(), onMapTap: (GeoPoin
         when {
             htmlResult == null -> Text("Memuat peta...", color = Slate, fontSize = 11.sp)
             htmlResult?.isFailure == true -> Text("Aset peta gagal dimuat", color = Slate, fontSize = 11.sp)
-            else -> LeafletWebView(Modifier.fillMaxSize(), htmlResult!!.getOrThrow(), dataJson) { lat, lon ->
-                onMapTap(GeoPoint(lat, lon))
-            }
+            else -> LeafletWebView(Modifier.fillMaxSize(), htmlResult!!.getOrThrow(), dataJson, { lat, lon -> onMapTap(GeoPoint(lat, lon)) }, onNavigationResult)
         }
     }
 }
@@ -64,15 +64,16 @@ data class MapData(
     val haveKey: Boolean = false,
     /** Label status cepat terakhir per peerId (tampil di popup unit). */
     val statuses: Map<String, String> = emptyMap(),
+    val sarNavigation: id.nusamesh.app.routing.SarNavigation = id.nusamesh.app.routing.SarNavigation(),
 )
 
 /**
- * WebView platform yang memuat [html] sekali dengan base URL [MAP_BASE_URL] (dipakai sebagai Referer
- * ubin OSM), lalu meneruskan [dataJson] ke `window.setNusaData` setiap kali berubah. Ketukan peta
+ * WebView platform yang memuat [html] sekali dengan base URL [MAP_BASE_URL],
+ * lalu meneruskan [dataJson] ke `window.setNusaData` setiap kali berubah. Ketukan peta
  * dilaporkan lewat [onMapTap].
  */
 @Composable
-expect fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit)
+expect fun LeafletWebView(modifier: Modifier, html: String, dataJson: String, onMapTap: (Double, Double) -> Unit, onNavigationResult: (String) -> Unit = {})
 
 internal const val MAP_BASE_URL = "https://meshta.app/"
 
@@ -81,11 +82,15 @@ internal fun buildLeafletHtml(
     css: String,
     offlineRegion: String,
     dataJson: String = "null",
+    solver: String = "",
+    terrain: String = "",
 ): String = leafletHtml
     .replace(LEAFLET_CSS_TAG, "<style>$css</style>")
     .replace(LEAFLET_JS_TAG, "<script>$js</script>")
     .replace(OFFLINE_REGION_TAG, offlineRegion)
     .replace(MAP_DATA_TAG, dataJson)
+    .replace("/*NAV_SOLVER*/", jsonString(solver))
+    .replace("/*NAV_TERRAIN*/", jsonString(terrain))
 
 private const val LEAFLET_CSS_TAG = "<!--LEAFLET_CSS-->"
 private const val LEAFLET_JS_TAG = "<!--LEAFLET_JS-->"
@@ -109,8 +114,12 @@ private fun GeoPoint.json() = "[$latitude,$longitude]"
 private fun List<GeoPoint>.json() = joinToString(prefix = "[", postfix = "]") { it.json() }
 
 internal fun MapData.toJson(): String = buildString {
+    append("{\"navigationRequest\":")
+    append(sarNavigation.request?.let { r -> "{\"id\":${jsonString(r.id)},\"from\":${r.from.json()},\"to\":${r.to.json()}}" } ?: "null")
+    append(",\"navigationPlan\":")
+    append(sarNavigation.route?.let { r -> "{\"id\":${jsonString(r.request.id)},\"status\":${jsonString(sarNavigation.status)},\"geometry\":${r.points.json()},\"kinds\":[${r.segments.joinToString { jsonString(it.kind) }}]}" } ?: "null")
     fun trust(own: Boolean, verified: Boolean) = trustLabel(own, verified, haveKey).removePrefix(" | ")
-    append("{\"units\":")
+    append(",\"units\":")
     append(units.joinToString(prefix = "[", postfix = "]") { unit ->
         "{\"peerId\":${jsonString(unit.peerId)},\"name\":${jsonString(unit.name)},\"latitude\":${unit.latitude}," +
             "\"longitude\":${unit.longitude},\"accuracy\":${unit.accuracyMeters},\"rssi\":${unit.rssi ?: "null"}," +
@@ -172,6 +181,7 @@ internal val leafletHtml = """
     #offline { display:none; position:absolute; z-index:1000; left:16px; right:16px; top:94px; padding:10px 12px; border-radius:12px; background:#FFF4E5; color:#B45309; font:12px system-ui,sans-serif; box-shadow:0 2px 10px #16203318; pointer-events:none; }
     #coordinate { position:absolute; z-index:999; left:16px; bottom:18px; padding:7px 10px; border-radius:12px; background:#ffffffdd; color:#475569; box-shadow:0 2px 10px #16203318; font:11px system-ui,sans-serif; pointer-events:none; }
     #map-status { position:absolute; z-index:1001; left:50%; top:50%; transform:translate(-50%,-50%); padding:9px 12px; border-radius:10px; background:#ffffffdd; color:#475569; font:12px system-ui,sans-serif; }
+
   </style>
 </head>
 <body>
@@ -187,6 +197,47 @@ internal val leafletHtml = """
   <div id="map-status">Menyiapkan peta...</div>
   <!--LEAFLET_JS-->
   <script>
+    const navSolverSource = /*NAV_SOLVER*/;
+    const navTerrainSource = /*NAV_TERRAIN*/;
+    const navApi = {};
+    if(navSolverSource) { new Function(navSolverSource + ';Object.assign(arguments[0],NusaSurvey);')(navApi); }
+    const regionalInput = navTerrainSource ? JSON.parse(navTerrainSource) : null;
+    const regionalReady = Promise.resolve().then(function() {
+      if (!regionalInput) throw Error('Data navigasi bawaan tidak tersedia');
+      const packs = (regionalInput.packages || [regionalInput]).map(navApi.checkedRegionalPackage);
+      return {all: function() { return packs; }, select: function(from,to) { return navApi.selectRegionalPackage(packs,from,to); }};
+    });
+    // Report invalid bundled assets without leaving a rejected initialization promise unhandled.
+    regionalReady.catch(function(e){document.getElementById('error').textContent=e.message;});
+    let navWorker = null, navRequestId = null, navTimeout = null, navWorkerUrl = null;
+    function navigationResult(value) {
+      const text = JSON.stringify(value);
+      if (window.NusaBridge) window.NusaBridge.navigation(text);
+      else if (window.webkit && window.webkit.messageHandlers.nusaNavigation) window.webkit.messageHandlers.nusaNavigation.postMessage(text);
+      else if (window.parent !== window && window.parent.nusaNavigationResult) window.parent.nusaNavigationResult(text);
+    }
+    window.nusaNavigate = function(kind, targetId) { navigationResult({action:'select', kind:kind, targetId:targetId}); };
+    function applyNavigationRequest(request) {
+      if (!request) { if(navWorker) navWorker.terminate(); if(navWorkerUrl) URL.revokeObjectURL(navWorkerUrl); navWorkerUrl = null; navWorker = null; clearTimeout(navTimeout); navRequestId = null; return; }
+      if (request.id === navRequestId) return;
+      if(navWorker) navWorker.terminate(); if(navWorkerUrl) URL.revokeObjectURL(navWorkerUrl); clearTimeout(navTimeout); navRequestId = request.id;
+      let worker, url;
+      const finish = function(value) { worker && worker.terminate(); url && URL.revokeObjectURL(url); if(navRequestId !== request.id) return; clearTimeout(navTimeout); navWorker = null; navWorkerUrl = null; navigationResult(value); };
+      regionalReady.then(function(store) {
+        if(navRequestId !== request.id) return;
+        const pack = store.select(request.from,request.to);
+        if(!pack) { finish({id:request.id,result:{status:'missingData',geometry:[],message:'Awal dan tujuan belum tercakup satu wilayah navigasi bawaan. Rute lintas wilayah belum tersedia.'}}); return; }
+      try {
+        if (!navSolverSource || !navTerrainSource) throw Error('Paket routing lokal tidak tersedia');
+        const code = navSolverSource + '\nconst pack=' + JSON.stringify(pack) + ';self.onmessage=function(e){try{const result=NusaSurvey.routeHybrid(Object.assign({},e.data,{pack:pack,hazards:[]}));Object.assign(result,{packageName:pack.name||pack.id,packageResolutionM:pack.grid.resolutionM,verticalDatum:pack.verticalDatum});self.postMessage({id:e.data.id,result:result});}catch(error){self.postMessage({id:e.data.id,result:{status:"unavailable",message:error.message}});}};';
+        url = URL.createObjectURL(new Blob([code],{type:'application/javascript'})); navWorkerUrl = url; worker = new Worker(url); navWorker = worker;
+        worker.onmessage = function(e) { finish(e.data); };
+        worker.onerror = function(e) { finish({id:request.id,result:{status:'unavailable',message:e.message || 'Worker routing gagal'}}); };
+        navTimeout = setTimeout(function(){finish({id:request.id,result:{status:'unavailable',message:'Perhitungan rute melewati batas waktu'}});},60000);
+        worker.postMessage(request);
+      } catch(e) { finish({id:request.id,result:{status:'unavailable',message:e.message}}); }
+      }).catch(function(e){finish({id:request.id,result:{status:'unavailable',message:e.message}});});
+    }
     const map = window.nusaMap = L.map('map', {zoomControl:true}).setView([-2.5, 117], 5);
     const initialData = /*MAP_DATA*/;
     document.getElementById('map-status').style.display = 'none';
@@ -253,7 +304,13 @@ internal val leafletHtml = """
       if (loadedTileCount === 0) setOffline(true);
     }, 8000);
     // WebView sering dibuat saat ukurannya masih 0×0: tanpa ini Leaflet tidak pernah memuat ubin.
-    const fixSize = function() { map.invalidateSize(false); };
+    let sarViewportKey = '';
+    const fixSize = function() {
+      map.invalidateSize(false);
+      const size = map.getSize(), key = size.x + ',' + size.y;
+      if (currentSarGeometry && key !== sarViewportKey) map.fitBounds(currentSarGeometry,{paddingTopLeft:[36,120],paddingBottomRight:[36,36],maxZoom:17,animate:false});
+      sarViewportKey = key;
+    };
     if (window.ResizeObserver) new ResizeObserver(fixSize).observe(document.getElementById('map'));
     window.addEventListener('resize', fixSize);
     [100, 400, 1200].forEach(function(ms) { setTimeout(fixSize, ms); });
@@ -311,6 +368,9 @@ internal val leafletHtml = """
     window.nusaRoutes = L.layerGroup().addTo(map);
     window.nusaWaypoints = L.layerGroup().addTo(map);
     window.nusaDraft = L.layerGroup().addTo(map);
+    const sarRouteLayer = L.layerGroup().addTo(map);
+    let lastSarRoute = null;
+    let currentSarGeometry = null;
     const coordinate = document.getElementById('coordinate');
     // Ketukan diteruskan ke aplikasi: Android (addJavascriptInterface), iOS (WKScriptMessageHandler), web (iframe induk).
     function reportTap(latitude, longitude) {
@@ -371,6 +431,24 @@ internal val leafletHtml = """
     window.setNusaData = function(data) {
       if (!data) return;
       const units = data.units || [];
+      applyNavigationRequest(data.navigationRequest);
+      sarRouteLayer.clearLayers();
+      const navigation = data.navigationPlan;
+      currentSarGeometry = navigation ? navigation.geometry : null;
+      if (navigation && navigation.geometry.length > 1) {
+        L.polyline(navigation.geometry,{color:'#fff',weight:9,interactive:false}).addTo(sarRouteLayer);
+        let start = 0;
+        while(start < navigation.kinds.length) {
+          const kind = navigation.kinds[start]; let end = start+1;
+          while(end<navigation.kinds.length && navigation.kinds[end]===kind) end++;
+          L.polyline(navigation.geometry.slice(start,end+1),{color:navigation.status==='STALE'?'#b45309':kind==='osm'?'#2563eb':kind==='terrain'?'#9333ea':'#d97706',weight:5,dashArray:navigation.status==='STALE'||kind!=='osm'?'8 6':null}).addTo(sarRouteLayer);
+          start=end;
+        }
+        L.circleMarker(navigation.geometry[0],{radius:5,color:'#0f766e',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(sarRouteLayer).bindTooltip('Awal rute');
+        L.circleMarker(navigation.geometry[navigation.geometry.length-1],{radius:6,color:'#dc2626',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(sarRouteLayer).bindTooltip('Koordinat tujuan rute');
+        if (navigation.id !== lastSarRoute) map.fitBounds(navigation.geometry,{paddingTopLeft:[36,120],paddingBottomRight:[36,36],maxZoom:17,animate:false});
+        lastSarRoute=navigation.id;
+      }
       window.nusaMarkers.clearLayers();
       window.nusaGuidance.clearLayers();
       window.nusaRoutes.clearLayers();
@@ -410,7 +488,7 @@ internal val leafletHtml = """
             ';color:#fff;font:bold 13px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px #0005">' + s[0] + '</div>'
         })}).addTo(window.nusaWaypoints).bindPopup('<b>' + esc(wp.typeLabel) + '</b>: ' + esc(wp.label) + '<br>oleh ' + esc(wp.owner) +
           '<br>' + wp.point[0].toFixed(5) + ', ' + wp.point[1].toFixed(5) +
-          (wp.trust ? '<br><b>' + esc(wp.trust) + '</b>' : ''));
+          (wp.trust ? '<br><b>' + esc(wp.trust) + '</b>' : '') + '<br><button onclick="nusaNavigate(\'waypoint\',' + esc(JSON.stringify(wp.id)) + ')">Arahkan ke titik</button>');
         bounds.push(wp.point);
       }
       for (const unit of units) {
@@ -424,7 +502,7 @@ internal val leafletHtml = """
           (unit.rssi == null ? 'RSSI tidak tersedia' : 'RSSI ' + unit.rssi + ' dBm') + '<br>' +
           'Akurasi ±' + Math.round(unit.accuracy || 0) + ' m' +
           (unit.battery == null ? '' : '<br>Baterai ' + unit.battery + '%') +
-          (unit.status ? '<br><b>' + esc(unit.status) + '</b>' : '')
+          (unit.status ? '<br><b>' + esc(unit.status) + '</b>' : '') + (unit.own ? '' : '<br><button onclick="nusaNavigate(\'unit\',' + esc(JSON.stringify(unit.peerId)) + ')">Arahkan ke korban/unit</button>')
         );
         bounds.push([unit.latitude, unit.longitude]);
       }
@@ -440,13 +518,13 @@ internal val leafletHtml = """
         L.circleMarker(data.picked, {radius:9, color:'#fff', weight:3, fillColor:'#0D9488', fillOpacity:1})
           .addTo(previewMarkers).bindTooltip('Titik dipilih', {permanent:true, direction:'top'});
       } else previewMarkers.clearLayers();
-      if (data.guide) {
+      if (data.guide && !navigation && !data.navigationRequest) {
         L.polyline(data.guide, {color:'#F97316', weight:4, opacity:.9, dashArray:'10 8'}).addTo(window.nusaGuidance);
         L.circleMarker(data.guide[1], {radius:14, color:'#F97316', weight:4, fillColor:'#fff', fillOpacity:.35})
           .addTo(window.nusaGuidance).bindTooltip(esc(data.guideLabel || 'Tujuan'), {permanent:true, direction:'top'});
       }
       // Zoom hanya disesuaikan saat pertama ada data atau tujuan navigasi berganti, bukan tiap update GPS.
-      if (data.focusKey !== lastFocusKey && data.guide) {
+      if (!navigation && data.focusKey !== lastFocusKey && data.guide) {
         map.fitBounds(data.guide, {padding:[54,54], maxZoom:17});
         fitted = true;
       } else if (!fitted && bounds.length) {

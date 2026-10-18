@@ -1,0 +1,56 @@
+﻿{
+    "repository":  "OSGeo/gdal",
+    "commit":  "13310f750da0a09bbc944067b7d7fa8b8b27b110",
+    "importedAt":  "2026-10-14T08:10:05.6091540Z",
+    "scope":  "selected upstream source, not full clone or installed runtime",
+    "files":  [
+                  {
+                      "path":  "README.md",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/README.md",
+                      "downloaded":  true,
+                      "sha256":  "f6d1b2ae33f3af4e732a8beb5481f6e189f213cac85b3a1cc54cd89c16a311c4"
+                  },
+                  {
+                      "path":  "LICENSE.TXT",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/LICENSE.TXT",
+                      "downloaded":  true,
+                      "sha256":  "1dae3468e81d00da56e2936f74d33b8b3ad09d726437f19ce209a5dabea41f77"
+                  },
+                  {
+                      "path":  "AGENTS.md",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/AGENTS.md",
+                      "downloaded":  true,
+                      "sha256":  "f6df34dde6bb650bd51e4a2958e6b767617935063b5e58dcec30ddadbf096197"
+                  },
+                  {
+                      "path":  "apps/gdaldem_lib.cpp",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/apps/gdaldem_lib.cpp",
+                      "downloaded":  true,
+                      "sha256":  "958a88defa5d645359bacb6d764deb3d94909c5cf958726fb6e8ca9622d1ea77"
+                  },
+                  {
+                      "path":  "apps/gdalwarp_lib.cpp",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/apps/gdalwarp_lib.cpp",
+                      "downloaded":  true,
+                      "sha256":  "d9b46f7f5640913a488affb2c1194e995833bfee83e8c1a385bb0f2f3a0b0304"
+                  },
+                  {
+                      "path":  "apps/gdal_rasterize_lib.cpp",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/apps/gdal_rasterize_lib.cpp",
+                      "downloaded":  true,
+                      "sha256":  "c35b5b4215d1afb033d5c11867c985ab33489a654a6b4555a9f6d06330c83a2f"
+                  },
+                  {
+                      "path":  "alg/gdalwarper.cpp",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/alg/gdalwarper.cpp",
+                      "downloaded":  true,
+                      "sha256":  "93e0ce20adf65799b8820d465eb6d59f5b06093e5ecad351691ebcd83dedc348"
+                  },
+                  {
+                      "path":  "alg/gdalrasterize.cpp",
+                      "url":  "https://raw.githubusercontent.com/OSGeo/gdal/13310f750da0a09bbc944067b7d7fa8b8b27b110/alg/gdalrasterize.cpp",
+                      "downloaded":  true,
+                      "sha256":  "b558dbbe4c2ad09b56e81f5d1b976d2af40b223c121309adb4997a0504cb5abc"
+                  }
+              ]
+}

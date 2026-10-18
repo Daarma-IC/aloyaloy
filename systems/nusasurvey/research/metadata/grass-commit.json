@@ -1,0 +1,101 @@
+{
+  "sha": "ba898e78d725dce81c6218dac1ceffee7f93e29f",
+  "node_id": "C_kwDOCykpn9oAKGJhODk4ZTc4ZDcyNWRjZTgxYzYyMThkYWMxY2VmZmVlN2Y5M2UyOWY",
+  "commit": {
+    "author": {
+      "name": "SAKET KUMAR MALL",
+      "email": "72020337+saket0187@users.noreply.github.com",
+      "date": "2026-10-13T03:45:18Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-13T03:45:18Z"
+    },
+    "message": "t.rast.import, t.vect.import: Number basename maps from 1 again (#8052)",
+    "tree": {
+      "sha": "907ad355a5dce1aed78349ecd3be951b533d84cc",
+      "url": "https://api.github.com/repos/OSGeo/grass/git/trees/907ad355a5dce1aed78349ecd3be951b533d84cc"
+    },
+    "url": "https://api.github.com/repos/OSGeo/grass/git/commits/ba898e78d725dce81c6218dac1ceffee7f93e29f",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqzalOCRC1aQ7uu5UhlAAAcwYQAHxrWPRnqcJ6OPK0pn6lMMCp\n96jmVh7vb2VPh1WgHmus54YFOXCbbPDuilQSpdq6p/KPlaHeZ4tpeqD2BWmC1LgN\nWQlPRkhFmcD87tU9uHNRgrwPFDIPe6oQ4WciFNQym7qqlQWJUk+a5+2IHuk+MOc7\n9/0niENm9c6aWvPEWC73Q9IwOyu9F5aw3aIpFXwe1+ezxwabT6DWUMrSpXnnMD55\njlE/NgFSMYZ+acFx42oO8zJrKlZnQXkBB0CUYnFdQ8YvWMhRiFDmIMcD2gFrT3L/\ng70HMam/iJEYwTwQ9x2zLm7Eqrs8bFGqIMe6MrLLv4XHss3lXIpOXANGtPj7RsuZ\nZGyUOFYkRH4/XqGyMMqiNz+QuTVyrquSvYOauhCItD7yoV6hkZ3ckERAxP3Rkm4k\nU1jp73HdnQhav1Nqx58Ipxu8u6pm24r3l1NmJnzKCVnpxDS2oAy8VUrgfYIzd2Ph\nd5oxih9pHAlSy2z+1qSQGaWKKtZsygn/DZEMXlr4MTuYw0JwutEt3kEG3Be5ch0x\nnXfduaceGOglvInhlHi+Fncu4vSGt3niGFjHo5cElFYO4LpOsXcY9rkTxYeJfv11\nKF4DoplAYzL9Kv5TsEyfp+PtG7i3RG7ujfeHD6CwAg1TISl9QC/iiGb3JiUtP/f9\noBc8pIr412WIxnL0xaYI\n=AQp3\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 907ad355a5dce1aed78349ecd3be951b533d84cc\nparent 76a39c5525d740815bacdd44f3c04f27dd1e5bb2\nauthor SAKET KUMAR MALL <72020337+saket0187@users.noreply.github.com> 1791863118 +0530\ncommitter GitHub <noreply@github.com> 1791863118 -0400\n\nt.rast.import, t.vect.import: Number basename maps from 1 again (#8052)",
+      "verified_at": "2026-10-13T03:45:18Z"
+    }
+  },
+  "url": "https://api.github.com/repos/OSGeo/grass/commits/ba898e78d725dce81c6218dac1ceffee7f93e29f",
+  "html_url": "https://github.com/OSGeo/grass/commit/ba898e78d725dce81c6218dac1ceffee7f93e29f",
+  "comments_url": "https://api.github.com/repos/OSGeo/grass/commits/ba898e78d725dce81c6218dac1ceffee7f93e29f/comments",
+  "author": {
+    "login": "saket0187",
+    "id": 72020337,
+    "node_id": "MDQ6VXNlcjcyMDIwMzM3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/72020337?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/saket0187",
+    "html_url": "https://github.com/saket0187",
+    "followers_url": "https://api.github.com/users/saket0187/followers",
+    "following_url": "https://api.github.com/users/saket0187/following{/other_user}",
+    "gists_url": "https://api.github.com/users/saket0187/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/saket0187/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/saket0187/subscriptions",
+    "organizations_url": "https://api.github.com/users/saket0187/orgs",
+    "repos_url": "https://api.github.com/users/saket0187/repos",
+    "events_url": "https://api.github.com/users/saket0187/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/saket0187/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "76a39c5525d740815bacdd44f3c04f27dd1e5bb2",
+      "url": "https://api.github.com/repos/OSGeo/grass/commits/76a39c5525d740815bacdd44f3c04f27dd1e5bb2",
+      "html_url": "https://github.com/OSGeo/grass/commit/76a39c5525d740815bacdd44f3c04f27dd1e5bb2"
+    }
+  ],
+  "stats": {
+    "total": 2,
+    "additions": 1,
+    "deletions": 1
+  },
+  "files": [
+    {
+      "sha": "e90eda8bf951c374c73bd5555560f00cef41a422",
+      "filename": "python/grass/temporal/stds_import.py",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/OSGeo/grass/blob/ba898e78d725dce81c6218dac1ceffee7f93e29f/python%2Fgrass%2Ftemporal%2Fstds_import.py",
+      "raw_url": "https://github.com/OSGeo/grass/raw/ba898e78d725dce81c6218dac1ceffee7f93e29f/python%2Fgrass%2Ftemporal%2Fstds_import.py",
+      "contents_url": "https://api.github.com/repos/OSGeo/grass/contents/python%2Fgrass%2Ftemporal%2Fstds_import.py?ref=ba898e78d725dce81c6218dac1ceffee7f93e29f",
+      "patch": "@@ -435,7 +435,7 @@ def import_stds(\n                 # that must be extended by the file suffix\n                 filename = line_list[0].strip().split(\":\")[0]\n                 if base:\n-                    mapname = f\"{base}_{gs.get_num_suffix(line_count + 1, max_count)}\"\n+                    mapname = f\"{base}_{gs.get_num_suffix(line_count, max_count)}\"\n                     mapid = f\"{mapname}@{mapset}\"\n                 else:\n                     mapname = filename"
+    }
+  ]
+}

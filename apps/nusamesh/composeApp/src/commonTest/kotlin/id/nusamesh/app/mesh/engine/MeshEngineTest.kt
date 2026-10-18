@@ -52,6 +52,107 @@ class MeshEngineTest {
     private fun msg(from: String, text: String) = MeshMessage(sender = from, content = text, timestampMs = base)
 
     @Test
+    fun voiceTransferProgressFinishesOnlyAfterAllTransportFragments() = runTest {
+        val radio=world()
+        val a=phone(radio,"A","0a0a0a0a0a0a0a0a","Ayu")
+        val b=phone(radio,"B","0b0b0b0b0b0b0b0b","Budi")
+        radio.setRssi("A","B",-55)
+        advanceTimeBy(5_000);runCurrent()
+        val progress=mutableListOf<Float>()
+        val completed=mutableListOf<Boolean>()
+        val estimates=mutableListOf<TransferEstimate>()
+        val file=FilePacket("voice.c2","audio/x-codec2",Random(2).nextBytes(1200))
+        a.engine.sendFile(file,{progress+=it},{completed+=it},onEstimate={estimates+=it})
+        advanceTimeBy(10_000);runCurrent()
+        assertEquals(listOf(true),completed)
+        assertEquals(1f,progress.last())
+        assertTrue(progress.zipWithNext().all { (a,b)->b>=a })
+        assertTrue(progress.all { it in 0f..1f })
+        assertTrue(estimates.any { !it.nodePacing && it.remainingMs!=null && it.completedFragments in 1 until it.totalFragments })
+        assertTrue(b.files.any { it.content.contentEquals(file.content) })
+    }
+
+    @Test
+    fun voiceTransferWithoutPathStopsWaitingWithFailure() = runTest {
+        val a=phone(world(),"A","0a0a0a0a0a0a0a0a","Ayu")
+        val completed=mutableListOf<Boolean>()
+        val progress=mutableListOf<Float>()
+        a.engine.sendFile(FilePacket("voice.c2","audio/x-codec2",ByteArray(1200)),{progress+=it},{completed+=it})
+        runCurrent()
+        assertEquals(listOf(false),completed)
+        assertTrue(progress.isEmpty())
+    }
+
+    @Test
+    fun disconnectStopsPendingVoiceWithFailureInsteadOfStuckLoading() = runTest {
+        val radio=world()
+        node(radio,"N1",1)
+        val a=phone(radio,"A","0a0a0a0a0a0a0a0a","Ayu")
+        radio.setRssi("A","N1",-55)
+        advanceTimeBy(5_000);runCurrent()
+        val completed=mutableListOf<Boolean>()
+        val estimates=mutableListOf<TransferEstimate>()
+        a.engine.sendFile(FilePacket("voice.c2","audio/x-codec2",Random(5).nextBytes(20_000)),onComplete={completed+=it},onEstimate={estimates+=it})
+        runCurrent()
+        assertTrue(completed.isEmpty(),completed.toString())
+        assertTrue(estimates.any { it.nodePacing && (it.remainingMs ?: 0)>0 && it.completedFragments<it.totalFragments })
+        radio.setRssi("A","N1",null)
+        runCurrent()
+        assertEquals(listOf(false),completed)
+    }
+
+    @Test
+    fun disconnectFailsQueuedBatchesWithoutClaimingRadioDelivery() = runTest {
+        val radio = world()
+        node(radio, "N1", 1)
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        radio.setRssi("A", "N1", -55)
+        advanceTimeBy(5_000); runCurrent()
+        repeat(5) { a.engine.sendPublic(msg("Ayu", "queued $it")) }
+        runCurrent()
+        assertTrue(a.engine.diagnostics.snapshot.value.count("QUEUE_ACCEPTED") > 0)
+        radio.setRssi("A", "N1", null)
+        runCurrent()
+        val s = a.engine.diagnostics.snapshot.value
+        assertTrue(s.count("BATCH_FAILED") > 0)
+        assertEquals(0L, s.acknowledgedMessages)
+    }
+
+    @Test
+    fun transmissionDiagnosticsCorrelateActualSendAndReceiverAckWithoutLoggingPayload() = runTest {
+        val radio = world()
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        val b = phone(radio, "B", "0b0b0b0b0b0b0b0b", "Budi")
+        radio.setRssi("A", "B", -60)
+        advanceTimeBy(5_000); runCurrent()
+        val message = msg("Ayu", "private payload never belongs in diagnostic logs")
+        a.engine.sendPublic(message)
+        advanceTimeBy(1_000); runCurrent()
+        b.engine.sendAck(a.engine.myPeerId, message.id)
+        advanceTimeBy(1_000); runCurrent()
+        val s = a.engine.diagnostics.snapshot.value
+        assertEquals(1L, s.acknowledgedMessages)
+        assertTrue(s.txBytes > 0)
+        assertTrue(s.rxBytes > 0)
+        assertTrue(s.events.any { it.name == "TX_ACCEPTED" && it.messageId == message.id })
+        assertTrue(s.events.any { it.name == "ACK_MATCHED" && it.messageId == message.id })
+        assertTrue(s.events.none { it.detail.contains(message.content) })
+    }
+
+    @Test
+    fun noConnectedPathCannotBeCountedAsBleSuccessOrReceiverDelivery() = runTest {
+        val a = phone(world(), "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        runCurrent()
+        a.engine.sendPublic(msg("Ayu", "no route"))
+        runCurrent()
+        val s = a.engine.diagnostics.snapshot.value
+        assertEquals(1L, s.count("NO_PATH"))
+        assertEquals(1L, s.count("MESSAGE_LOCAL_FAILED"))
+        assertEquals(0L, s.count("TX_ACCEPTED"))
+        assertEquals(0L, s.acknowledgedMessages)
+    }
+
+    @Test
     fun messageRelaysThroughMiddlePhone() = runTest {
         val radio = world()
         val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")

@@ -8,6 +8,8 @@ import id.nusamesh.app.mesh.engine.IncomingFile
 import id.nusamesh.app.mesh.engine.IncomingMessage
 import id.nusamesh.app.mesh.engine.MeshEngine
 import id.nusamesh.app.mesh.engine.MobilityLogSink
+import id.nusamesh.app.mesh.engine.TransmissionDiagnostics
+import id.nusamesh.app.mesh.engine.DiagnosticLayer
 import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
@@ -21,6 +23,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,21 +55,31 @@ data class MobilityLogEntry(
  * lampiran ke FILE_TRANSFER. Engine berjalan di dispatcher satu-jalur sendiri.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class MeshRepository(link: BleLink, private val store: KeyValueStore) {
-    private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
+class MeshRepository(
+    link: BleLink,
+    private val store: KeyValueStore,
+    private val engineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1)),
+) {
 
     val myPeerId: String = store.get(KEY_PEER_ID)?.takeIf { it.length == 16 } ?: randomPeerId().also { store.put(KEY_PEER_ID, it) }
 
     private val _mobilityLog = MutableStateFlow<List<MobilityLogEntry>>(emptyList())
     val mobilityLog: StateFlow<List<MobilityLogEntry>> = _mobilityLog.asStateFlow()
+    private val diagnostics = TransmissionDiagnostics(::currentEpochMillis,
+        sessionId = "${currentEpochMillis()}-${Random.nextInt(0x100000).toString(16)}",
+        restored = DiagnosticRecords.decode(store.get("transmission_log_v1")))
+    val transmissionDiagnostics = diagnostics.snapshot
 
     private val engine = MeshEngine(
         link = link,
         myPeerId = myPeerId,
         scope = engineScope,
         now = ::currentEpochMillis,
+        diagnostics = diagnostics,
         mobilityLog = MobilityLogSink { event, from, to, servingRssi, targetRssi, valueMs, detail ->
             if (!mobilityConfig.loggingEnabled) return@MobilityLogSink
+            diagnostics.record(DiagnosticLayer.MESH, "MOBILITY_$event", deviceId = to ?: from,
+                durationMs = valueMs, rssiDbm = targetRssi?.toDouble(), detail = "from=$from; to=$to; serving_rssi=$servingRssi; $detail")
             val entry = MobilityLogEntry(currentEpochMillis(), event, from, to, servingRssi, targetRssi, valueMs, detail)
             _mobilityLog.update { (it + entry).takeLast(MAX_LOG) }
         },
@@ -106,7 +121,30 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
         get() = engine.mobilityConfig
         set(value) { engine.mobilityConfig = value }
 
-    init { engine.nickname = nickname }
+    init {
+        engine.nickname = nickname
+        diagnostics.record(DiagnosticLayer.SYSTEM, "SESSION_STARTED", detail = "Live counters reset; historical events retained")
+        engineScope.launch {
+            var saved: List<id.nusamesh.app.mesh.engine.DiagnosticEvent>? = null
+            while (isActive) {
+                delay(2_000)
+                val events = diagnostics.snapshot.value.events
+                if (events !== saved) {
+                    val result = runCatching {
+                        val encoded = DiagnosticRecords.encode(events)
+                        store.put("transmission_log_v1", encoded)
+                        check(store.get("transmission_log_v1") == encoded) { "Log storage verification failed" }
+                    }
+                    diagnostics.persistenceResult(result.isSuccess)
+                    if (result.isSuccess) saved = events
+                }
+            }
+        }
+    }
+
+    fun clearTransmissionLog() { engineScope.launch { diagnostics.clearLog() } }
+    fun transmissionLogCsv() = DiagnosticRecords.eventsCsv(diagnostics.snapshot.value.events)
+    fun transmissionSummaryCsv() = DiagnosticRecords.summaryCsv(diagnostics.snapshot.value)
 
     fun start() { engine.start() }
     fun stop() { engine.stop() }
@@ -126,12 +164,16 @@ class MeshRepository(link: BleLink, private val store: KeyValueStore) {
         encrypt: Boolean = false,
         onProgress: (Float) -> Unit = {},
         onComplete: (Boolean) -> Unit = {},
+        timestampMs: Long? = null,
+        onEstimate: ((id.nusamesh.app.mesh.engine.TransferEstimate) -> Unit)? = null,
     ) {
         val file = FilePacket(attachment.name, attachment.mimeType, attachment.bytes)
         engine.sendFile(
             if (encrypt) OperationSecurity.sealFile(file, operationKey) else file,
             onProgress,
             onComplete,
+            timestampMs,
+            onEstimate,
         )
     }
 

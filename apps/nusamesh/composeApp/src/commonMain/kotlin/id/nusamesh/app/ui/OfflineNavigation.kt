@@ -53,6 +53,13 @@ internal data class NavigationTarget(
 internal fun navigationTarget(state: AppUiState): NavigationTarget? {
     val own = state.trackedUsers.firstOrNull { it.own } ?: return null
     val here = GeoPoint(own.latitude, own.longitude)
+    val sar = state.sarNavigation
+    if (sar.status != "IDLE") {
+        val route = sar.route ?: return null
+        if (sar.status !in listOf("READY", "PAUSED", "ACTIVE", "ARRIVED")) return null
+        val progress = id.nusamesh.app.routing.sarProgress(route, here)
+        return NavigationTarget("${route.request.title} · ${route.segments[progress.index].name}", route.points[progress.index + 1], (progress.remainingMeters - RoutePolyline.distanceMeters(here, route.points[progress.index + 1])).coerceAtLeast(0.0))
+    }
     state.selectedTargetPeerId?.let { id ->
         val unit = state.trackedUsers.firstOrNull { it.peerId == id } ?: return null
         return NavigationTarget("Menuju ${unit.name}", GeoPoint(unit.latitude, unit.longitude))
