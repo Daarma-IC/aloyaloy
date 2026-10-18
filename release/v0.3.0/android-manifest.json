@@ -1,0 +1,12 @@
+﻿{
+    "version":  "0.3.0",
+    "versionCode":  16,
+    "platform":  "android",
+    "buildType":  "release",
+    "debuggable":  false,
+    "signed":  true,
+    "apk":  "NusaMesh-v0.3.0-release.apk",
+    "apkSha256":  "3a1b21f3ecb736886903ec19c96577012282c851004c69fe3a88cce39305180f",
+    "aab":  "NusaMesh-v0.3.0-release.aab",
+    "aabSha256":  "1eb888b4b3cafec735decebaf454839bae5307828bb99214c0b89d54c0bb07d3"
+}

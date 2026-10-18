@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=NusaMesh Release, O=NusaMesh, C=ID
+Signer #1 certificate SHA-256 digest: 7aa5f0fc1949d37771feab4db5b90062c740c0f758876ed985a58743467ce2cc
+Signer #1 certificate SHA-1 digest: 7aa95b1cc5fb604801103e27fd557ec5b5c1c16f
+Signer #1 certificate MD5 digest: 80f85109310e1df853fc7bf2442909b6
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 3072
+Signer #1 public key SHA-256 digest: a84c1f24528b5153a0736a0415d63d0b646a0ccdc56a3db64fa1aca1e5ba48da
+Signer #1 public key SHA-1 digest: 8524e6b5789dc56d80f2365452c9919a3c09b41f
+Signer #1 public key MD5 digest: 27fa8d68470ea816da0d5e84e951fa63

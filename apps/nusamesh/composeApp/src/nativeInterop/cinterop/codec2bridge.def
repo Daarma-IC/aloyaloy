@@ -1,2 +1,3 @@
 headers = codec2_bridge.h
 package = id.nusamesh.codec2bridge
+staticLibraries = libnusamesh_codec2.a

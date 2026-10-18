@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+[ "$(uname -s)" = "Darwin" ] || { echo "Codec2 iOS requires macOS and Xcode." >&2; exit 2; }
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/third_party/codec2/src"
 GEN="$ROOT/composeApp/src/nativeInterop/codec2-generated"
@@ -12,14 +13,18 @@ build_arch() {
   mkdir -p "$dir"
   sdkpath="$(xcrun --sdk "$sdk" --show-sdk-path)"
   cc="$(xcrun --sdk "$sdk" --find clang)"
-  objects=""
+  set --
   for name in $SOURCES; do
-    obj="$dir/${name%.c}.o"; "$cc" -arch "$arch" -isysroot "$sdkpath" "$minflag" -O2 -fembed-bitcode -DCODEC2_MODE_EN_DEFAULT=0 -DCODEC2_MODE_3200_EN=1 -I"$SRC" -I"$BRIDGE/include" -c "$SRC/$name" -o "$obj"; objects="$objects $obj"
+    obj="$dir/${name%.c}.o"
+    "$cc" -arch "$arch" -isysroot "$sdkpath" "$minflag" -O2 -DCODEC2_MODE_EN_DEFAULT=0 -DCODEC2_MODE_3200_EN=1 -DCODEC2_MODE_1200_EN=1 -I"$SRC" -I"$BRIDGE/include" -c "$SRC/$name" -o "$obj"
+    set -- "$@" "$obj"
   done
   for file in "$GEN"/codebook.c "$GEN"/codebookd.c "$GEN"/codebookjmv.c "$GEN"/codebookge.c "$GEN"/codebooknewamp1.c "$GEN"/codebooknewamp1_energy.c "$BRIDGE/codec2_bridge.c"; do
-    obj="$dir/$(basename "${file%.c}").o"; "$cc" -arch "$arch" -isysroot "$sdkpath" "$minflag" -O2 -fembed-bitcode -DCODEC2_MODE_EN_DEFAULT=0 -DCODEC2_MODE_3200_EN=1 -I"$SRC" -I"$BRIDGE" -I"$BRIDGE/include" -c "$file" -o "$obj"; objects="$objects $obj"
+    obj="$dir/$(basename "${file%.c}").o"
+    "$cc" -arch "$arch" -isysroot "$sdkpath" "$minflag" -O2 -DCODEC2_MODE_EN_DEFAULT=0 -DCODEC2_MODE_3200_EN=1 -DCODEC2_MODE_1200_EN=1 -I"$SRC" -I"$BRIDGE" -I"$BRIDGE/include" -c "$file" -o "$obj"
+    set -- "$@" "$obj"
   done
-  xcrun ar rcs "$dir/libnusamesh_codec2.a" $objects
+  xcrun ar rcs "$dir/libnusamesh_codec2.a" "$@"
 }
 
 mkdir -p "$BRIDGE/include/codec2" "$OUT/iphoneos" "$OUT/iphonesimulator"

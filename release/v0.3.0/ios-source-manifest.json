@@ -1,0 +1,15 @@
+{
+  "version": "0.3.0",
+  "versionCode": 16,
+  "platform": "ios",
+  "artifactType": "source-package",
+  "ipaBuilt": false,
+  "file": "NusaMesh-v0.3.0-ios-source.zip",
+  "sha256": "3955388dff03e778fdc8d2c083b09ed9adba8ef49eb629548537f7845f6cd951",
+  "requires": [
+    "macOS",
+    "Xcode",
+    "XcodeGen",
+    "Apple signing identity for distribution"
+  ]
+}

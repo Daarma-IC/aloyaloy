@@ -9,19 +9,26 @@ settings:
     PRODUCT_BUNDLE_IDENTIFIER: id.nusamesh.app
     FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
     OTHER_LDFLAGS: "$(inherited) -framework ComposeApp"
+    CODE_SIGN_STYLE: Automatic
 targets:
   NusaMesh:
     type: application
     platform: iOS
+    configFiles:
+      Debug: Configuration/Config.xcconfig
+      Release: Configuration/Config.xcconfig
     sources:
       - path: iosApp
     info:
       path: iosApp/Info.plist
       properties:
         CFBundleDisplayName: Meshta
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSBluetoothAlwaysUsageDescription: Meshta memakai Bluetooth untuk membentuk jaringan mesh dengan HP sekitar dan NusaNode.
         NSBluetoothPeripheralUsageDescription: Meshta memakai Bluetooth agar HP lain dapat menyambung dan meneruskan pesan lewat HP ini.
         NSMicrophoneUsageDescription: Meshta memakai mikrofon untuk merekam voice note.
+        NSLocationWhenInUseUsageDescription: Meshta memakai lokasi untuk membagikan posisi pengguna kepada tim penyelamat melalui jaringan mesh.
         UIBackgroundModes: [bluetooth-central, bluetooth-peripheral]
         UILaunchScreen: {}
         CADisableMinimumFrameDurationOnPhone: true

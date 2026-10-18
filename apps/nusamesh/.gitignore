@@ -6,6 +6,14 @@ local.properties
 iosApp/*.xcodeproj/
 iosApp/DerivedData/
 *.xcuserstate
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.credentials.clixml
+keystore.properties
+iosApp/Configuration/Signing.xcconfig
+releases/v*/
 
 
 # Peta offline bawaan (±97 MB): dibuat ulang dengan tools/offline-map, tidak disimpan di git
