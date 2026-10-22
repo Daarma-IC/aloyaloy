@@ -2,6 +2,10 @@ package id.nusamesh.app.mesh.engine
 
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
+import id.nusamesh.app.mesh.protocol.MessageType
+import id.nusamesh.app.mesh.protocol.WirePacket
+import id.nusamesh.app.mesh.protocol.WireProtocol
+import id.nusamesh.app.mesh.protocol.peerIdBytes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -335,6 +339,70 @@ class MeshEngineTest {
         a.engine.sendFile(small)
         advanceTimeBy(60_000); runCurrent()
         assertEquals(listOf("lora.webp"), z.files.map { it.fileName }, "berkas kecil melintas LoRa")
+    }
+
+    @Test
+    fun relayedPhoneAnnounceDoesNotReplaceNamelessNodeIdentity() = runTest {
+        val radio = world()
+        val n1 = node(radio, "N1", 1).also { it.advertisedName = null }
+        val n2 = node(radio, "N2", 2).also { it.advertisedName = null }
+        n1.loraPeers += n2; n2.loraPeers += n1
+        n2.rxMeta = Triple(-95f, 7f, 7)
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        val z = phone(radio, "Z", "0f0f0f0f0f0f0f0f", "Zaki")
+        radio.setRssi("A", "N1", -60); radio.setRssi("Z", "N2", -60)
+        val received = mutableListOf<IncomingMessage>()
+        backgroundScope.launch { z.engine.messages.collect { received += it } }
+        advanceTimeBy(20_000); runCurrent()
+
+        // Seperti firmware: ANNOUNCE HP sampai melalui node tanpa mengubah TTL.
+        // Periksa sebelum scan berikutnya sempat memulihkan identitas node.
+        val relayedAnnounce = WirePacket(
+            type = MessageType.ANNOUNCE.value,
+            senderId = peerIdBytes("0a0a0a0a0a0a0a0a"),
+            timestamp = base + testScheduler.currentTime,
+            payload = "Ayu~".encodeToByteArray(), ttl = MeshEngine.ANNOUNCE_TTL,
+        )
+        assertTrue(radio.send("N2", "Z", WireProtocol.encode(relayedAnnounce)))
+        runCurrent()
+        assertEquals(n1.peerId, a.engine.snapshot.value.servingNode?.peerId)
+        assertEquals(n2.peerId, z.engine.snapshot.value.servingNode?.peerId)
+        a.engine.loraOnly = true
+        a.engine.sendPublic(msg("Ayu", "jalur node"))
+        advanceTimeBy(30_000); runCurrent()
+
+        val incoming = received.single { it.message.content == "jalur node" }
+        assertTrue(incoming.viaNode, "pesan lewat node harus tetap dilabeli Node")
+        assertEquals(-95f, incoming.loraRx?.rssiDbm)
+        assertEquals(true, incoming.loraRx?.matched)
+        assertEquals(n2.peerId, z.engine.snapshot.value.servingNode?.peerId)
+    }
+
+    @Test
+    fun loraOnlyTestModeSkipsDirectBleButCrossesLora() = runTest {
+        val radio = world()
+        val n1 = node(radio, "N1", 1)
+        val n2 = node(radio, "N2", 2)
+        n1.loraPeers += n2; n2.loraPeers += n1
+        val a = phone(radio, "A", "0a0a0a0a0a0a0a0a", "Ayu")
+        val b = phone(radio, "B", "0b0b0b0b0b0b0b0b", "Budi")      // dekat A, hanya lewat BLE
+        val z = phone(radio, "Z", "0f0f0f0f0f0f0f0f", "Zaki")
+        radio.setRssi("A", "B", -50); radio.setRssi("A", "N1", -60); radio.setRssi("Z", "N2", -60)
+        advanceTimeBy(8_000); runCurrent()
+        assertTrue(radio.isConnected("A", "B"))
+
+        a.engine.loraOnly = true
+        a.engine.sendPublic(msg("Ayu", "uji lora"))
+        a.engine.sendFile(FilePacket("lora_1.webp", "image/webp", ByteArray(600) { it.toByte() }))
+        advanceTimeBy(60_000); runCurrent()
+        assertTrue("Ayu:uji lora" in z.inbox, "tetap melintas LoRa: ${z.inbox}")
+        assertEquals(listOf("lora_1.webp"), z.files.map { it.fileName })
+        assertTrue(b.inbox.isEmpty() && b.files.isEmpty(), "HP dekat tidak boleh menerima langsung lewat BLE: ${b.inbox}")
+
+        a.engine.loraOnly = false
+        a.engine.sendPublic(msg("Ayu", "normal"))
+        advanceTimeBy(30_000); runCurrent()
+        assertTrue("Ayu:normal" in b.inbox, "mode normal kembali lewat BLE")
     }
 }
 

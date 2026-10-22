@@ -219,6 +219,8 @@ class MeshEngine(
     /** Kirim berkas publik (FILE_TRANSFER, kompatibel Nusa Mesh). Dipecah fragmen sesuai MTU. */
     fun sendFile(
         file: FilePacket,
+        /** false = jangan serahkan ke Nusa Node (mis. gambar resolusi penuh yang akan jadi ratusan paket LoRa). */
+        loraAllowed: Boolean = true,
         onProgress: (Float) -> Unit = {},
         onComplete: (Boolean) -> Unit = {},
         timestampMs: Long? = null,
@@ -235,7 +237,7 @@ class MeshEngine(
         broadcast(
             packet,
             except = null,
-            allowLora = file.content.size <= LORA_FILE_MAX_BYTES,
+            allowLora = loraAllowed && file.content.size <= LORA_FILE_MAX_BYTES,
             onProgress = onProgress,
             onComplete = onComplete,
             onEstimate = onEstimate,
@@ -268,7 +270,7 @@ class MeshEngine(
         )
         val hop = id.nusamesh.app.mesh.core.RoutePlanner.nextHop(myPeerId, recipientPeerId, topology.snapshot.value)
         val hopDevice = hop?.let { deviceOfPeer(it) }
-        if (hopDevice != null) sendToDevice(hopDevice, packet) else broadcast(packet, except = null)
+        if (hopDevice != null && (!loraOnly || hopDevice.isNode)) sendToDevice(hopDevice, packet) else broadcast(packet, except = null)
     }
 
     /** Kunci node secara manual (null = kembali otomatis). */
@@ -481,6 +483,9 @@ class MeshEngine(
         if (!direct) return
         val sender = p.senderHex
         if (sender == myPeerId) return
+        // Node meneruskan ANNOUNCE HP dengan TTL aplikasi tetap utuh. Identitas
+        // koneksi yang sudah diketahui tidak boleh diganti oleh pengirim relay.
+        if (d.peerId != null && d.peerId != sender) return
         if (d.peerId != sender) {
             d.peerId = sender
             if (d.isNode && d.connected && servingNode == null && lockedNode == null) servingNode = sender
@@ -712,6 +717,17 @@ class MeshEngine(
     // ----------------------------------------------------------------------------------------------
     private fun deviceOfPeer(peerId: String) = devices.values.firstOrNull { it.connected && it.peerId == peerId }
 
+    /**
+     * Mode uji "LoRa saja": paket milik sendiri hanya diserahkan ke Nusa Node, tidak langsung ke HP lain lewat
+     * BLE, supaya pengujian jarak/suara benar-benar lewat radio walau HP penerima ada di dekat. Relay & announce
+     * tidak terpengaruh. Tanpa node tersambung, kiriman gagal (bukan diam-diam lewat BLE).
+     */
+    @kotlin.concurrent.Volatile
+    var loraOnly: Boolean = false
+
+    private fun ownTraffic(packet: WirePacket) =
+        packet.type != MessageType.ANNOUNCE.value && packet.type != MessageType.LEAVE.value
+
     private suspend fun broadcast(
         packet: WirePacket,
         except: String?,
@@ -721,7 +737,10 @@ class MeshEngine(
         onEstimate: ((TransferEstimate) -> Unit)? = null,
         trackingId: String? = null,
     ) {
-        val targets = devices.values.filter { it.connected && it.id != except && (allowLora || !it.isNode) }
+        val forceLora = loraOnly && except == null && ownTraffic(packet)
+        val targets = devices.values.filter {
+            it.connected && it.id != except && (allowLora || !it.isNode) && (!forceLora || it.isNode)
+        }
         if (targets.isEmpty()) {
             diagnostics.record(DiagnosticLayer.QUEUE, "NO_PATH", DiagnosticLevel.WARN, detail = "type=${packet.type}")
             onComplete?.invoke(false)

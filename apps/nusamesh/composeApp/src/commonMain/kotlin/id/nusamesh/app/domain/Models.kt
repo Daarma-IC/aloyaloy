@@ -174,6 +174,8 @@ data class AppUiState(
     val team: String? = null,
     /** Sesi uji QoS yang diterima HP ini (per pengirim & run). */
     val qosRuns: List<QosRun> = emptyList(),
+    /** Mode uji "LoRa saja": kiriman sendiri tidak lewat BLE langsung ke HP lain. */
+    val loraOnly: Boolean = false,
     /** Info rute jalan otomatis yang sedang ada di draft (jarak, waktu, mode). */
     val roadRoute: RoadRouteInfo? = null,
     /** Sedang menghitung rute jalan. */

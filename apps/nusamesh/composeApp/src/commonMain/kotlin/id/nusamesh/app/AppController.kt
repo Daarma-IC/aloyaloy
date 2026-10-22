@@ -13,6 +13,7 @@ import id.nusamesh.app.domain.AppUiState
 import id.nusamesh.app.domain.ChatAttachment
 import id.nusamesh.app.domain.ChatMessage
 import id.nusamesh.app.domain.ChatMessageKind
+import id.nusamesh.app.protocol.MeshMediaCodec
 import id.nusamesh.app.domain.ChatPreview
 import id.nusamesh.app.domain.DeliveryPath
 import id.nusamesh.app.domain.DeliveryState
@@ -89,6 +90,7 @@ class AppController(
             myPeerId = repository.myPeerId,
             activeConversationId = initialConversationId,
             sosActive = store.get(KEY_SOS_ACTIVE) == "1",
+            loraOnly = store.get(KEY_LORA_ONLY) == "1",
             role = FieldRole.entries.firstOrNull { it.name == store.get(KEY_ROLE) } ?: FieldRole.Warga,
             team = store.get(KEY_TEAM)?.let(FieldChannels::teamSlug),
             chats = listOf(globalPreview("Chat bersama semua pengguna di mesh", 0, "")),
@@ -108,6 +110,7 @@ class AppController(
     private var saveQosJob: Job? = null
 
     init {
+        repository.loraOnly = _state.value.loraOnly
         restoreOperationKey()
         restoreMapData()
         scope.launch { while (isActive) { delay(2000); _state.update(::refreshSarStatus) } }
@@ -397,7 +400,10 @@ class AppController(
         if (!canSend()) return
         val conversationId = activeConversation()
         val (path, via) = currentPath()
-        val loraSkipped = path != DeliveryPath.Ble && attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES
+        // Gambar resolusi penuh (JPEG ≤960 px) bisa jadi ratusan paket LoRa: hanya profil LoRa yang boleh lewat node.
+        val fullImage = attachment.kind == ChatMessageKind.Image && !MeshMediaCodec.isLoraImage(attachment.name, attachment.bytes.size)
+        val loraSkipped = path != DeliveryPath.Ble &&
+            (fullImage || attachment.bytes.size > id.nusamesh.app.mesh.engine.MeshEngine.LORA_FILE_MAX_BYTES)
         val now = currentEpochMillis()
         val messageId = id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId, now)
         val outgoing = ChatMessage(
@@ -423,7 +429,11 @@ class AppController(
             current.copy(
                 chats = upsertPreview(current.chats, conversationId, outgoing.body, 0, outgoing.time),
                 messages = current.messages + outgoing,
-                notice = if (loraSkipped) "Lampiran di atas 96 KB hanya dikirim lewat Bluetooth, tidak lewat LoRa" else current.notice,
+                notice = when {
+                    !loraSkipped -> current.notice
+                    fullImage -> "Gambar resolusi penuh hanya dikirim lewat Bluetooth. Pilih ulang gambar saat Nusa Node tersambung untuk versi LoRa."
+                    else -> "Lampiran di atas 96 KB hanya dikirim lewat Bluetooth, tidak lewat LoRa"
+                },
             )
         }
         if(attachment.kind == ChatMessageKind.Voice) rememberAckTarget(messageId, AckTarget.Chat(messageId))
@@ -431,6 +441,7 @@ class AppController(
             // Paket file tidak punya field channel: channel ikut di nama file.
             attachment.copy(name = FieldChannels.tagAttachmentName(conversationId, attachment.name)),
             encrypt = conversationId != GLOBAL_CHAT_ID,
+<<<<<<< HEAD
             timestampMs = now,
             onEstimate = { estimate ->
                 val at = currentEpochMillis()
@@ -439,6 +450,9 @@ class AppController(
                         message.copy(transferEstimate = estimate, transferEstimatedAtMs = at) else message
                 }) }
             },
+=======
+            loraAllowed = !fullImage,
+>>>>>>> b8c51e1 (updaten)
             onProgress = { progress ->
                 _state.update { current ->
                     current.copy(messages = current.messages.map { message ->
@@ -1234,6 +1248,20 @@ class AppController(
         }
     }
 
+    /** Mode uji "LoRa saja" (disimpan): untuk menguji suara/teks lewat radio walau HP penerima dekat. */
+    fun setLoraOnly(on: Boolean) {
+        repository.loraOnly = on
+        store.put(KEY_LORA_ONLY, if (on) "1" else "0")
+        _state.update { it.copy(loraOnly = on) }
+        showNotice(
+            when {
+                !on -> "Mode LoRa saja mati: pesan kembali lewat BLE + LoRa"
+                _state.value.mesh.engine.servingNode == null -> "Mode LoRa saja aktif, tapi belum ada Nusa Node tersambung: kiriman akan gagal"
+                else -> "Mode LoRa saja aktif: kiriman Anda hanya lewat Nusa Node"
+            },
+        )
+    }
+
     fun showNotice(message: String) = _state.update { it.copy(notice = message) }
     fun clearNotice() = _state.update { it.copy(notice = null) }
 
@@ -1451,6 +1479,7 @@ class AppController(
         const val SYSTEM = "\u0000system"
         private const val KEY_ACTIVE = "mesh_active"
         private const val KEY_SOS_ACTIVE = "sos_active"
+        private const val KEY_LORA_ONLY = "lora_only_test"
         private const val KEY_ROLE = "field_role"
         private const val KEY_OP_CODE = "operation_key"
         private const val KEY_QOS = "qos_runs"

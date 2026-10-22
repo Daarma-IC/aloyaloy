@@ -110,6 +110,11 @@ class MeshRepository(
 
     fun sendRadioConfig(nodePeerId: String, spreadingFactor: Int) { engine.sendRadioConfig(nodePeerId, spreadingFactor) }
 
+    /** Mode uji: kiriman sendiri hanya lewat Nusa Node (lihat [MeshEngine.loraOnly]). */
+    var loraOnly: Boolean
+        get() = engine.loraOnly
+        set(value) { engine.loraOnly = value }
+
     var nickname: String = store.get(KEY_NICKNAME) ?: "Meshta-${myPeerId.takeLast(4).uppercase()}"
         set(value) {
             field = value.trim().take(24).ifBlank { field }
@@ -162,6 +167,7 @@ class MeshRepository(
     fun sendAttachment(
         attachment: ChatAttachment,
         encrypt: Boolean = false,
+        loraAllowed: Boolean = true,
         onProgress: (Float) -> Unit = {},
         onComplete: (Boolean) -> Unit = {},
         timestampMs: Long? = null,
@@ -170,6 +176,7 @@ class MeshRepository(
         val file = FilePacket(attachment.name, attachment.mimeType, attachment.bytes)
         engine.sendFile(
             if (encrypt) OperationSecurity.sealFile(file, operationKey) else file,
+            loraAllowed,
             onProgress,
             onComplete,
             timestampMs,

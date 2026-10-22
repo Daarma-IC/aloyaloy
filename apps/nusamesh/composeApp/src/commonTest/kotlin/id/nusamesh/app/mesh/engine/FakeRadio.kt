@@ -119,7 +119,7 @@ class FakeNode(
 ) : FakeRadio.Endpoint {
     val peerId = "4e55534e000000" + number.toString(16).padStart(2, '0')
     override val advertisedPeerId: String = peerId
-    override val advertisedName = "NusaNode-$number"
+    override var advertisedName: String? = "NusaNode-$number"
     override val scanning = false
     private val clients = LinkedHashSet<String>()
     private val seen = HashSet<String>()

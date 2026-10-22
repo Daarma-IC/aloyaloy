@@ -13,6 +13,9 @@ interface ChatMediaActions {
     /** [loraProfile] = true bila pesan akan lewat Nusa Node: gambar dikecilkan ke profil LoRa (≤ 1,2 KB). */
     fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)
     fun pickFile(onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)
+
+    /** Ubah gambar biasa ke profil LoRa (WebP ≤128 px, ≤1,2 KB); dipakai bila Nusa Node tersambung saat gambar dipilih. */
+    fun toLoraImage(attachment: ChatAttachment, onResult: (ChatAttachment) -> Unit, onError: (String) -> Unit) = onResult(attachment)
     fun startVoiceNote(onError: (String) -> Unit)
     fun stopVoiceNote(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit)
     /** Putar voice note. [onStarted] membawa durasi (ms), [onFinished] dipanggil saat selesai/dihentikan. */
@@ -24,6 +27,9 @@ interface ChatMediaActions {
         onError: (String) -> Unit,
     )
     fun stopVoicePlayback()
+
+    /** CSV catatan encode/decode Codec2 di HP ini (lihat [VoiceLog]); kosong bila tidak didukung. */
+    fun voiceLogCsv(): String = VoiceLog.HEADER + "\n"
 
     /**
      * Perjelas gambar KECIL ×4 dengan AI di HP ini (profil LoRa ≤128 px sekali jalan; ≤256 px dipotong-potong

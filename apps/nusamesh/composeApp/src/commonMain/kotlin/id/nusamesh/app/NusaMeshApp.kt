@@ -187,6 +187,10 @@ fun NusaMeshApp(
                             start = controller::startQosTest,
                             stop = controller::stopQosTest,
                             clear = controller::clearQosRuns,
+                            setLoraOnly = controller::setLoraOnly,
+                            exportVoice = {
+                                documentActions.saveDocument(csvName("suara-codec2"), "text/csv", mediaActions.voiceLogCsv(), controller::showNotice)
+                            },
                             exportPackets = {
                                 documentActions.saveDocument(csvName("qos-paket"), "text/csv", controller.qosPacketsCsv(), controller::showNotice)
                             },

@@ -54,6 +54,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import id.nusamesh.app.media.VoiceLog
+import kotlinx.coroutines.delay
+import id.nusamesh.app.protocol.MeshMediaCodec
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
@@ -331,6 +335,28 @@ private fun GlobalConversationScreen(
                 }
             }
         }
+        // Profil suara maksimal 10 detik: hitung mundur, lalu berhenti & kirim otomatis.
+        var recordedSeconds by remember { mutableStateOf(0) }
+        var stopping by remember { mutableStateOf(false) }
+        fun stopVoice() {
+            if (stopping) return
+            stopping = true
+            mediaActions.stopVoiceNote(
+                onRecorded = { recording = false; stopping = false; onSendAttachment(it) },
+                onError = { recording = false; stopping = false; onNotice(it) },
+            )
+        }
+        LaunchedEffect(recording) {
+            recordedSeconds = 0
+            while (recording) {
+                delay(1_000)
+                if (!recording) break
+                recordedSeconds += 1
+                if (recordedSeconds >= VoiceLog.MAX_SECONDS) { stopVoice(); break }
+            }
+        }
+        // Dibaca saat galeri selesai (bukan saat dibuka): status node bisa berubah selama memilih gambar.
+        val loraPathNow by rememberUpdatedState(state.mesh.engine.loraPathAvailable)
         Composer(
             message = message,
             onMessageChange = { message = it },
@@ -341,7 +367,13 @@ private fun GlobalConversationScreen(
             onImage = {
                 mediaActions.pickImage(
                     loraProfile = state.mesh.engine.loraPathAvailable,
-                    onPicked = { attachmentOpen = false; onSendAttachment(it) },
+                    onPicked = { picked ->
+                        attachmentOpen = false
+                        // Node bisa tersambung selama galeri terbuka: cek ulang supaya gambar tetap ikut lewat LoRa.
+                        val needsLora = picked.kind == ChatMessageKind.Image && loraPathNow &&
+                            !MeshMediaCodec.isLoraImage(picked.name, picked.bytes.size)
+                        if (needsLora) mediaActions.toLoraImage(picked, onSendAttachment, onNotice) else onSendAttachment(picked)
+                    },
                     onError = onNotice,
                 )
             },
@@ -354,6 +386,7 @@ private fun GlobalConversationScreen(
                 )
             },
             onVoice = {
+<<<<<<< HEAD
                 if (preparingVoice) Unit else if (recording) {
                     recording = false
                     preparingVoice = true
@@ -366,10 +399,14 @@ private fun GlobalConversationScreen(
                     )
                     }
                 } else {
+=======
+                if (recording) stopVoice() else {
+>>>>>>> b8c51e1 (updaten)
                     recording = true
                     mediaActions.startVoiceNote { recording = false; onNotice(it) }
                 }
             },
+            recordedSeconds = recordedSeconds,
             onSend = {
                 if (message.isNotBlank()) {
                     onSend(if (important) ImportantMessage.PREFIX + message.trim() else message)
@@ -380,6 +417,8 @@ private fun GlobalConversationScreen(
             },
             important = important,
             onToggleImportant = { important = !important },
+            loraOnly = state.loraOnly,
+            onLoraOnly = qos.setLoraOnly,
         )
     }
 }
@@ -602,8 +641,11 @@ private fun RxPanel(message: ChatMessage) {
                 add("RSSI LoRa: ${fmt1(rx.loraRssiDbm.toDouble())} dBm · SNR ${fmt1((rx.loraSnrDb ?: 0f).toDouble())} dB")
                 add(listOfNotNull(rx.spreadingFactor?.let { "SF$it" }, rx.bandwidthKHz?.let { "BW ${it.roundToInt()} kHz" }, rx.hopLeft?.let { "sisa hop $it" }).joinToString(" · "))
                 if (rx.metaMatched == false) add("⚠ Data LoRa dipasangkan berdasarkan urutan (msgId tidak cocok)")
+            } else if (rx.path == DeliveryPath.Node) {
+                // Node meneruskan pesan antar-HP yang tersambung ke node YANG SAMA lewat BLE, tanpa radio LoRa.
+                add("⚠ Tanpa data LoRa: kemungkinan pengirim tersambung ke Nusa Node yang sama (diteruskan lewat BLE node, tidak lewat radio LoRa), atau firmware node lama")
             } else if (rx.path != DeliveryPath.Ble) {
-                add("RSSI LoRa: tidak tersedia (firmware node lama / lewat perantara)")
+                add("RSSI LoRa: tidak tersedia (lewat perantara)")
             }
             rx.bleRssiDbm?.let { add("RSSI BLE hop terakhir: $it dBm") }
             add(
@@ -811,8 +853,28 @@ private fun Composer(
     onSend: () -> Unit,
     important: Boolean = false,
     onToggleImportant: () -> Unit = {},
+    loraOnly: Boolean = false,
+    onLoraOnly: (Boolean) -> Unit = {},
+    recordedSeconds: Int = 0,
 ) {
     Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        // Mode uji selalu terlihat saat aktif, supaya tidak lupa dimatikan setelah pengujian.
+        if (loraOnly || attachmentOpen) {
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    .background(if (loraOnly) Accent else AccentTint, RoundedCornerShape(12.dp))
+                    .pressableClick { onLoraOnly(!loraOnly) }
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (loraOnly) "Uji LoRa saja: AKTIF · kiriman tidak lewat BLE langsung" else "Uji LoRa saja: mati · ketuk agar kiriman wajib lewat Nusa Node",
+                    color = if (loraOnly) Color.White else Accent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(if (loraOnly) "Matikan" else "Nyalakan", color = if (loraOnly) Color.White else Accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
         if (message.isNotBlank() && !recording) {
             // Pesan penting (perintah posko dll.) meminta konfirmasi terima dari tiap HP penerima.
             Text(
@@ -843,7 +905,10 @@ private fun Composer(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.size(8.dp).background(Danger, CircleShape))
-                    Text("Merekam voice note…", color = Danger, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Merekam… 0:${recordedSeconds.toString().padStart(2, '0')} / 0:${VoiceLog.MAX_SECONDS}",
+                        color = Danger, fontSize = 10.sp, fontWeight = FontWeight.Medium,
+                    )
                 }
                 Text("Selesai", color = Danger, fontSize = 10.sp, fontWeight = FontWeight.Medium, modifier = Modifier.pressableClick(onVoice))
             }

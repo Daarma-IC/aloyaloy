@@ -47,6 +47,8 @@ class QosActions(
     val clear: () -> Unit = {},
     val exportPackets: () -> Unit = {},
     val exportSummary: () -> Unit = {},
+    val setLoraOnly: (Boolean) -> Unit = {},
+    val exportVoice: () -> Unit = {},
 )
 
 /**
@@ -120,6 +122,8 @@ fun QosDialog(state: AppUiState, actions: QosActions, onDismiss: () -> Unit) {
                 OutlinedButton(onClick = actions.exportPackets, enabled = state.qosRuns.isNotEmpty()) { Text("CSV per paket") }
                 OutlinedButton(onClick = actions.exportSummary, enabled = state.qosRuns.isNotEmpty()) { Text("CSV ringkasan") }
             }
+            // Uji Codec2: ukuran, waktu buang-hening/encode/decode, dan SHA-256 tiap voice note di HP ini.
+            OutlinedButton(onClick = actions.exportVoice) { Text("CSV suara (Codec2)") }
             if (state.qosRuns.isNotEmpty()) {
                 Text(
                     if (confirmClear) "Ketuk lagi untuk menghapus semua hasil" else "Hapus semua hasil",

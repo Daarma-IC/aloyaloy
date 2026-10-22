@@ -39,6 +39,8 @@ import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.OfflineTileStore
 import id.nusamesh.app.media.LoraImageCodec
 import id.nusamesh.app.media.VoiceSilenceTrimmer
+import id.nusamesh.app.media.VoiceLogEntry
+import id.nusamesh.app.media.VoiceLog
 import id.nusamesh.app.location.LocationAccessActions
 import id.nusamesh.app.location.LocationAccessState
 import id.nusamesh.app.location.DeviceLocation
@@ -273,6 +275,13 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         super.onDestroy()
     }
 
+    override fun toLoraImage(attachment: ChatAttachment, onResult: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+        runCatching {
+            val bytes = LoraImageCodec.encode(attachment.bytes) ?: error("Gambar tidak dapat diproses")
+            ChatAttachment("${LoraImageCodec.FILE_PREFIX}${System.currentTimeMillis()}.webp", LoraImageCodec.MIME, bytes, ChatMessageKind.Image)
+        }.onSuccess(onResult).onFailure { onError(it.message ?: "Gagal memproses gambar") }
+    }
+
     override fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
         imageLoraProfile = loraProfile
         imageResult = onPicked
@@ -318,10 +327,18 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                     val high = pcmBytes[index * 2 + 1].toInt()
                     ((high shl 8) or low).toShort()
                 }
+                val trimStart = System.nanoTime()
                 val voiced = VoiceSilenceTrimmer.trim(pcm, AndroidCodec2.SAMPLE_RATE)
+                val trimMs = (System.nanoTime() - trimStart) / 1_000_000
                 require(voiced.size >= AndroidCodec2.SAMPLE_RATE / 4) { "Tidak ada suara terdeteksi" }
                 val voicedSeconds = (voiced.size + AndroidCodec2.SAMPLE_RATE - 1) / AndroidCodec2.SAMPLE_RATE
-                AndroidCodec2.encode(voiced) to voicedSeconds
+                val encodeStart = System.nanoTime()
+                val encoded = AndroidCodec2.encode(voiced)
+                logVoice(
+                    "encode", recordedMs = pcm.size * 1_000L / AndroidCodec2.SAMPLE_RATE, voicedSamples = voiced.size,
+                    pcmBytes = pcm.size * 2, encoded = encoded, trimMs = trimMs, processMs = (System.nanoTime() - encodeStart) / 1_000_000,
+                )
+                encoded to voicedSeconds
             }.onSuccess { (bytes, voicedSeconds) ->
                 runOnUiThread {
                     if (bytes.size > MeshMediaCodec.MAX_MEDIA_BYTES) {
@@ -345,6 +362,24 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     private var playbackFinished: (() -> Unit)? = null
+
+    // ---- Catatan uji Codec2 (CSV di penyimpanan aplikasi; diekspor dari dialog Uji QoS) ----
+    private val voiceLogFile by lazy { File(filesDir, "voice-codec2-log.csv") }
+
+    @Synchronized
+    private fun logVoice(event: String, recordedMs: Long?, voicedSamples: Int, pcmBytes: Int, encoded: ByteArray, trimMs: Long?, processMs: Long) {
+        runCatching {
+            val sha = java.security.MessageDigest.getInstance("SHA-256").digest(encoded).joinToString("") { "%02x".format(it) }
+            val entry = VoiceLogEntry(
+                java.time.Instant.now().toString(), event, recordedMs, voicedSamples * 1_000L / AndroidCodec2.SAMPLE_RATE,
+                pcmBytes, encoded.size, trimMs, processMs, sha,
+            )
+            voiceLogFile.appendText(VoiceLog.csvLine(entry) + "\n")
+        }
+    }
+
+    override fun voiceLogCsv(): String =
+        VoiceLog.HEADER + "\n" + (runCatching { voiceLogFile.readText() }.getOrNull() ?: "")
 
     override fun playVoiceNote(
         bytes: ByteArray,
@@ -495,11 +530,14 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             activeRecorder.startRecording()
             recordingThread = Thread {
                 val buffer = ShortArray(bufferSize)
+                // Batas keras profil suara (UI juga berhenti otomatis di 10 detik).
+                val maxBytes = AndroidCodec2.SAMPLE_RATE * 2 * VoiceLog.MAX_SECONDS
                 while (isRecordingVoice) {
                     val count = activeRecorder.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
                     if (count <= 0) continue
                     synchronized(this) {
-                        repeat(count) { index ->
+                        val room = (maxBytes - output.size()) / 2
+                        repeat(minOf(count, room.coerceAtLeast(0))) { index ->
                             val sample = buffer[index].toInt()
                             output.write(sample and 0xff)
                             output.write((sample ushr 8) and 0xff)
@@ -527,8 +565,13 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         playbackFinished = onFinished
         Thread {
             runCatching {
+                val decodeStart = System.nanoTime()
                 val pcm = AndroidCodec2.decode(bytes)
                 require(pcm.isNotEmpty()) { "Voice note Codec2 kosong" }
+                logVoice(
+                    "decode", recordedMs = null, voicedSamples = pcm.size, pcmBytes = pcm.size * 2, encoded = bytes,
+                    trimMs = null, processMs = (System.nanoTime() - decodeStart) / 1_000_000,
+                )
                 val track = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
