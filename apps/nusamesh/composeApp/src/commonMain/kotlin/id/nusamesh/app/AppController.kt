@@ -441,7 +441,6 @@ class AppController(
             // Paket file tidak punya field channel: channel ikut di nama file.
             attachment.copy(name = FieldChannels.tagAttachmentName(conversationId, attachment.name)),
             encrypt = conversationId != GLOBAL_CHAT_ID,
-<<<<<<< HEAD
             timestampMs = now,
             onEstimate = { estimate ->
                 val at = currentEpochMillis()
@@ -450,9 +449,7 @@ class AppController(
                         message.copy(transferEstimate = estimate, transferEstimatedAtMs = at) else message
                 }) }
             },
-=======
             loraAllowed = !fullImage,
->>>>>>> b8c51e1 (updaten)
             onProgress = { progress ->
                 _state.update { current ->
                     current.copy(messages = current.messages.map { message ->
@@ -1120,6 +1117,16 @@ class AppController(
         val envelope = runCatching { SarRouteCodec.objectOf(text) }.getOrNull() ?: return
         fun field(key: String) = (envelope[key] as? JsonPrimitive)?.contentOrNull
         if (field("action") == "select") {
+            if (field("kind") == "point") {
+                val lat = (envelope["latitude"] as? JsonPrimitive)?.doubleOrNull ?: return
+                val lon = (envelope["longitude"] as? JsonPrimitive)?.doubleOrNull ?: return
+                val point = GeoPoint(lat, lon)
+                if (!point.valid) return
+                _state.update { it.copy(pickedPoint = point, selectedTargetPeerId = null, selectedWaypointId = null, followedRouteId = null, routeDraft = null, roadRoute = null, sarNavigation = SarNavigation()) }
+                store.put("sar-navigation-v1", "")
+                planSarNavigation()
+                return
+            }
             val id = field("targetId") ?: return
             when (field("kind")) { "unit" -> selectNavigationTarget(id); "waypoint" -> selectWaypoint(id) }
             return

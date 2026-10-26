@@ -217,6 +217,13 @@ internal val leafletHtml = """
       else if (window.parent !== window && window.parent.nusaNavigationResult) window.parent.nusaNavigationResult(text);
     }
     window.nusaNavigate = function(kind, targetId) { navigationResult({action:'select', kind:kind, targetId:targetId}); };
+    window.nusaNavigatePoint = function(latitude, longitude) {
+      navigationResult({action:'select', kind:'point', latitude:latitude, longitude:longitude});
+    };
+    function pointPopup(latitude, longitude, label) {
+      return esc(label) + '<br>' + latitude + ', ' + longitude +
+        '<br><button onclick="nusaNavigatePoint(' + latitude + ',' + longitude + ')">Arahkan ke titik peta</button>';
+    }
     function applyNavigationRequest(request) {
       if (!request) { if(navWorker) navWorker.terminate(); if(navWorkerUrl) URL.revokeObjectURL(navWorkerUrl); navWorkerUrl = null; navWorker = null; clearTimeout(navTimeout); navRequestId = null; return; }
       if (request.id === navRequestId) return;
@@ -332,8 +339,8 @@ internal val leafletHtml = """
     ];
     function showPlace(latitude, longitude, label, zoom) {
       searchMarkers.clearLayers();
-      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#74B9FF',fillOpacity:1})
-        .addTo(searchMarkers).bindPopup(label).openPopup();
+      L.circleMarker([latitude, longitude], {radius:9,color:'#fff',weight:3,fillColor:'#74B9FF',fillOpacity:1,bubblingMouseEvents:false})
+        .addTo(searchMarkers).bindPopup(pointPopup(latitude, longitude, label)).openPopup();
       map.setView([latitude, longitude], zoom || 11);
       query.blur();
     }
@@ -406,6 +413,22 @@ internal val leafletHtml = """
       heli:['H','#74B9FF'], air:['A','#0891B2'], lain:['•','#475569']
     };
     const triageColors = {Merah:'#DC2626', Kuning:'#CA8A04', Hijau:'#16A34A', Hitam:'#111827'};
+    // Keep interactive markers alive while GPS updates arrive, including an open popup.
+    const unitMarkers = new Map(), waypointMarkers = new Map();
+    function syncMarker(cache, group, key, point, create, content) {
+      let marker = cache.get(key);
+      if (!marker) {
+        marker = create().addTo(group).bindPopup(content);
+        cache.set(key, marker);
+      } else {
+        marker.setLatLng(point);
+        if (marker.getPopup().getContent() !== content) marker.setPopupContent(content);
+      }
+      return marker;
+    }
+    function removeMissingMarkers(cache, group, ids) {
+      for (const [id, marker] of cache) if (!ids.has(id)) { group.removeLayer(marker); cache.delete(id); }
+    }
     let lastFocusKey;
     let packLayer = null;
     let packName = null;
@@ -449,10 +472,8 @@ internal val leafletHtml = """
         if (navigation.id !== lastSarRoute) map.fitBounds(navigation.geometry,{paddingTopLeft:[36,120],paddingBottomRight:[36,36],maxZoom:17,animate:false});
         lastSarRoute=navigation.id;
       }
-      window.nusaMarkers.clearLayers();
       window.nusaGuidance.clearLayers();
       window.nusaRoutes.clearLayers();
-      window.nusaWaypoints.clearLayers();
       window.nusaDraft.clearLayers();
       const bounds = [];
       for (const route of data.routes || []) {
@@ -482,21 +503,29 @@ internal val leafletHtml = """
         let s = waypointStyle[wp.type] || waypointStyle.lain;
         // Korban: angka = jumlah orang, warna = triase, abu-abu bila sudah dievakuasi.
         if (wp.count != null) s = [String(wp.count), wp.evacuated ? '#94A3B8' : (triageColors[wp.triage] || s[1])];
-        L.marker(wp.point, {icon: L.divIcon({
+        const icon = L.divIcon({
           className:'', iconSize:[28,28], iconAnchor:[14,14],
           html:'<div style="width:24px;height:24px;border-radius:12px;border:2px solid #fff;background:' + s[1] +
             ';color:#fff;font:bold 13px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px #0005">' + s[0] + '</div>'
-        })}).addTo(window.nusaWaypoints).bindPopup('<b>' + esc(wp.typeLabel) + '</b>: ' + esc(wp.label) + '<br>oleh ' + esc(wp.owner) +
+        });
+        const marker = syncMarker(waypointMarkers, window.nusaWaypoints, wp.id, wp.point,
+          function() { return L.marker(wp.point, {icon:icon, bubblingMouseEvents:false}); },
+          '<b>' + esc(wp.typeLabel) + '</b>: ' + esc(wp.label) + '<br>oleh ' + esc(wp.owner) +
           '<br>' + wp.point[0].toFixed(5) + ', ' + wp.point[1].toFixed(5) +
           (wp.trust ? '<br><b>' + esc(wp.trust) + '</b>' : '') + '<br><button onclick="nusaNavigate(\'waypoint\',' + esc(JSON.stringify(wp.id)) + ')">Arahkan ke titik</button>');
+        if (marker.options.icon.options.html !== icon.options.html) marker.setIcon(icon);
         bounds.push(wp.point);
       }
-      for (const unit of units) {
-        if (!Number.isFinite(unit.latitude) || !Number.isFinite(unit.longitude)) continue;
-        L.circleMarker([unit.latitude, unit.longitude], {
+      removeMissingMarkers(waypointMarkers, window.nusaWaypoints, new Set((data.waypoints || []).map(function(wp) { return wp.id; })));
+      const validUnits = units.filter(function(unit) { return Number.isFinite(unit.latitude) && Number.isFinite(unit.longitude); });
+      for (const unit of validUnits) {
+        const point = [unit.latitude, unit.longitude];
+        const style = {
           radius:unit.emergency ? 13 : 9, color:'#fff', weight:3,
-          fillColor:unit.emergency ? '#DC2626' : '#74B9FF', fillOpacity:1
-        }).addTo(window.nusaMarkers).bindPopup(
+          fillColor:unit.emergency ? '#DC2626' : '#74B9FF', fillOpacity:1, bubblingMouseEvents:false
+        };
+        const marker = syncMarker(unitMarkers, window.nusaMarkers, unit.peerId, point,
+          function() { return L.circleMarker(point, style); },
           '<b>' + (unit.emergency ? 'SOS - ' : '') + esc(unit.name || 'Unit') + '</b><br>' +
           (unit.own ? 'Perangkat ini' : (unit.direct ? 'BLE langsung' : 'Via relay')) + '<br>' +
           (unit.rssi == null ? 'RSSI tidak tersedia' : 'RSSI ' + unit.rssi + ' dBm') + '<br>' +
@@ -504,8 +533,10 @@ internal val leafletHtml = """
           (unit.battery == null ? '' : '<br>Baterai ' + unit.battery + '%') +
           (unit.status ? '<br><b>' + esc(unit.status) + '</b>' : '') + (unit.own ? '' : '<br><button onclick="nusaNavigate(\'unit\',' + esc(JSON.stringify(unit.peerId)) + ')">Arahkan ke korban/unit</button>')
         );
+        marker.setStyle(style).setRadius(style.radius);
         bounds.push([unit.latitude, unit.longitude]);
       }
+      removeMissingMarkers(unitMarkers, window.nusaMarkers, new Set(validUnits.map(function(unit) { return unit.peerId; })));
       if (Array.isArray(data.draft)) {
         previewMarkers.clearLayers();
         if (data.draft.length > 1) L.polyline(data.draft, {color:'#0D9488', weight:4, dashArray:'6 6'}).addTo(window.nusaDraft);

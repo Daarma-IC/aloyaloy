@@ -341,10 +341,15 @@ private fun GlobalConversationScreen(
         fun stopVoice() {
             if (stopping) return
             stopping = true
-            mediaActions.stopVoiceNote(
-                onRecorded = { recording = false; stopping = false; onSendAttachment(it) },
-                onError = { recording = false; stopping = false; onNotice(it) },
-            )
+            recording = false
+            preparingVoice = true
+            voiceScope.launch {
+                withFrameNanos { }
+                mediaActions.stopVoiceNote(
+                    onRecorded = { stopping = false; preparingVoice = false; onSendAttachment(it) },
+                    onError = { stopping = false; preparingVoice = false; onNotice(it) },
+                )
+            }
         }
         LaunchedEffect(recording) {
             recordedSeconds = 0
@@ -386,22 +391,7 @@ private fun GlobalConversationScreen(
                 )
             },
             onVoice = {
-<<<<<<< HEAD
-                if (preparingVoice) Unit else if (recording) {
-                    recording = false
-                    preparingVoice = true
-                    voiceScope.launch {
-                    // Let Compose render the waiting state before the platform stops its recorder.
-                    withFrameNanos { }
-                    mediaActions.stopVoiceNote(
-                        onRecorded = { preparingVoice = false; onSendAttachment(it) },
-                        onError = { preparingVoice = false; onNotice(it) },
-                    )
-                    }
-                } else {
-=======
-                if (recording) stopVoice() else {
->>>>>>> b8c51e1 (updaten)
+                if (preparingVoice) Unit else if (recording) stopVoice() else {
                     recording = true
                     mediaActions.startVoiceNote { recording = false; onNotice(it) }
                 }

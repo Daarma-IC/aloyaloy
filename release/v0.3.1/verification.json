@@ -1,0 +1,29 @@
+{
+  "version": "0.3.1",
+  "versionCode": 17,
+  "verifiedAtUtc": "2026-10-22T05:43:25.086669+00:00",
+  "sourceGitHead": "33b124d67600fc3a9247c5f0796c8833ab5c0091",
+  "includesUncommittedSourceFixes": true,
+  "releaseUnitTests": {
+    "tests": 147,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "mapNavigationControllerTests": 3,
+  "browserScenariosPassedInPreviousFixValidation": 10,
+  "sameCertificateAsV030": true,
+  "certificateSha256": "7aa5f0fc1949d37771feab4db5b90062c740c0f758876ed985a58743467ce2cc",
+  "apkSignatureVerified": true,
+  "aabSignatureVerified": true,
+  "codec2Abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
+  ],
+  "bundledNavigationPackageCount": 4,
+  "gpsRoutingFixPresentInApkDex": true,
+  "physicalDeviceTested": false,
+  "iosIpaProduced": false
+}

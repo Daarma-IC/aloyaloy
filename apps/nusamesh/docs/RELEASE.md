@@ -1,4 +1,4 @@
-# Release NusaMesh 0.3.0 (16)
+# Release NusaMesh 0.3.1 (17)
 
 Android produces APK/AAB; iOS produces an Xcode archive and, after Apple signing, an IPA. This workflow builds local artifacts only. It does not push Git, publish a GitHub release, upload to Play Console, or upload to App Store Connect.
 
@@ -13,13 +13,15 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 .\scripts\release-android.ps1 -Unsigned -Offline
 # Existing distribution key (passwords are prompted without echo):
 .\scripts\release-android.ps1 -KeyStore 'C:\private\nusamesh-release.p12' -KeyAlias 'nusamesh' -Offline
+# Memory-constrained Windows host: one worker, sequential tasks, 1536 MB Gradle heap:
+.\scripts\release-android.ps1 -Offline -LowMemory
 # Only for a new distribution identity:
 .\scripts\release-android.ps1 -CreateSigningKey -Offline
 ```
 
 The new-key option never overwrites a key. It stores the PKCS12 key outside the repository at the current user's .android/nusamesh directory. Its password is saved in a Windows DPAPI-encrypted credentials file for the current Windows user. Back up the key and retain its password securely; the DPAPI credentials file alone is not portable to another Windows installation. No password, key, or provisioning profile belongs in Git or release downloads.
 
-Automation can instead provide NUSAMESH_KEYSTORE, NUSAMESH_KEY_ALIAS, NUSAMESH_STORE_PASSWORD and NUSAMESH_KEY_PASSWORD as environment secrets. Signing configuration has no fallback to Android Debug. The helper verifies the APK signature, rejects the debug certificate, checks that the APK is not debuggable, and verifies the AAB signature. Versioned artifacts and SHA-256 hashes are placed in releases/v0.3.0.
+Automation can instead provide NUSAMESH_KEYSTORE, NUSAMESH_KEY_ALIAS, NUSAMESH_STORE_PASSWORD and NUSAMESH_KEY_PASSWORD as environment secrets. Signing configuration has no fallback to Android Debug. The helper verifies the APK signature, rejects the debug certificate, checks that the APK is not debuggable, and verifies the AAB signature. Versioned artifacts and SHA-256 hashes are placed in releases/v0.3.1. Published workspace artifacts are copied to the root release/v0.3.1 folder.
 
 An APK signed with a new release identity cannot update an installed APK signed with Android Debug or another key. Keep the existing key if update compatibility is required. Do not uninstall an existing app without preserving its local data. An unsigned APK is a compile artifact and cannot be installed/distributed as a signed release.
 

@@ -142,7 +142,10 @@ fun MapScreen(
         val availablePx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().weight(if (collapsed) 1f else 1f - sheetFraction).background(BrandTint)) {
-                LeafletMap(Modifier.fillMaxSize(), mapData, actions.mapTap, actions.receiveNavigation)
+                LeafletMap(Modifier.fillMaxSize(), mapData, { point ->
+                    actions.mapTap(point)
+                    collapsed = false
+                }, actions.receiveNavigation)
             }
             Column(
                 Modifier.fillMaxWidth()
@@ -219,7 +222,7 @@ fun MapScreen(
                     markingOpen = false
                     roadOpen = false
                     editingWaypointId = null
-                    actions.clearPicked()
+                    if (tapped != SheetMode.Road) actions.clearPicked()
                     when (tapped.takeIf { it != mode }) {
                         SheetMode.Road -> roadOpen = true
                         SheetMode.Draw -> actions.startDraft()

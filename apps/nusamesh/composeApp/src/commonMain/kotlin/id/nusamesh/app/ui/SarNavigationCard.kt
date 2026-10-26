@@ -28,8 +28,10 @@ import kotlin.math.roundToInt
 internal fun SarNavigationCard(state: AppUiState, actions: MapActions) {
     val nav = state.sarNavigation
     var expanded by rememberSaveable(nav.route?.request?.title) { mutableStateOf(false) }
+    if (state.pickedPoint != null && state.routeDraft == null) {
+        OutlinedButton(onClick = actions.planNavigation) { Text("Arahkan ke titik peta") }
+    }
     if (nav.status == "IDLE") {
-        if (state.pickedPoint != null) OutlinedButton(onClick = actions.planNavigation) { Text("Arahkan ke titik peta") }
         return
     }
     Column(Modifier.fillMaxWidth().background(BrandTint, RoundedCornerShape(16.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

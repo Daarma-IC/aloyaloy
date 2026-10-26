@@ -3,7 +3,8 @@ param(
     [switch]$CreateSigningKey,
     [string]$KeyStore = $env:NUSAMESH_KEYSTORE,
     [string]$KeyAlias = $env:NUSAMESH_KEY_ALIAS,
-    [switch]$Offline
+    [switch]$Offline,
+    [switch]$LowMemory
 )
 $ErrorActionPreference = 'Stop'
 if (-not $KeyAlias) { $KeyAlias = 'nusamesh' }
@@ -64,6 +65,11 @@ try {
     }
     $gradleArgs = @(':composeApp:assembleRelease',':composeApp:bundleRelease',':composeApp:testReleaseUnitTest','--console=plain')
     if ($Offline) { $gradleArgs += '--offline' }
+    if ($LowMemory) {
+        $gradleArgs += @('--no-daemon','--no-parallel','--max-workers=1',
+            '-Dorg.gradle.jvmargs=-Xmx1536m -XX:ActiveProcessorCount=2 -Dfile.encoding=UTF-8',
+            '-Pkotlin.compiler.execution.strategy=in-process')
+    }
     & .\gradlew.bat @gradleArgs
     if ($LASTEXITCODE -ne 0) { throw 'Release build or tests failed.' }
     New-Item -ItemType Directory -Path $output -Force | Out-Null
