@@ -1,2 +1,5 @@
-# Hasil build arduino-cli
-.build-*/
+/build/
+/NusaNode/build/
+/NusaRxCompanion/build/
+/NusaRxCompanion/.vscode/
+/sf-variants/*/build/

@@ -44,17 +44,19 @@ class WirePacket(
     val payload: ByteArray,
     val signature: ByteArray? = null,
     val ttl: Int,
+    /** Scheduling hint, not authentication; rate/airtime limits still apply. */
+    val voicePriority: Boolean = false,
 ) {
     val messageType: MessageType? get() = MessageType.fromValue(type)
     val senderHex: String get() = senderId.toHex()
     val recipientHex: String? get() = recipientId?.toHex()
 
-    fun withTtl(newTtl: Int) = WirePacket(version, type, senderId, recipientId, timestamp, payload, signature, newTtl)
+    fun withTtl(newTtl: Int) = WirePacket(version, type, senderId, recipientId, timestamp, payload, signature, newTtl, voicePriority)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is WirePacket) return false
-        return version == other.version && type == other.type && ttl == other.ttl && timestamp == other.timestamp &&
+        return version == other.version && type == other.type && ttl == other.ttl && voicePriority == other.voicePriority && timestamp == other.timestamp &&
             senderId.contentEquals(other.senderId) && sameBytes(recipientId, other.recipientId) &&
             payload.contentEquals(other.payload) && sameBytes(signature, other.signature)
     }
@@ -68,6 +70,7 @@ class WirePacket(
         r = 31 * r + payload.contentHashCode()
         r = 31 * r + (signature?.contentHashCode() ?: 0)
         r = 31 * r + ttl
+        r = 31 * r + voicePriority.hashCode()
         return r
     }
 }
@@ -138,11 +141,12 @@ object WireProtocol {
     const val FLAG_HAS_RECIPIENT = 0x01
     const val FLAG_HAS_SIGNATURE = 0x02
     const val FLAG_IS_COMPRESSED = 0x04
+    const val FLAG_VOICE_PRIORITY = 0x08
 
     fun encode(packet: WirePacket, pad: Boolean = true, random: Random = Random.Default): ByteArray {
         var payload = packet.payload
         var originalSize: Int? = null
-        if (Compression.shouldCompress(payload)) {
+        if (!packet.voicePriority && Compression.shouldCompress(payload)) {
             Compression.compress(payload)?.let {
                 originalSize = payload.size
                 payload = it
@@ -152,6 +156,7 @@ object WireProtocol {
         if (packet.recipientId != null) flags = flags or FLAG_HAS_RECIPIENT
         if (packet.signature != null) flags = flags or FLAG_HAS_SIGNATURE
         if (originalSize != null) flags = flags or FLAG_IS_COMPRESSED
+        if (packet.voicePriority) flags = flags or FLAG_VOICE_PRIORITY
 
         val w = ByteWriter(HEADER_V2 + 2 * ID_SIZE + payload.size + SIGNATURE_SIZE + 2)
             .byte(packet.version).byte(packet.type).byte(packet.ttl)
@@ -166,6 +171,9 @@ object WireProtocol {
         packet.signature?.let { w.bytes(if (it.size > SIGNATURE_SIZE) it.copyOf(SIGNATURE_SIZE) else it) }
 
         val raw = w.toByteArray()
+        // Codec data is already compressed. Avoid BLE-only padding/fragmentation overhead.
+        // Legacy readers unpad exact block sizes blindly; a zero trailer avoids that ambiguity.
+        if (packet.voicePriority) return if (raw.size in MessagePadding.blockSizes) raw + byteArrayOf(0) else raw
         return if (pad) MessagePadding.pad(raw, MessagePadding.optimalBlockSize(raw.size), random) else raw
     }
 
@@ -196,7 +204,7 @@ object WireProtocol {
                         Compression.decompress(r.bytes(payloadLen - 2), original) ?: return null
                     } else r.bytes(payloadLen)
                     val signature = if (hasSignature) r.bytes(SIGNATURE_SIZE) else null
-                    WirePacket(version, type, sender, recipient, ts, payload, signature, ttl)
+                    WirePacket(version, type, sender, recipient, ts, payload, signature, ttl, flags and FLAG_VOICE_PRIORITY != 0)
                 }
             }
         }

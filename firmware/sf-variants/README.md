@@ -1,5 +1,13 @@
 # Firmware Nusa Node per Spreading Factor (uji QoS)
 
+Default terbaru: QUASI=1, TAKEOVER=1, FULL=0; kedua radio dapat RX/TX terkoordinasi. Flash anggota wire v3. Baca [QUASI_TAKEOVER.md](../QUASI_TAKEOVER.md); keterangan RX-only/v2 di riwayat lama tidak berlaku untuk baseline ini.
+
+**Default terbaru: QUASI=1/FULL=0, dua radio bergantian dengan RX companion protokol v2.** Upload main dan companion yang cocok. Untuk satu LilyGO per node seperti semula, set `LORA_QUASI_DUPLEX=0` serta `LORA_FULL_DUPLEX=0` di konfigurasi varian. Lihat [mode aktif](../DUPLEX.md).
+
+Modul implementasi sekarang berada di `src/ble`, `src/lora`, `src/wifi`, `src/routing`, `src/protocol` dan `src/ui`. Header root menjaga include `.ino` tetap kompatibel. Lihat [peta struktur](../STRUCTURE.md). Generator menyalin `src/` beserta header root.
+
+Pilihan half/full-duplex juga tersedia di `config.h` masing-masing varian; lihat [DUPLEX.md](../DUPLEX.md). Untuk sinkron implementasi/protokol tanpa mereset identitas/config per unit, gunakan `../sync-radio-modules.ps1`. Generator penuh di bawah tetap mereset konfigurasi varian seperti sebelumnya.
+
 Satu folder = satu SF yang **dikunci**. Untuk ganti SF, cukup flash folder lain.
 
 | Folder | SF | Airtime frame penuh (255 B, BW125) |

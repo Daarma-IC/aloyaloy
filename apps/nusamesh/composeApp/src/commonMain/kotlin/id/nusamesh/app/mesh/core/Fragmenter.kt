@@ -88,6 +88,7 @@ class Fragmenter(
                 },
                 senderId = packet.senderId, recipientId = packet.recipientId,
                 timestamp = packet.timestamp, payload = payload, signature = null, ttl = packet.ttl,
+                voicePriority = packet.voicePriority,
             )
         }
     }

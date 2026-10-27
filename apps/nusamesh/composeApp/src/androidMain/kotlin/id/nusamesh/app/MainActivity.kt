@@ -31,6 +31,10 @@ import id.nusamesh.app.domain.ChatAttachment
 import id.nusamesh.app.domain.ChatMessageKind
 import id.nusamesh.app.media.ChatMediaActions
 import id.nusamesh.app.media.AndroidCodec2
+import id.nusamesh.app.media.AndroidVoiceCapture
+import id.nusamesh.app.media.AndroidVoicePlayer
+import id.nusamesh.app.media.VoiceChunk
+import id.nusamesh.app.media.IncomingVoiceChunk
 import id.nusamesh.app.media.DocumentActions
 import id.nusamesh.app.media.EnhancedImage
 import id.nusamesh.app.media.SrSpeed
@@ -65,6 +69,12 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private var codec2PlaybackToken = 0L
     private var playbackFile: File? = null
     private var pendingRecordStart: (() -> Unit)? = null
+    private var streamCapture: AndroidVoiceCapture? = null
+    private val streamPlayer by lazy { AndroidVoicePlayer(
+        onError = { text -> runOnUiThread { process.runtime.controller.showNotice(text) } },
+        onEvent = { event -> process.runtime.controller.recordVoiceEvent("VOICE_PLAYBACK",event) },
+    ) }
+    override val supportsVoiceStreaming = true
     private var pendingBluetoothAction: (() -> Unit)? = null
     private var bluetoothDenied: ((String) -> Unit)? = null
     private val mutableLocationState = MutableStateFlow(LocationAccessState.Checking)
@@ -265,6 +275,8 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     override fun onDestroy() {
+        cancelVoiceStream()
+        streamPlayer.enable(false)
         process.location.onProviderChanged = null
         isRecordingVoice = false
         runCatching { recorder?.stop() }
@@ -305,6 +317,39 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
+
+    override fun startVoiceStream(onChunk: (VoiceChunk) -> Unit, onError: (String) -> Unit) {
+        mediaError = onError
+        val start = {
+            runCatching {
+                check(streamCapture == null) { "Rekaman masih aktif" }
+                releasePlayer(); streamPlayer.stop()
+                val capture = AndroidVoiceCapture(post={ task -> runOnUiThread { task() } },
+                    metric={ detail -> process.runtime.controller.recordVoiceEvent("VOICE_ENCODE",detail) })
+                streamCapture = capture
+                capture.start({ chunk -> if(streamCapture === capture) onChunk(chunk) }) { message ->
+                    if(streamCapture === capture) { streamCapture = null; onError(message) }
+                }
+            }.onFailure { streamCapture?.cancel(); streamCapture = null; onError(it.message ?: "Perekam gagal") }
+            Unit
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) start()
+        else { pendingRecordStart = start; microphonePermission.launch(Manifest.permission.RECORD_AUDIO) }
+    }
+    override fun stopVoiceStream(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+        pendingRecordStart = null
+        val capture = streamCapture ?: return onError("Tidak ada rekaman aktif")
+        capture.stop({ result -> if(streamCapture === capture) {
+            val samples = id.nusamesh.app.media.Codec2Format.samples(result.bytes) ?: 0
+            logVoice("encode-stream", recordedMs=samples*1000L/8000, voicedSamples=samples,
+                pcmBytes=samples*2, encoded=result.bytes, trimMs=null, processMs=capture.encodeMicros/1000)
+            streamCapture = null; onRecorded(result)
+        } },
+            { message -> if(streamCapture === capture) { streamCapture = null; onError(message) } })
+    }
+    override fun cancelVoiceStream() { pendingRecordStart = null; streamCapture?.cancel(); streamCapture = null }
+    override fun setLiveVoiceListening(enabled: Boolean) { if(enabled) { releasePlayer(); requestAudioFocus() }; streamPlayer.enable(enabled) }
+    override fun receiveVoiceChunk(event: IncomingVoiceChunk) { if(streamCapture == null) streamPlayer.offer(event) }
 
     override fun stopVoiceNote(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
         val activeRecorder = recorder ?: return onError("Belum ada rekaman aktif")
@@ -388,6 +433,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         onFinished: () -> Unit,
         onError: (String) -> Unit,
     ) {
+        streamPlayer.stop()
         if (bytes.isEmpty()) return onError("Data voice note kosong")
         releasePlayer()
         mediaError = onError

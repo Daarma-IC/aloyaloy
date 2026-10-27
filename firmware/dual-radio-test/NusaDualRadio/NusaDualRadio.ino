@@ -1,5 +1,7 @@
 // LilyGO T3 v1.6.1 + external SPI SX1276. Bench test, not NusaMesh firmware.
 // Flash this ESP32 once: it configures BOTH radios over SPI.
+// Header-only external wiring: SCK14/MISO39/MOSI13/CS21/RST22/DIO0=34.
+// External HSPI is separate from onboard VSPI. OLED and microSD are unused.
 #include <Arduino.h>
 #include <SPI.h>
 #include <RadioLib.h>
@@ -19,11 +21,15 @@ constexpr uint32_t PERIOD_MS = 10000;
 constexpr uint32_t TX_TIMEOUT_MS = 2000;
 
 SPIClass radioSpi(VSPI);
+SPIClass externalSpi(HSPI);
 SPISettings settings(4000000, MSBFIRST, SPI_MODE0);
+constexpr int EXT_SCK = 14, EXT_MISO = 39, EXT_MOSI = 13;
+constexpr int EXT_CS = 21, EXT_RST = 22, EXT_DIO0 = 34;
 // Module(CS, DIO0, RESET, DIO1, SPI, settings).
 SX1276 txRadio = new Module(18, 26, 23, 33, radioSpi, settings);
 // DIO1 unused in this continuous-RX test. Do not connect it.
-SX1276 rxRadio = new Module(13, 34, 14, RADIOLIB_NC, radioSpi, settings);
+SX1276 rxRadio = new Module(EXT_CS, EXT_DIO0, EXT_RST, RADIOLIB_NC,
+                             externalSpi, settings);
 
 volatile bool txDone = false;
 volatile bool rxDone = false;
@@ -53,8 +59,10 @@ void setup() {
   delay(300);
   // Both slaves deselected BEFORE either radio is initialized.
   pinMode(18, OUTPUT); digitalWrite(18, HIGH);
-  pinMode(13, OUTPUT); digitalWrite(13, HIGH);
+  pinMode(EXT_CS, OUTPUT); digitalWrite(EXT_CS, HIGH);
   radioSpi.begin(5, 19, 27, 18);
+  externalSpi.begin(EXT_SCK, EXT_MISO, EXT_MOSI, EXT_CS);
+  Serial.println("[WIRING] external HSPI SCK14 MISO39 MOSI13 CS21 RST22 DIO0=34; no OLED/SD");
   Serial.printf("\n[DUAL TEST] node=%c onboard TX=%.3f external RX=%.3f MHz SF%u\n",
                 NUSA_ROLE_A ? 'A' : 'B', TX_MHZ, RX_MHZ, SF);
   // 2 dBm is an initial bench setting; spacing/filtering still need validation.

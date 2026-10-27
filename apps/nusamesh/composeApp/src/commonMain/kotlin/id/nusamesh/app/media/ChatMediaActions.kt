@@ -10,6 +10,12 @@ data class SrSpeed(val model: String, val millis: Long?, val sizeKb: Int, val er
 
 /** Jembatan picker, recorder, dan player supaya UI bersama tidak bergantung pada platform. */
 interface ChatMediaActions {
+    val supportsVoiceStreaming: Boolean get() = false
+    fun startVoiceStream(onChunk: (VoiceChunk) -> Unit, onError: (String) -> Unit) = onError("Stream suara belum didukung perangkat ini")
+    fun stopVoiceStream(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit) = onError("Tidak ada stream aktif")
+    fun cancelVoiceStream() = Unit
+    fun setLiveVoiceListening(enabled: Boolean) = Unit
+    fun receiveVoiceChunk(event: IncomingVoiceChunk) = Unit
     /** [loraProfile] = true bila pesan akan lewat Nusa Node: gambar dikecilkan ke profil LoRa (≤ 1,2 KB). */
     fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)
     fun pickFile(onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)

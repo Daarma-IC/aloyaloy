@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import id.nusamesh.app.media.VoiceChunk
 import id.nusamesh.app.media.VoiceLog
 import kotlinx.coroutines.delay
 import id.nusamesh.app.protocol.MeshMediaCodec
@@ -95,6 +96,10 @@ fun ChatScreen(
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onSendAttachment: (ChatAttachment) -> Unit,
+    onVoiceStart: () -> Boolean = { false },
+    onVoiceChunk: (VoiceChunk) -> Unit = {},
+    onVoiceFinish: (ChatAttachment) -> Unit = {},
+    onVoiceCancel: () -> Unit = {},
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
     diagnostics: DiagnosticSnapshot,
@@ -116,6 +121,8 @@ fun ChatScreen(
             onBack = onBack,
             onSend = onSend,
             onSendAttachment = onSendAttachment,
+            onVoiceStart = onVoiceStart, onVoiceChunk = onVoiceChunk,
+            onVoiceFinish = onVoiceFinish, onVoiceCancel = onVoiceCancel,
             onNotice = onNotice,
             onDismissNebeng = onDismissNebeng,
             qos = qos,
@@ -275,6 +282,10 @@ private fun GlobalConversationScreen(
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onSendAttachment: (ChatAttachment) -> Unit,
+    onVoiceStart: () -> Boolean = { false },
+    onVoiceChunk: (VoiceChunk) -> Unit = {},
+    onVoiceFinish: (ChatAttachment) -> Unit = {},
+    onVoiceCancel: () -> Unit = {},
     onNotice: (String) -> Unit,
     onDismissNebeng: () -> Unit,
     qos: QosActions,
@@ -288,10 +299,20 @@ private fun GlobalConversationScreen(
     var attachmentOpen by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
     var preparingVoice by remember { mutableStateOf(false) }
+    var streamingVoice by remember { mutableStateOf(true) }
     val voiceScope = rememberCoroutineScope()
     val messages = state.messages.filter { it.conversationId == state.activeConversationId }
     var playback by remember { mutableStateOf<VoicePlayback?>(null) }
-    DisposableEffect(Unit) { onDispose { mediaActions.stopVoicePlayback() } }
+    var listeningLive by remember { mutableStateOf(false) }
+    val voiceActiveNow by rememberUpdatedState(recording || preparingVoice)
+    val streamingNow by rememberUpdatedState(streamingVoice)
+    DisposableEffect(mediaActions) { onDispose {
+        mediaActions.stopVoicePlayback(); mediaActions.setLiveVoiceListening(false)
+        if(voiceActiveNow) {
+            if(mediaActions.supportsVoiceStreaming && streamingNow) { mediaActions.cancelVoiceStream(); onVoiceCancel() }
+            else mediaActions.stopVoiceNote({}, {})
+        }
+    } }
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
@@ -319,7 +340,8 @@ private fun GlobalConversationScreen(
                     val audio = message.attachmentData
                     when {
                         playback?.id == message.id -> { mediaActions.stopVoicePlayback(); playback = null }
-                        audio == null -> onNotice("Data voice note tidak tersedia")
+                        audio == null -> onNotice(if(message.delivery == DeliveryState.Sending)
+                            "Suara masih diterima. Untuk mendengar kiriman berikutnya lebih awal, aktifkan Dengar langsung." else "Data voice note tidak tersedia")
                         else -> {
                             mediaActions.stopVoicePlayback()
                             playback = VoicePlayback(message.id, 0L)
@@ -345,10 +367,15 @@ private fun GlobalConversationScreen(
             preparingVoice = true
             voiceScope.launch {
                 withFrameNanos { }
-                mediaActions.stopVoiceNote(
-                    onRecorded = { stopping = false; preparingVoice = false; onSendAttachment(it) },
-                    onError = { stopping = false; preparingVoice = false; onNotice(it) },
-                )
+                val success: (ChatAttachment) -> Unit = {
+                    stopping = false; preparingVoice = false
+                    if(mediaActions.supportsVoiceStreaming && streamingVoice) onVoiceFinish(it) else onSendAttachment(it)
+                }
+                val failure: (String) -> Unit = {
+                    stopping = false; preparingVoice = false; onVoiceCancel(); onNotice(it)
+                }
+                if(mediaActions.supportsVoiceStreaming && streamingVoice) mediaActions.stopVoiceStream(success, failure)
+                else mediaActions.stopVoiceNote(success, failure)
             }
         }
         LaunchedEffect(recording) {
@@ -362,6 +389,18 @@ private fun GlobalConversationScreen(
         }
         // Dibaca saat galeri selesai (bukan saat dibuka): status node bisa berubah selama memilih gambar.
         val loraPathNow by rememberUpdatedState(state.mesh.engine.loraPathAvailable)
+        if(mediaActions.supportsVoiceStreaming) Row(
+            Modifier.fillMaxWidth().padding(horizontal=18.dp),
+            verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween,
+        ) {
+            Text("Kirim bertahap", fontSize=12.sp)
+            androidx.compose.material3.Switch(checked=streamingVoice, enabled=!recording && !preparingVoice,
+                onCheckedChange={ streamingVoice=it })
+            Text("Dengar langsung", fontSize=12.sp)
+            androidx.compose.material3.Switch(checked=listeningLive, onCheckedChange={ enabled ->
+                listeningLive=enabled; mediaActions.setLiveVoiceListening(enabled)
+            })
+        }
         Composer(
             message = message,
             onMessageChange = { message = it },
@@ -392,8 +431,17 @@ private fun GlobalConversationScreen(
             },
             onVoice = {
                 if (preparingVoice) Unit else if (recording) stopVoice() else {
-                    recording = true
-                    mediaActions.startVoiceNote { recording = false; onNotice(it) }
+                    if(mediaActions.supportsVoiceStreaming && streamingVoice) {
+                        if(onVoiceStart()) {
+                            recording = true
+                            mediaActions.startVoiceStream(onVoiceChunk) {
+                                recording=false; onVoiceCancel(); onNotice(it)
+                            }
+                        }
+                    } else {
+                        recording = true
+                        mediaActions.startVoiceNote { recording = false; onNotice(it) }
+                    }
                 }
             },
             recordedSeconds = recordedSeconds,

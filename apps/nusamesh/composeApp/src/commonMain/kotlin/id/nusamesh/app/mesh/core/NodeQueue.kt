@@ -86,8 +86,9 @@ class NodeQueue(
         fun priorityOf(bytes: ByteArray): Int = when (bytes.getOrNull(1)?.toInt()?.and(0xFF)) {
             TYPE_NODE_REGISTER, 0x0A, 0x0C -> 0
             0x04 -> 1
-            0x01, 0x13, 0x30, 0x31 -> 3
-            else -> 2
+            0x01, 0x13, 0x30, 0x31 -> 4
+            0x22, 0x05, 0x06, 0x07 -> if ((bytes.getOrNull(11)?.toInt() ?: 0) and 0x08 != 0) 2 else 3
+            else -> 3
         }
     }
 
@@ -172,7 +173,7 @@ class NodeQueue(
         }
         for (item in items) {
             // Gossip berkala boleh dilewati saat sibuk; jangan menumpuk di belakang voice.
-            if (item.priority == 3 && pending.isNotEmpty()) continue
+            if (item.priority == 4 && pending.isNotEmpty()) continue
             pending += item
         }
         updateEstimates()

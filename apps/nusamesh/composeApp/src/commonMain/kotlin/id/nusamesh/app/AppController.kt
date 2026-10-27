@@ -1,5 +1,8 @@
 package id.nusamesh.app
 
+import id.nusamesh.app.media.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import id.nusamesh.app.data.KeyValueStore
 import id.nusamesh.app.data.GpxCodec
 import id.nusamesh.app.data.MapPersistence
@@ -161,6 +164,7 @@ class AppController(
         }
         scope.launch { repository.messages.collect(::onIncomingMessage) }
         scope.launch { repository.files.collect(::onIncomingFile) }
+        scope.launch { while(isActive) { delay(1000); expireVoiceStreams() } }
         scope.launch { repository.acks.collect { ack -> onAck(ack.messageId, ack.fromPeerId) } }
     }
 
@@ -293,6 +297,7 @@ class AppController(
 
     private fun onIncomingFile(incoming: IncomingFile) {
         val file = incoming.file
+        if (file.mimeType == VoiceStream.MIME) { onIncomingVoice(incoming); return }
         val kind = kindOf(file.mimeType)
         val sender = repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId)
         val (channel, fileName) = FieldChannels.splitAttachmentName(file.fileName)
@@ -394,6 +399,150 @@ class AppController(
                 message.copy(delivery = if (success) DeliveryState.Sent else DeliveryState.Failed)
             } else message
         })
+    }
+
+    private class OutgoingVoice(val conversation: String, val timestamp: Long, val key: OperationKey?) {
+        var streamId: Long? = null
+        var next = 0
+        var offset = 0
+        var waiting = 0
+        var endQueued = false
+        var recorded = false
+        var failed = false
+    }
+    private var outgoingVoice: OutgoingVoice? = null
+    private var lastVoiceTimestamp = 0L
+    private class ReceivingVoice(val original: IncomingFile, val conversation: String, val base: Long,
+                                  val assembler: VoiceStreamAssembler = VoiceStreamAssembler(), var last: Long = currentEpochMillis())
+    private val receivingVoices = mutableMapOf<String, ReceivingVoice>()
+    private val finishedVoices = linkedSetOf<String>()
+    private val lockedVoices = linkedSetOf<String>()
+    private val _voiceChunks = MutableSharedFlow<IncomingVoiceChunk>(extraBufferCapacity = VoiceStream.MAX_CHUNKS)
+    val voiceChunks = _voiceChunks.asSharedFlow()
+    fun recordVoiceEvent(event: String, detail: String = "") = repository.recordVoiceEvent(event,detail)
+
+    fun beginVoiceStream(): Boolean {
+        if (!canSend()) return false
+        if (outgoingVoice != null) { showNotice("Tunggu pengiriman suara sebelumnya selesai"); return false }
+        val conv = activeConversation(); val now = maxOf(currentEpochMillis(),lastVoiceTimestamp + VoiceStream.MAX_CHUNKS)
+        lastVoiceTimestamp = now
+        outgoingVoice = OutgoingVoice(conv, now, repository.operationKey)
+        recordVoiceEvent("VOICE_CAPTURE_STARTED", "timestamp=$now; conversation=$conv")
+        val (path,via) = currentPath()
+        val message = ChatMessage(id = id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId, now),
+            conversationId = conv, senderName = repository.nickname, body = "Suara sedang direkam", time = formatClock(now),
+            outgoing = true, kind = ChatMessageKind.Voice, delivery = DeliveryState.Sending,
+            attachmentMimeType = "audio/x-codec2", transferStartedAtMs = now, path = path, viaName = via)
+        appendIncoming(message, "Suara")
+        rememberAckTarget(message.id, AckTarget.Chat(message.id))
+        return true
+    }
+    fun sendVoiceChunk(chunk: VoiceChunk) {
+        val ctx = outgoingVoice ?: return
+        if (!VoiceStream.valid(chunk) || ctx.endQueued || chunk.sequence != ctx.next || chunk.offset != ctx.offset ||
+            (ctx.streamId != null && ctx.streamId != chunk.streamId)) return
+        ctx.streamId = chunk.streamId; ctx.next++; ctx.waiting++; ctx.endQueued = chunk.end
+        ctx.offset = chunk.offset + chunk.samples
+        recordVoiceEvent("VOICE_CHUNK_QUEUED", "stream=${chunk.streamId}; seq=${chunk.sequence}; samples=${chunk.samples}; codec_bytes=${chunk.frames.size}; end=${chunk.end}")
+        val name = FieldChannels.tagAttachmentName(ctx.conversation, "v${chunk.streamId.toULong().toString(16)}")
+        val attachment = ChatAttachment(name, VoiceStream.MIME, VoiceStream.encode(chunk), ChatMessageKind.Voice)
+        repository.sendAttachment(attachment, encrypt = ctx.conversation != GLOBAL_CHAT_ID,
+            operationKeyOverride = ctx.key, timestampMs = ctx.timestamp + chunk.sequence,
+            onComplete = { success -> scope.launch {
+                ctx.waiting--; ctx.failed = ctx.failed || !success || chunk.cancelled
+                settleVoice(ctx)
+            } })
+        val id = id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId,ctx.timestamp)
+        _state.update { state -> state.copy(messages = state.messages.map {
+            if(it.id == id) it.copy(body = if(chunk.end) "Mengirim suara" else "Suara sedang direkam",
+                durationSeconds = (chunk.offset+chunk.samples+7999)/8000) else it
+        }) }
+    }
+    fun finishVoiceStream(attachment: ChatAttachment) {
+        val ctx = outgoingVoice ?: return
+        ctx.recorded = true
+        ctx.failed = ctx.failed || !ctx.endQueued || Codec2Format.samples(attachment.bytes) != ctx.offset
+        val id = id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId,ctx.timestamp)
+        _state.update { state -> state.copy(messages = state.messages.map {
+            if(it.id == id) it.copy(body = "Pesan suara", attachmentName = attachment.name,
+                attachmentBytes = attachment.bytes.size, attachmentData = attachment.bytes,
+                durationSeconds = attachment.durationSeconds) else it
+        }) }
+        settleVoice(ctx)
+    }
+    private fun settleVoice(ctx: OutgoingVoice) {
+        if (!ctx.endQueued || !ctx.recorded || ctx.waiting != 0) return
+        val id = id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId,ctx.timestamp)
+        markDelivery(id,!ctx.failed)
+        if(outgoingVoice === ctx) outgoingVoice = null
+    }
+    fun cancelVoiceStream() {
+        val ctx = outgoingVoice ?: return
+        ctx.failed = true; ctx.recorded = true
+        if(!ctx.endQueued && ctx.streamId != null) sendVoiceChunk(
+            VoiceChunk(ctx.streamId!!,ctx.next,ctx.offset,0,ByteArray(0),end=true,cancelled=true))
+        markDelivery(id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId,ctx.timestamp),false)
+        // Cancel is sent via the same channel/security path as data chunks.
+        if(ctx.endQueued || ctx.next == 0) outgoingVoice = null
+    }
+    private fun onIncomingVoice(incoming: IncomingFile) {
+        if(incoming.locked) {
+            if(lockedVoices.add("${incoming.fromPeerId}/${incoming.file.fileName}")) showNotice("Suara terenkripsi memerlukan kunci operasi yang sama")
+            if(lockedVoices.size > 64) lockedVoices.remove(lockedVoices.first())
+            return
+        }
+        val chunk = VoiceStream.decode(incoming.file.content) ?: return
+        val (channel,_) = FieldChannels.splitAttachmentName(incoming.file.fileName)
+        val conv = FieldChannels.conversationFor(channel,_state.value.role,_state.value.team,GLOBAL_CHAT_ID) ?: return
+        if(channel != null && repository.operationKey != null && !incoming.verified) return
+        val key = "${incoming.fromPeerId}/${chunk.streamId}"
+        val now = currentEpochMillis()
+        if(key in finishedVoices) return
+        val old = receivingVoices[key]
+        if(old == null && receivingVoices.size >= 8) return
+        val ctx = old ?: ReceivingVoice(incoming,conv,incoming.timestampMs-chunk.sequence).also { receivingVoices[key] = it }
+        if(ctx.conversation != conv || ctx.original.file.fileName != incoming.file.fileName ||
+            ctx.base != incoming.timestampMs-chunk.sequence || ctx.original.verified != incoming.verified) return
+        ctx.last = now
+        val ready = ctx.assembler.accept(chunk)
+        recordVoiceEvent("VOICE_CHUNK_RECEIVED", "stream=$key; seq=${chunk.sequence}; ready=${ready.size}; via_node=${incoming.viaNode}")
+        val id = id.nusamesh.app.mesh.engine.fileTransferId(incoming.fromPeerId,ctx.base)
+        if(_state.value.messages.none { it.id == id }) {
+            val sender = repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId)
+            appendIncoming(ChatMessage(id=id, conversationId=conv, senderName=sender, body="Menerima suara",
+                time=formatClock(ctx.base), outgoing=false, kind=ChatMessageKind.Voice, delivery=DeliveryState.Sending,
+                attachmentMimeType="audio/x-codec2", verified=incoming.verified,
+                path=if(incoming.viaNode) DeliveryPath.Node else DeliveryPath.Ble),"Suara")
+        }
+        ready.forEach { _voiceChunks.tryEmit(IncomingVoiceChunk(key,it,now,conv)) }
+        if(!ctx.assembler.finished) return
+        if(ctx.assembler.cancelled && ready.none { it.cancelled }) _voiceChunks.tryEmit(
+            IncomingVoiceChunk(key,VoiceChunk(chunk.streamId,0,0,0,ByteArray(0),end=true,cancelled=true),now,conv))
+        val note = ctx.assembler.note()
+        _state.update { state -> state.copy(messages=state.messages.map {
+            if(it.id == id) it.copy(body=if(note != null) "Pesan suara" else "Suara tidak lengkap",
+                delivery=if(note != null) DeliveryState.Received else DeliveryState.Failed,
+                attachmentData=note, attachmentBytes=note?.size,
+                attachmentName="voice-${chunk.streamId}.c2", durationSeconds=(ctx.assembler.sampleCount+7999)/8000) else it
+        }) }
+        if(note != null) {
+            recordVoiceEvent("VOICE_STREAM_COMPLETE", "stream=$key; samples=${ctx.assembler.sampleCount}; bytes=${note.size}")
+            acknowledge(id,incoming.fromPeerId)
+        }
+        receivingVoices.remove(key); finishedVoices += key
+        if(finishedVoices.size > 64) finishedVoices.remove(finishedVoices.first())
+    }
+    private fun expireVoiceStreams() {
+        val now = currentEpochMillis()
+        receivingVoices.filterValues { now-it.last > VoiceStream.TIMEOUT_MS }.toMap().forEach { (key,ctx) ->
+            receivingVoices.remove(key); finishedVoices += key
+            val id = id.nusamesh.app.mesh.engine.fileTransferId(ctx.original.fromPeerId,ctx.base)
+            _state.update { state -> state.copy(messages=state.messages.map {
+                if(it.id == id) it.copy(body="Suara tidak lengkap",delivery=DeliveryState.Failed) else it
+            }) }
+            _voiceChunks.tryEmit(IncomingVoiceChunk(key,VoiceChunk(0,0,0,0,ByteArray(0),end=true,cancelled=true),now,ctx.conversation))
+        }
+        while(finishedVoices.size > 64) finishedVoices.remove(finishedVoices.first())
     }
 
     fun sendAttachment(attachment: ChatAttachment) {

@@ -14,7 +14,7 @@ int main() {
     for (size_t i=0; i<packet.size(); ++i) packet[i] = i % 251;
     uint8_t frame[20] = {};
     for(int i=0;i<21;i++) assert(NusaRadio::enqueue(frame,sizeof(frame),PRIO_GOSSIP));
-    // Three fragment slots plus two reserved slots do not fit: reject ALL.
+    // Three fragment slots plus four reserved interactive slots do not fit: reject ALL.
     assert(NusaFrag::sendPacket(packet.data(),packet.size(),3,PRIO_LOCAL)==0);
     assert(NusaRadio::queueDepth()==21);
     assert(NusaRadio::enqueue(frame,sizeof(frame),PRIO_ACK));
@@ -54,7 +54,7 @@ int main() {
     std::thread one([&]{a=NusaFrag::sendPacket(large.data(),large.size(),3,PRIO_LOCAL);});
     std::thread two([&]{b=NusaFrag::sendPacket(large.data(),large.size(),3,PRIO_LOCAL);});
     one.join(); two.join();
-    assert(a==11 && b==11 && NusaRadio::queueDepth()==22);
-    assert(NusaFrag::sendPacket(packet.data(),packet.size(),3,PRIO_LOCAL)==0);
+    assert(((a==11 && b==0) || (a==0 && b==11)) && NusaRadio::queueDepth()==11);
+    assert(NusaFrag::sendPacket(large.data(),large.size(),3,PRIO_LOCAL)==0);
     std::cout << "PASS: atomic queue admission, concurrent producers, no eviction, radio frame round-trip, timeout, bounds\n";
 }

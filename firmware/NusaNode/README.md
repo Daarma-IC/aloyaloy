@@ -1,5 +1,13 @@
 # NusaOS — Firmware Nusa Node
 
+Titik lanjut keseluruhan: [WALKTHROUGH.md](../WALKTHROUGH.md); roadmap ACK admission/backpressure ada di [NEXT_STEPS.md](../NEXT_STEPS.md), masih rencana.
+
+**Default terkini: quasi duplex dua radio dengan takeover per frame.** `LORA_QUASI_DUPLEX=1`, `LORA_QUASI_TAKEOVER=1`, `LORA_FULL_DUPLEX=0`: kedua radio dapat RX/TX dengan satu antrean/anggaran airtime. `.ino` utama tetap. Flash kedua board dengan wire v3; lihat [wiring, status Codec2 dan validasi](../QUASI_TAKEOVER.md).
+
+Peta modul BLE/LoRa dan panduan melanjutkan rework ada di [STRUCTURE.md](../STRUCTURE.md). Implementasi berada dalam `src/`; header `nusa_*.h` di root menjaga pemanggilan `NusaNode.ino` tetap sama. File `.ino` dan konfigurasi tidak diubah oleh pemisahan folder ini.
+
+**Konfigurasi:** QUASI=0 dan FULL=0 untuk satu radio. TAKEOVER=0 untuk susunan lama TX utama + RX anggota. Mode eksperimen FULL tetap tidak aktif.
+
 Firmware gateway LoRa untuk **LILYGO LoRa32 T3 v1.6.1** (ESP32 + SX1276, 923 MHz).
 
 Node menjembatani dua kluster user yang terlalu jauh untuk saling menjangkau
@@ -39,7 +47,7 @@ C tidak perlu menjangkau node. Paketnya di-relay B — mekanisme relay mesh HP y
 sudah ada. Node cuma "HP yang punya uplink LoRa". Hemat daya (cocok solar), tapi
 hanya ~3 HP bisa connect **langsung** (`BLE_MAX_CLIENTS`); sisanya lewat relay.
 Mekanisme relay ini (nebeng + aturan antreannya) bagian dari HCMA — lihat
-[`docs/HCMA.md`](../../docs/HCMA.md).
+[implementasi HCMA aplikasi](../../apps/nusamesh/composeApp/src/commonMain/kotlin/id/nusamesh/app/mesh/core/Hcma.kt).
 
 **WiFi AP.** Node jadi hotspot `NusaNode-<id>`, HP bicara WebSocket. Lebih banyak
 HP connect langsung (~8), tapi boros daya dan HP harus pindah WiFi.
@@ -300,11 +308,14 @@ Detail historis keduanya ada di `NUSAOS_BLUEPRINT.md` (Section 6.2 dan 7.2).
 | Berkas | Isi |
 |---|---|
 | `config.h` | Semua yang bisa disetel: pin, radio, airtime, AP |
-| `nusa_frame.h` | Format frame, FNV-1a 64-bit, cache dedup |
-| `nusa_radio.*` | Radio SX1276, hitung airtime, token bucket, CAD, antrean TX |
-| `nusa_fragment.*` | Pecah & rakit ulang paket app |
-| `nusa_link.*` | WiFi SoftAP + WebSocket + rate limit per user |
-| `nusa_ui.*` | OLED: layar status & layar uji jarak |
+| `src/protocol/nusa_frame.h` | Format frame, FNV-1a 64-bit, cache dedup |
+| `src/protocol/nusa_appproto.h` | Metadata dan protokol aplikasi |
+| `src/ble/nusa_ble.*` | Koneksi HP lewat BLE + rate limit per user |
+| `src/lora/nusa_radio.*` | Radio SX1276, hitung airtime, token bucket, CAD, antrean TX |
+| `src/lora/nusa_fragment.*` | Pecah & rakit ulang paket app |
+| `src/wifi/nusa_link.*` | WiFi SoftAP + WebSocket + rate limit per user |
+| `src/routing/nusa_mobility.*` | Direktori user dan routing mobility |
+| `src/ui/nusa_ui.*` | OLED: layar status & layar uji jarak |
 | `NusaNode.ino` | Perekat semuanya + mode uji jarak |
 
 ---
@@ -330,5 +341,5 @@ konsep, belum siap produksi:
 
 Dukungan voice note Codec2 berada di Android; node meneruskan paket biner.
 Firmware memakai penerimaan antrean seluruh fragmen sekaligus dan timeout
-perakitan lebih panjang. Lihat [panduan Codec2](../../docs/CODEC2_NUSA_NODE.md)
+perakitan lebih panjang. Lihat [panduan Codec2 bertahap](../CODEC2_STREAMING.md)
 untuk build, batasan transport, dan langkah uji perangkat.

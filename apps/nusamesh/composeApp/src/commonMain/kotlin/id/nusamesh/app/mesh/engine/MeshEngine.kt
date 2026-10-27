@@ -233,6 +233,7 @@ class MeshEngine(
         val packet = WirePacket(
             type = MessageType.FILE_TRANSFER.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
             timestamp = timestamp, payload = file.encode(), ttl = recommendedTtl(peers.size),
+            voicePriority = file.mimeType == "audio/x-codec2" || file.mimeType == id.nusamesh.app.media.VoiceStream.MIME,
         )
         broadcast(
             packet,

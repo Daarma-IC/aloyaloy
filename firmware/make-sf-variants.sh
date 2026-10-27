@@ -4,10 +4,13 @@
 # kecuali NODE_ID/NODE_NAME di config.h sebelum flash tiap node.
 set -euo pipefail
 cd "$(dirname "$0")"
+mkdir -p NusaRxCompanion/src/protocol
+cp NusaNode/src/protocol/nusa_duplex_wire.h NusaRxCompanion/src/protocol/
 for sf in 7 8 9 10 11 12; do
   dir="sf-variants/NusaNode_SF$sf"
   rm -rf "$dir" && mkdir -p "$dir"
-  cp NusaNode/*.h NusaNode/*.cpp "$dir/"
+  cp NusaNode/*.h "$dir/"                         # config + compatibility headers
+  cp -R NusaNode/src "$dir/src"                   # Arduino compiles src/ recursively
   cp NusaNode/NusaNode.ino "$dir/NusaNode_SF$sf.ino"      # Arduino: nama .ino = nama folder
   {
     echo "// VARIAN SF$sf — dibuat otomatis oleh firmware/make-sf-variants.sh dari NusaNode/."

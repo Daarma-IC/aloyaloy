@@ -18,21 +18,53 @@ static int mode_of(uint8_t version){
 static struct CODEC2*create(uint8_t version){int mode=mode_of(version);return mode<0?NULL:codec2_create(mode);}
 static int valid_magic(const uint8_t*in){return in[0]=='N'&&in[1]=='C'&&in[2]=='2';}
 
+struct nusa_codec2_stream { struct CODEC2 *codec; uint32_t spf, bpf; };
+struct nusa_codec2_stream *nusa_codec2_stream_create(uint8_t version) {
+  struct CODEC2 *codec=create(version); if(!codec)return NULL;
+  struct nusa_codec2_stream *s=calloc(1,sizeof(*s));
+  if(!s){codec2_destroy(codec);return NULL;}
+  s->codec=codec;s->spf=codec2_samples_per_frame(codec);s->bpf=codec2_bytes_per_frame(codec);return s;
+}
+void nusa_codec2_stream_destroy(struct nusa_codec2_stream *s) {
+  if(s){codec2_destroy(s->codec);free(s);}
+}
+uint32_t nusa_codec2_stream_encode(struct nusa_codec2_stream *s,const int16_t *pcm,
+                                  uint32_t samples,uint8_t *out,uint32_t cap) {
+  if(!s||!pcm||!out||!samples||samples%s->spf)return 0;
+  uint64_t need=(uint64_t)(samples/s->spf)*s->bpf;if(need>cap)return 0;
+  for(uint32_t i=0;i<samples/s->spf;++i)codec2_encode(s->codec,out+i*s->bpf,(int16_t*)(pcm+i*s->spf));
+  return (uint32_t)need;
+}
+uint32_t nusa_codec2_stream_decode(struct nusa_codec2_stream *s,const uint8_t *data,
+                                  uint32_t bytes,int16_t *pcm,uint32_t cap) {
+  if(!s||!data||!pcm||!bytes||bytes%s->bpf)return 0;
+  uint64_t need=(uint64_t)(bytes/s->bpf)*s->spf;if(need>cap)return 0;
+  for(uint32_t i=0;i<bytes/s->bpf;++i)codec2_decode(s->codec,pcm+i*s->spf,data+i*s->bpf);
+  return (uint32_t)need;
+}
+
 uint32_t nusa_codec2_encoded_size(uint32_t samples){
   struct CODEC2*c=create(ENCODE_VERSION);if(!c)return 0;
-  uint32_t frames=(samples+codec2_samples_per_frame(c)-1)/codec2_samples_per_frame(c);
-  uint32_t size=HEADER+frames*codec2_bytes_per_frame(c);codec2_destroy(c);return size;
+  uint64_t spf=codec2_samples_per_frame(c);
+  uint64_t frames=((uint64_t)samples+spf-1)/spf;
+  uint64_t size=HEADER+frames*codec2_bytes_per_frame(c);
+  codec2_destroy(c);return samples&&size<=UINT32_MAX?(uint32_t)size:0;
 }
 uint32_t nusa_codec2_decoded_samples(const uint8_t*in,uint32_t size){
   if(!in||size<HEADER||!valid_magic(in))return 0;
   uint32_t samples=get32(in+4),frames=get32(in+8);
   struct CODEC2*c=create(in[3]);if(!c)return 0;
   uint64_t expected=HEADER+(uint64_t)frames*codec2_bytes_per_frame(c),max=(uint64_t)frames*codec2_samples_per_frame(c);
-  codec2_destroy(c);return(frames&&size==expected&&samples<=max)?samples:0;
+  uint64_t spf=codec2_samples_per_frame(c);
+  uint64_t required=((uint64_t)samples+spf-1)/spf;
+  codec2_destroy(c);return(samples&&frames==required&&size==expected&&samples<=max)?samples:0;
 }
 uint32_t nusa_codec2_encode(const int16_t*pcm,uint32_t samples,uint8_t*out,uint32_t cap){
   if(!pcm||!out||!samples)return 0;struct CODEC2*c=create(ENCODE_VERSION);if(!c)return 0;
-  int spf=codec2_samples_per_frame(c),bpf=codec2_bytes_per_frame(c);uint32_t frames=(samples+spf-1)/spf,need=HEADER+frames*bpf;
+  int spf=codec2_samples_per_frame(c),bpf=codec2_bytes_per_frame(c);
+  uint64_t frame_count=((uint64_t)samples+spf-1)/spf,wide_need=HEADER+frame_count*bpf;
+  if(wide_need>UINT32_MAX){codec2_destroy(c);return 0;}
+  uint32_t frames=(uint32_t)frame_count,need=(uint32_t)wide_need;
   if(cap<need){codec2_destroy(c);return 0;}memcpy(out,"NC2",3);out[3]=ENCODE_VERSION;put32(out+4,samples);put32(out+8,frames);
   int16_t*frame=calloc(spf,sizeof(int16_t));if(!frame){codec2_destroy(c);return 0;}
   for(uint32_t i=0;i<frames;i++){uint32_t start=i*spf,count=samples-start<(uint32_t)spf?samples-start:(uint32_t)spf;memset(frame,0,spf*sizeof(int16_t));memcpy(frame,pcm+start,count*sizeof(int16_t));codec2_encode(c,out+HEADER+i*bpf,frame);}

@@ -88,6 +88,11 @@ fun NusaMeshApp(
         AppRuntime(link, store, locationAccess.location, emergencyActions, initialPage, initialConversationId)
     }
     val controller = appRuntime.controller
+    LaunchedEffect(controller, mediaActions) {
+        controller.voiceChunks.collect {
+            if(it.conversationId == controller.state.value.activeConversationId) mediaActions.receiveVoiceChunk(it)
+        }
+    }
     val state by controller.state.collectAsState()
     val offlinePack by offlineMaps.pack.collectAsState()
     val offlineSummary by offlineMaps.cacheSummary.collectAsState()
@@ -171,6 +176,10 @@ fun NusaMeshApp(
                         onBack = controller::closeChat,
                         onSend = controller::sendMessage,
                         onSendAttachment = controller::sendAttachment,
+                        onVoiceStart = controller::beginVoiceStream,
+                        onVoiceChunk = controller::sendVoiceChunk,
+                        onVoiceFinish = controller::finishVoiceStream,
+                        onVoiceCancel = controller::cancelVoiceStream,
                         onNotice = controller::showNotice,
                         onDismissNebeng = controller::dismissNebengNotice,
                         diagnostics = transmissionDiagnostics,

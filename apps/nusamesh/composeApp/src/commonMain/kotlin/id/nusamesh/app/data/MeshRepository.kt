@@ -107,6 +107,9 @@ class MeshRepository(
     val acks: Flow<IncomingAck> = engine.acks
 
     fun sendAck(toPeerId: String, messageId: String) { engine.sendAck(toPeerId, messageId) }
+    fun recordVoiceEvent(event: String, detail: String) { engineScope.launch {
+        diagnostics.record(DiagnosticLayer.MESSAGE,event,detail=detail)
+    } }
 
     fun sendRadioConfig(nodePeerId: String, spreadingFactor: Int) { engine.sendRadioConfig(nodePeerId, spreadingFactor) }
 
@@ -172,10 +175,11 @@ class MeshRepository(
         onComplete: (Boolean) -> Unit = {},
         timestampMs: Long? = null,
         onEstimate: ((id.nusamesh.app.mesh.engine.TransferEstimate) -> Unit)? = null,
+        operationKeyOverride: OperationKey? = operationKey,
     ) {
         val file = FilePacket(attachment.name, attachment.mimeType, attachment.bytes)
         engine.sendFile(
-            if (encrypt) OperationSecurity.sealFile(file, operationKey) else file,
+            if (encrypt) OperationSecurity.sealFile(file, operationKeyOverride) else file,
             loraAllowed,
             onProgress,
             onComplete,

@@ -24,6 +24,60 @@
 #define LORA_DIO0            26
 #define LORA_DIO1            33
 
+// Preferred mode: two radios, coordinated alternating RX/TX (quasi-duplex).
+// Set both QUASI and FULL to 0 for the original single-radio mode.
+#ifndef LORA_FULL_DUPLEX
+#define LORA_FULL_DUPLEX      0
+#endif
+#ifndef LORA_QUASI_DUPLEX
+#define LORA_QUASI_DUPLEX     1
+#endif
+// One hub queue, both radios may TX; alternate ownership at frame boundaries.
+// No simultaneous local TX/RX is claimed. Set 0 for historical TX + RX-only split.
+#ifndef LORA_QUASI_TAKEOVER
+#define LORA_QUASI_TAKEOVER   1
+#endif
+#define LORA_SEPARATE_RX      (LORA_QUASI_DUPLEX || LORA_FULL_DUPLEX)
+#define LORA_RX_WINDOW_MS     500UL    // minimum RX opportunity between TX frames
+// Receiver hardware: 1 = second LilyGO over UART; 2 = second SPI SX1276.
+#ifndef LORA_RX_BACKEND
+#define LORA_RX_BACKEND       1
+#endif
+// Both LilyGO boards form ONE node. The remote node uses the opposite side.
+#ifndef LORA_DUPLEX_SIDE
+#define LORA_DUPLEX_SIDE      0         // 0 = A, 1 = B
+#endif
+#ifndef LORA_TX_FREQ
+#define LORA_TX_FREQ          (LORA_DUPLEX_SIDE == 0 ? 920.5f : 922.5f)
+#endif
+#ifndef LORA_RX_FREQ
+#define LORA_RX_FREQ          (LORA_DUPLEX_SIDE == 0 ? 922.5f : 920.5f)
+#endif
+// UART2: main TX13 -> companion RX34; companion TX13 -> main RX34; GND common.
+#define LORA_COMPANION_TX     13
+#define LORA_COMPANION_RX     34
+#define LORA_COMPANION_BAUD   115200
+#define LORA_COMPANION_STALE_MS 3500UL
+// Future one-MCU/two-radio backend. OLED and microSD must remain unused.
+#define LORA_EXT_SCK          14
+#define LORA_EXT_MISO         39
+#define LORA_EXT_MOSI         13
+#define LORA_EXT_CS           21
+#define LORA_EXT_RST          22
+#define LORA_EXT_DIO0         34
+#if LORA_FULL_DUPLEX != 0 && LORA_FULL_DUPLEX != 1
+#error "LORA_FULL_DUPLEX must be 0 or 1"
+#endif
+#if LORA_QUASI_DUPLEX != 0 && LORA_QUASI_DUPLEX != 1
+#error "LORA_QUASI_DUPLEX must be 0 or 1"
+#endif
+#if LORA_RX_BACKEND != 1 && LORA_RX_BACKEND != 2
+#error "LORA_RX_BACKEND must be 1 (UART companion) or 2 (SPI radio)"
+#endif
+#if LORA_DUPLEX_SIDE != 0 && LORA_DUPLEX_SIDE != 1
+#error "LORA_DUPLEX_SIDE must be 0 (A) or 1 (B)"
+#endif
+
 // ---------------------------------------------------------------------------
 //  3. PERIFERAL BOARD
 // ---------------------------------------------------------------------------
@@ -51,7 +105,11 @@
 //
 //  Node dengan SF/BW/freq/syncword berbeda TIDAK saling mendengar sama sekali.
 // ---------------------------------------------------------------------------
-#define LORA_FREQ            921.0f     // MHz. Indonesia 920-923 [VERIFIKASI REGULASI]
+#if LORA_FULL_DUPLEX
+#define LORA_FREQ            LORA_TX_FREQ
+#else
+#define LORA_FREQ            921.0f     // Half-duplex MHz [VERIFIKASI REGULASI]
+#endif
 #define LORA_BW              125.0f     // kHz
 #ifndef LORA_SF                         // varian di sf-variants/ menetapkannya sendiri
 #define LORA_SF              7          // 7..12 — lihat tabel airtime di bawah. Dipilih 7
@@ -203,3 +261,7 @@
 #define SERIAL_BAUD          115200
 #define STATUS_PERIOD_MS     5000
 #define UI_PERIOD_MS         500
+
+#if LORA_SEPARATE_RX && LORA_RX_BACKEND == 2 && OLED_ENABLED
+#error "External SPI radio uses GPIO21/22: disable OLED or redesign pin allocation"
+#endif
