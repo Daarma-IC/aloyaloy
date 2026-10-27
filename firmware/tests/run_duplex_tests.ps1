@@ -25,7 +25,9 @@ $cases = @(
     @{Name='quasi-spi'; Defines=@('-DLORA_FULL_DUPLEX=0','-DLORA_QUASI_DUPLEX=1','-DLORA_RX_BACKEND=2'); Sources=@('duplex_spi_test.cpp',$radio,$receiver)},
     @{Name='takeover-uart'; Defines=@('-ULORA_QUASI_TAKEOVER','-DLORA_QUASI_TAKEOVER=1'); Sources=@('takeover_radio_test.cpp',$radio,$receiver)},
     @{Name='takeover-spi'; Defines=@('-ULORA_QUASI_TAKEOVER','-DLORA_QUASI_TAKEOVER=1','-DLORA_RX_BACKEND=2'); Sources=@('takeover_spi_test.cpp',$radio,$receiver)},
+    @{Name='admission'; Defines=@('-DLORA_QUASI_DUPLEX=0'); Sources=@('admission_test.cpp',(Join-Path $PSScriptRoot '../NusaNode/src/protocol/nusa_admission.cpp'),$radio)},
     @{Name='audio-half'; Defines=@('-DLORA_QUASI_DUPLEX=0'); Sources=@('audio_transport_test.cpp',(Join-Path $PSScriptRoot '../NusaNode/src/lora/nusa_fragment.cpp'),$radio)},
+    @{Name='scheduler'; Defines=@('-DLORA_QUASI_DUPLEX=0'); Sources=@('scheduler_test.cpp',$radio)},
     @{Name='mobility'; Defines=@(); Sources=@('mobility_test.cpp',(Join-Path $PSScriptRoot '../NusaNode/src/routing/nusa_mobility.cpp'))}
 )
 foreach ($case in $cases) {

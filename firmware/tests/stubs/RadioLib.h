@@ -2,10 +2,10 @@
 #include "SPI.h"
 #include <vector>
 #define RADIOLIB_ERR_NONE 0
-#define RADIOLIB_CHANNEL_FREE 0
-#define RADIOLIB_ERR_CRC_MISMATCH -1
-#define RADIOLIB_PREAMBLE_DETECTED 1
-#define RADIOLIB_ERR_UNKNOWN -2
+#define RADIOLIB_CHANNEL_FREE -15
+#define RADIOLIB_ERR_CRC_MISMATCH -7
+#define RADIOLIB_PREAMBLE_DETECTED -14
+#define RADIOLIB_ERR_UNKNOWN -1
 #define RADIOLIB_NC -1
 inline std::vector<std::vector<uint8_t>> transmitted;
 inline bool fakeAutoTxDone = true;
@@ -18,8 +18,9 @@ struct SX1276 {
     SX1276(Module* module) : cs(module->cs) { fakeRadios().push_back(this); }
     void (*irq)() = nullptr;
     int receiveStarts = 0;
-    int cadResult = 0;
+    int cadResult = RADIOLIB_CHANNEL_FREE;
     int standbyResult = 0;
+    int txStartResult = 0;
     bool transmitting = false, listening = false;
     std::vector<uint8_t> rxData;
     int begin(float,float,int,int,int,int,int) { return 0; }
@@ -37,7 +38,7 @@ struct SX1276 {
     float getSNR() { return 10; }
     int scanChannel() { return cadResult; }
     int startTransmit(uint8_t* data,size_t size) {
-        if(fakeTxFailure) return -10;
+        if(fakeTxFailure || txStartResult) return txStartResult ? txStartResult : -10;
         transmitting = true; listening = false;
         transmitted.emplace_back(data,data+size);
         if(fakeAutoTxDone && irq) irq();

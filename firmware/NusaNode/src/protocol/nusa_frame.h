@@ -8,6 +8,7 @@
 
 #include <Arduino.h>
 #include "../../config.h"
+#include "nusa_admission_trace.h"
 
 // ---------------------------------------------------------------------------
 //  Header frame LoRa — 12 byte
@@ -145,18 +146,27 @@ static inline bool nusaAppPeek(const uint8_t* pkt, size_t len, NusaAppHeader& h)
 //  Cache deduplikasi — ring sederhana, cukup untuk beban satu node.
 // ---------------------------------------------------------------------------
 class NusaDedup {
+  mutable portMUX_TYPE _mutex = portMUX_INITIALIZER_UNLOCKED;
+  struct Guard { portMUX_TYPE* m; Guard(portMUX_TYPE* p):m(p){portENTER_CRITICAL(m);} ~Guard(){portEXIT_CRITICAL(m);} };
  public:
   void begin() {
+    Guard lock(&_mutex);
     for (int i = 0; i < DEDUP_SLOTS; i++) { _id[i] = 0; _at[i] = 0; }
     _next = 0;
   }
 
   // true bila msgId ini BARU (dan langsung dicatat); false bila duplikat.
   bool admit(uint64_t msgId) {
+    Guard lock(&_mutex);
     uint32_t now = millis();
+    if (NusaAdmissionTrace::current) {
+      auto* trace = NusaAdmissionTrace::current;
+      trace->dedup = this; trace->id = msgId;
+      trace->undo = [](void* p, uint64_t id) { static_cast<NusaDedup*>(p)->forget(id); };
+    }
     for (int i = 0; i < DEDUP_SLOTS; i++) {
       if (_id[i] == msgId) {
-        if (now - _at[i] < DEDUP_TTL_MS) return false;  // masih dalam masa berlaku
+        if (now - _at[i] < DEDUP_TTL_MS) { if(NusaAdmissionTrace::current) NusaAdmissionTrace::current->undo=nullptr; NusaAdmissionTrace::duplicate(); return false; }  // masih dalam masa berlaku
         _at[i] = now;                                   // sudah basi, segarkan
         return true;
       }
@@ -167,7 +177,12 @@ class NusaDedup {
     return true;
   }
 
+  void forget(uint64_t msgId) {
+    Guard lock(&_mutex);
+    for(int i=0;i<DEDUP_SLOTS;++i) if(_id[i]==msgId) { _id[i]=0; _at[i]=millis()-DEDUP_TTL_MS; }
+  }
   bool seen(uint64_t msgId) const {
+    Guard lock(&_mutex);
     uint32_t now = millis();
     for (int i = 0; i < DEDUP_SLOTS; i++) {
       if (_id[i] == msgId && (now - _at[i]) < DEDUP_TTL_MS) return true;

@@ -1,5 +1,7 @@
 # LilyGO RX/TX radio member
 
+Penguatan terbaru: [FIRMWARE_QOS.md](../FIRMWARE_QOS.md). Token LISTEN lama/berlawanan ditolak, CAD gagal dipisahkan dari start TX ambigu (UNKNOWN), dan main membaca error anggota. Build terbaru di `../build/output/firmware-qos-member/`; flash berpasangan dengan main terbaru, wire tetap v3.
+
 Flash `NusaRxCompanion.ino` ke LilyGO kedua untuk mode default **`LORA_QUASI_DUPLEX=1`, `LORA_QUASI_TAKEOVER=1`, `LORA_FULL_DUPLEX=0`, `LORA_RX_BACKEND=1`** pada NusaNode utama. Kedua board membentuk satu hub. Anggota kini dapat RX/TX terkoordinasi, bergantian per frame. Eksperimen full tidak aktif.
 
 Wiring: main TX13 -> companion RX34, companion TX13 -> main RX34, GND bersama. Masing-masing mendapat daya USB sendiri; jangan satukan pin daya kedua board. Tidak perlu Cosmic atau kabel SPI. Pin UART2 ini 3,3 V dan microSD tidak digunakan.

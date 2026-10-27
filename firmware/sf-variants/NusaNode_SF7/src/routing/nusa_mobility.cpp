@@ -1,4 +1,5 @@
 #include "nusa_mobility.h"
+#include "../protocol/nusa_admission_trace.h"
 
 // ============================================================================
 //  Lihat nusa_mobility.h untuk gambaran besar. Semua tabel berukuran tetap
@@ -354,7 +355,7 @@ void NusaMob::noteSender(uint8_t slot, const uint8_t sender[8], uint32_t now) {
 }
 
 NusaMob::RouteDecision NusaMob::route(const uint8_t recipient[8], uint8_t* dstNode, uint8_t* nextHop) {
-  if (findLocal(recipient) >= 0) { s_stats.localOnly++; return ROUTE_LOCAL_ONLY; }
+  if (findLocal(recipient) >= 0) { s_stats.localOnly++; if(NusaAdmissionTrace::current) NusaAdmissionTrace::current->localRoute=true; return ROUTE_LOCAL_ONLY; }
   int d = findDir(recipient);
   if (d >= 0 && s_dir[d].node != s_self) {
     int r = usableRoute(s_dir[d].node);

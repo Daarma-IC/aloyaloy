@@ -152,6 +152,7 @@ static inline size_t nusaBuildAnnounce(uint8_t* out, size_t cap) {
 //  ke node ini / batas slotnya (mis. 1/3) — app menampilkannya di NusaNodeSheet.
 //  Byte 6–7 (tambahan uji QoS): [sf aktif][mode uji jarak 0/1]. App lama
 //  hanya membaca 5 byte pertama, jadi tetap kompatibel.
+//  Payload byte 7: capability admission lokal v1 (tambahan; field lama tetap).
 //  @return panjang byte, atau 0 bila buffer terlalu kecil / jam belum sinkron.
 // ---------------------------------------------------------------------------
 static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neighborCount,
@@ -160,7 +161,7 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
                                           uint8_t sf, bool testMode) {
   if (!g_clockSynced) return 0;
 
-  const size_t payloadLen = 7;
+  const size_t payloadLen = 8;
   const size_t total = 16 + 8 + payloadLen;   // header v2 + senderID + payload
   if (cap < total) return 0;
 
@@ -206,6 +207,7 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
   out[i++] = sf;
   out[i++] = testMode ? 1 : 0;
 
+  out[i++] = 1; // local admission protocol v1 capability; old apps ignore extension
   return i;
 }
 

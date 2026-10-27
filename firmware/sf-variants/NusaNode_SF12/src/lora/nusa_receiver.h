@@ -12,6 +12,7 @@ bool listening(bool enabled);
 // TX is serialized by the hub. UART acceptance is not RF completion.
 bool startTransmit(const uint8_t* data, size_t len);
 NusaDuplexWire::TxState transmitState();
+int16_t transmitError();
 void cancelTransmit();
 void finishTransmit();
 uint32_t crcErrors();

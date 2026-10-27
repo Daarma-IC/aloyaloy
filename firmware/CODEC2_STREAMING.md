@@ -1,5 +1,9 @@
 # Upgrade audio Codec2 bertahap — 28 Oktober 2026
 
+> Transport firmware diperkuat: [QoS audio dan dual LoRa](FIRMWARE_QOS.md). Encoder/decoder dan bundling HP tetap; tahap ini melindungi antrean/urutan chunk, kesempatan RX dan penanganan kegagalan pemancar. Kredit/backpressure HP masih P2.
+
+> Update P1: [konfirmasi admission dan laporan kapasitas node](ADMISSION_P1.md) sudah tersedia di software; kredit/backpressure dinamis P2 belum diterapkan.
+
 Titik lanjut keseluruhan: [WALKTHROUGH.md](WALKTHROUGH.md); roadmap ACK admission/backpressure ada di [NEXT_STEPS.md](NEXT_STEPS.md), masih rencana.
 
 ## Status dan cara mencoba

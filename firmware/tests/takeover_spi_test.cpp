@@ -35,6 +35,14 @@ int main() {
   }
   assert(assembled == std::vector<uint8_t>(packet, packet + sizeof(packet)));
   assert(local->listening && member->listening);
+  // A start error can follow an actual RF-mode write: discard as UNKNOWN,
+  // charge the attempt, and never hand the same frame to the other radio.
+  member->txStartResult = -10;
+  assert(NusaRadio::enqueuePacket(packet, 100, 1, PRIO_LOCAL) == 1);
+  for (int i = 0; i < 30; ++i) step();
+  assert(transmitted.size() == 3 && NusaRadio::queueDepth() == 0 && NusaRadio::txCount() == 3);
+  assert(local->listening && member->listening);
+  member->txStartResult = 0;
   local->standbyResult = -10;
   assert(NusaRadio::enqueuePacket(packet, sizeof(packet), 1, PRIO_LOCAL) == 3);
   for (int i = 0; i < 30; ++i) step();

@@ -82,6 +82,9 @@ import id.nusamesh.app.domain.DeliveryPath
 import id.nusamesh.app.media.EnhancedImage
 import id.nusamesh.app.domain.DeliveryState
 import id.nusamesh.app.domain.FieldChannels
+import id.nusamesh.app.mesh.protocol.AdmissionState
+import id.nusamesh.app.mesh.protocol.label
+import id.nusamesh.app.mesh.protocol.details
 import id.nusamesh.app.mesh.protocol.ImportantMessage
 import id.nusamesh.app.mesh.protocol.QuickStatus
 import id.nusamesh.app.media.ChatMediaActions
@@ -632,6 +635,9 @@ private fun Bubble(
                     Text(if(message.path == DeliveryPath.Nebeng) "Estimasi sampai HP perantara; antrean LoRa berikutnya belum diketahui." else "Estimasi selesai kirim dari HP; waktu tiba di penerima belum diketahui.",color=Color.White.copy(alpha=.8f),fontSize=9.sp,lineHeight=13.sp)
                 }
                 if(message.outgoing && message.kind==ChatMessageKind.Voice) VoiceTransferCard(message)
+                if(message.outgoing) message.nodeAdmission?.let { report ->
+                    Text(report.label(),color=Color.White.copy(alpha=.9f),fontSize=9.sp,lineHeight=13.sp)
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PathTag(message)
                     Text(message.time, color = if (message.outgoing) Color.White.copy(alpha = .75f) else Muted, fontSize = 7.sp)
@@ -671,6 +677,7 @@ private fun RxPanel(message: ChatMessage) {
             add("Pesan Anda — data ukur (RSSI/SNR/jarak) tercatat di HP penerima.")
             add("Jalur: ${pathLabel(message.path)}" + (message.viaName?.takeIf { it != AppController.SYSTEM }?.let { " · via $it" } ?: ""))
             if (message.ackedBy.isNotEmpty()) add(ackLabel(message.ackedBy))
+            message.nodeAdmission?.let { addAll(it.details()) }
         } else if (rx == null) {
             add("Tidak ada data ukur untuk pesan ini.")
         } else {
@@ -724,6 +731,11 @@ private fun DeliveryStatus(message: ChatMessage) {
     val viaLora = message.path != DeliveryPath.Ble
     val (icon, label, color) = when {
         message.ackedBy.isNotEmpty() -> Triple(IconKind.DoubleCheck, ackLabel(message.ackedBy), Color.White)
+        message.nodeAdmission?.state==AdmissionState.BUSY -> Triple(IconKind.Clock,"Node sibuk",Color.White)
+        message.nodeAdmission?.state==AdmissionState.REJECTED -> Triple(IconKind.Alert,"Ditolak node",Color(0xFFFECACA))
+        message.nodeAdmission?.state==AdmissionState.UNKNOWN -> Triple(IconKind.Alert,"Belum terkonfirmasi",Color(0xFFFECACA))
+        message.nodeAdmission?.state==AdmissionState.ACCEPTED -> Triple(IconKind.Check,"Antrean node ${message.nodeAdmission.confirmed}/${message.nodeAdmission.total}",Color.White)
+        message.nodeAdmission?.state==AdmissionState.LEGACY -> Triple(IconKind.Check,"Ke transport BLE",Color.White)
         else -> when (message.delivery) {
         DeliveryState.Sending -> Triple(IconKind.Clock, if (viaLora) "Antre LoRa" else "Mengirim", Color.White.copy(alpha = .85f))
         DeliveryState.Sent -> Triple(IconKind.Check, if(message.kind==ChatMessageKind.Voice) "Ke transport BLE" else if (ImportantMessage.wantsAck(message.body)) "Terkirim, menunggu konfirmasi" else "Terkirim", Color.White)

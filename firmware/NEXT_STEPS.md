@@ -1,6 +1,58 @@
 # Pekerjaan berikutnya: selaraskan aplikasi dan firmware
 
-Status 28 Oktober 2026: **roadmap, belum diimplementasikan**. Baseline dan hasil terdahulu ada di [WALKTHROUGH.md](WALKTHROUGH.md). Mulai dari P1; jangan langsung menghapus limiter atau menaikkan bitrate Codec2.
+Prioritas terbaru pengguna: **firmware didahulukan sebelum P2**. Penguatan antrean audio dan penjadwal dua radio sudah tersedia; baca [FIRMWARE_QOS.md](FIRMWARE_QOS.md) untuk perubahan, 11 suite host, build dan uji perangkat. P4 sebagian terimplementasi melalui cooldown/pemilihan radio setelah kegagalan sebelum TX; kualitas RF/beban adaptif belum diukur.
+
+Status 28 Oktober 2026: **P1 sudah diimplementasikan di software**, lihat [ADMISSION_P1.md](ADMISSION_P1.md) untuk kontrak, hasil dan batas validasi. P2/P3 masih roadmap, P4 sebagian tersedia pada penguatan firmware, dan pembuktian perangkat P5 belum dilakukan. Baseline dan hasil terdahulu ada di [WALKTHROUGH.md](WALKTHROUGH.md). Validasi perangkat P1 sebelum mengganti pacing melalui P2; jangan langsung menghapus limiter atau menaikkan bitrate Codec2.
+
+## Urutan kerja berikutnya — mulai dari sini
+
+Checklist ini belum dikerjakan di hardware. Pencatatan MD tidak berarti board sudah di-flash atau sistem sudah lulus RF.
+
+| Urutan | Pekerjaan | Hasil yang perlu dicatat sebelum lanjut |
+|---|---|---|
+| 1 | Petakan board/COM, pilih profil BLE atau WiFi, flash main dan companion dari sumber terbaru | Board utama menjalankan NusaNode, anggota menjalankan NusaRxCompanion, config/PHY dan versi wire v3 tercatat |
+| 2 | Uji UART dan koordinasi dua radio dalam satu hub | `rxReady` stabil; `mainTx`/`memberTx` bertambah saat mendapat giliran; putus/reboot anggota tidak menghasilkan sukses palsu atau penjadwalan TX saat status belum pasti |
+| 3 | Uji P1 dari HP langsung ke main | ACCEPTED/BUSY/REJECTED/UNKNOWN sesuai keadaan; query/duplikat tidak menggandakan enqueue; admission terpisah dari delivery ACK |
+| 4 | Tambahkan node lawan: teks, audio saja, kemudian gambar + audio + teks | Ukuran/urutan/kelengkapan penerimaan dan checksum arsip tercatat; ukur antrean, buffering, suara pertama dan waktu selesai |
+| 5 | Perbaiki kegagalan yang ditemukan sebelum menambah mekanisme baru | Log main/anggota/penerima dan langkah reproduksi tersedia; ulang kasus yang gagal setelah perbaikan |
+| 6 | Implementasikan P2 kredit/backpressure HP–node | Pengiriman mengikuti kapasitas yang direservasi, bukan hanya jeda tetap atau snapshot slot bebas; tetap satu budget bersama |
+| 7 | Implementasikan P3 bundling audio adaptif dan evaluasi lanjutan P4 | Dibandingkan baseline terukur: overhead, latensi, buffering dan perilaku saat salah satu radio bermasalah |
+
+**Dengan hanya dua LilyGo:** keduanya dipakai sebagai main + companion satu hub. Bisa mulai menguji konfigurasi UART, koordinasi giliran TX dan disconnect/reboot; belum bisa membuktikan pengiriman RF ke hub lawan. End-to-end memerlukan minimal satu node LoRa tambahan. Empat board diperlukan bila kedua ujung sama-sama memakai dua radio. Tanpa alat ukur RF, log giliran/PAUSE hanya membuktikan keputusan software, bukan pengukuran overlap pancaran yang presisi.
+
+Wiring aktif: main TX GPIO13 → anggota RX GPIO34; anggota TX GPIO13 → main RX GPIO34; GND bersama; USB masing-masing, tanpa menggabungkan rail daya. Jangan gunakan microSD GPIO13 bersamaan. [Walkthrough](WALKTHROUGH.md#konfigurasi-dan-wiring-aktif) memuat config dan sketch; [FIRMWARE_QOS.md](FIRMWARE_QOS.md) memuat artefak serta batas validasi.
+
+### Skenario minimum saat perangkat tersedia
+
+- [ ] Startup dan idle: konfigurasi wire v3 diakui, PHY kedua radio cocok, kedua RX dapat aktif saat idle.
+- [ ] Pengiriman berfragmen: kedua pemancar mendapat giliran, msgId/indeks fragmen konsisten, paket dirakit satu kali oleh lawan.
+- [ ] Gambar lebih dahulu lalu audio + teks: audio mendahului bulk, teks/ACK tetap diprioritaskan, gambar dapat melanjutkan; catat penolakan jika kapasitas habis.
+- [ ] Anggota dilepas/reboot ketika idle dan ketika ada pengiriman: TX ditahan selama status tidak pasti dan pulih setelah koordinasi terkonfirmasi; hasil UNKNOWN tidak berubah menjadi sukses palsu.
+- [ ] Beban berkelanjutan/dua HP: catat BUSY, waktu tunggu, antrean, budget dan kelengkapan penerimaan; jangan menonaktifkan limiter supaya pengujian terlihat lancar.
+- [ ] Audio pendek dan mendekati batas 10 detik: ukur waktu suara pertama, jumlah buffering dan waktu arsip lengkap. Target 2–3 detik belum hasil terukur.
+
+### Template catatan hasil perangkat
+
+Simpan hasil aktual sebagai MD di repo, misalnya `firmware/test-results/YYYY-MM-DD-dual-lora.md`, beserta lokasi log terkait. File hasil belum dibuat karena belum ada pengukuran perangkat.
+
+```text
+Tanggal / penguji:
+Revisi sumber dan SHA256 build main / companion / versi APK:
+Board utama / COM / profil BLE atau WiFi:
+Board anggota / COM / wire version:
+Node lawan / identitas hub / hop:
+Frekuensi / SF / BW / CR / daya / duty / antena / jarak:
+Skenario / ukuran gambar / durasi audio / jumlah HP:
+Admission ACCEPTED / BUSY / REJECTED / UNKNOWN:
+Counter awal → akhir: mainTx, memberTx, cadBusy, cadErr, fallback, txErr, q, rxReady:
+Waktu capture / antre / TX / terima / suara pertama / arsip lengkap:
+Duplikat / hilang / CRC / timeout / buffering / checksum / delivery ACK:
+Disconnect/reboot: keadaan sebelum / saat gagal / setelah pulih:
+Lokasi log main / anggota / penerima:
+Hasil aktual / keterbatasan pengukuran / perbaikan berikutnya:
+```
+
+Jika belum ada pengukuran, tulis **belum diuji**, bukan PASS. `TX_DONE` adalah selesai pancar satu frame; ACCEPTED adalah admission pada lingkup yang dilaporkan; delivery ACK adalah bukti terpisah dari penerima aplikasi.
 
 ## Tujuan
 
@@ -10,7 +62,7 @@ Target suara mulai terdengar 2–3 detik adalah sasaran yang perlu diukur, belum
 
 ## P1 — Observasi dan kontrak penerimaan paket
 
-**Pekerjaan pertama pada sesi lanjut.** Tambahkan hasil admission HP–node yang dapat dikorelasikan dengan request ID:
+**Sudah diimplementasikan di software; berikut kontrak dan kriteria yang harus divalidasi pada perangkat.** Hasil admission HP–node dikorelasikan dengan request ID:
 
 | Hasil | Arti yang harus dijaga |
 |---|---|
@@ -35,7 +87,7 @@ Lokasi awal yang ditinjau:
 
 ## P2 — Backpressure dan pengiriman mengikuti kapasitas
 
-Setelah P1 tersedia, ganti jeda tetap 3500 ms sebagai mekanisme utama dengan kredit/kapasitas dari node. Satu kredit harus mewakili kapasitas yang dapat direservasi, bukan sekadar snapshot `queueFree` yang bisa dipakai ganda oleh beberapa HP.
+Setelah P1 tervalidasi pada perangkat, ganti jeda tetap 3500 ms sebagai mekanisme utama dengan kredit/kapasitas dari node. Pada jalur nebeng, tentukan pula cara meneruskan laporan admission dari HP perantara ke HP asal; P1 saat ini berhenti pada link HP–node langsung. Satu kredit harus mewakili kapasitas yang dapat direservasi, bukan sekadar snapshot `queueFree` yang bisa dipakai ganda oleh beberapa HP.
 
 - Tetapkan ownership kredit, expiry/session epoch dan reset setelah reconnect/reboot atau perubahan PHY.
 - Debit/reservasi kapasitas secara konsisten untuk seluruh batch; ACK admission dan penggunaan kredit tidak boleh diproses dua kali.
@@ -60,7 +112,7 @@ Baseline Android sekarang memakai 16 frame awal (640 ms), lalu hingga 36 frame (
 
 ## P4 — Evaluasi pembagian pekerjaan dua radio
 
-Baseline memakai giliran tetap per frame. Setelah observasi tersedia, evaluasi pemilihan pemancar berdasarkan kesiapan/kesehatan radio dan prioritas pekerjaan. Jika radio sibuk memancarkan, tunggu frame selesai; jangan memotong pancaran atau mengaktifkan TX lokal kedua bersamaan pada quasi satu kanal.
+Baseline terbaru memakai giliran per frame saat sehat, CAD pada pemancar terpilih dan cooldown/pindah pemancar setelah kegagalan sebelum TX; lihat FIRMWARE_QOS.md. Evaluasi lanjutan mengikuti hasil perangkat, terutama pembagian berdasarkan kualitas RF dan beban. Jika radio sibuk memancarkan, tunggu frame selesai; jangan memotong pancaran atau mengaktifkan TX lokal kedua bersamaan pada quasi satu kanal.
 
 Pertahankan satu identitas hub, satu antrean/budget, msgId/indeks fragmen, dedup dua RX, token UART dan fail-closed saat status anggota stale/pembatalan belum terkonfirmasi. Handover bukan alasan mengirim salinan frame dua kali atau menghitung budget dua radio secara terpisah. Dua anggota aplikasi penuh dengan layanan BLE/WiFi masing-masing tetap rencana berbeda dari coprocessor radio yang aktif sekarang.
 
@@ -86,8 +138,8 @@ Catat: ukuran audio/gambar, PHY aktif, jarak/antena/daya, jalur/hop, waktu captu
 - Jangan reset perubahan lama, menyentuh identitas node pengguna, atau mengubah semua varian terpisah. Gunakan sumber kanonis dan skrip sinkronisasi setelah perubahan modul.
 - Jangan mengaktifkan eksperimen full, memisahkan frekuensi, mengganti bitrate atau menaikkan duty hanya untuk membuat angka latensi tampak baik.
 - Catat hasil aktual, versi build/protokol dan parameter pengujian. Bedakan software lulus, APK terpasang, RF terukur dan release produksi.
-- Update walkthrough setelah setiap tahap selesai. P1–P5 tetap berstatus rencana sampai implementasi dan bukti masing-masing tersedia.
+- Update walkthrough setelah setiap tahap selesai. Bedakan bagian yang sudah diimplementasikan dan hasil software dari bagian roadmap serta bukti perangkat yang belum tersedia.
 
 Prompt lanjut yang bisa dipakai:
 
-> Baca firmware/WALKTHROUGH.md dan firmware/NEXT_STEPS.md. Lanjutkan P1: observasi dan kontrak ACK admission HP–node, dengan uji penolakan/antrean penuh/duplikat/reconnect. Pertahankan INO utama, baseline quasi takeover wire v3, kompatibilitas node lama, batas buffer dan anggaran airtime. Jangan mengklaim hasil RF dari host test. Jangan mulai P2 dengan sekadar menghapus limiter.
+> Baca firmware/WALKTHROUGH.md, firmware/FIRMWARE_QOS.md dan firmware/NEXT_STEPS.md. P1 admission dan penguatan firmware sudah diimplementasikan di software. Prioritas berikutnya validasi perangkat untuk audio/gambar/teks campuran, dua radio dan putus/reboot anggota; catat admission, antrean, TX dan penerimaan terpisah. Pertahankan INO utama, wire v3, identitas config dan budget bersama. Lanjutkan P2 setelah bukti perangkat; jangan sekadar menghapus limiter.

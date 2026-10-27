@@ -1,12 +1,29 @@
 # Walkthrough NusaNode dan Codec2 — titik lanjut
 
+> Firmware terbaru: [penguatan QoS audio dan dual LoRa](FIRMWARE_QOS.md). Cadangan antrean juga berlaku untuk relay, FIFO/fairness diperbaiki, CAD mengikuti pemancar, dan TX ambigu tidak diulang otomatis. Sebelas suite host serta build main BLE/WiFi dan companion lulus; uji perangkat belum dilakukan.
+
+> P1 sudah ditambahkan pada 28 Oktober 2026: [konfirmasi antrean HP–node](ADMISSION_P1.md). Status/hasil P1 terbaru ada di sana; angka build/APK di bagian hasil terdahulu di bawah adalah snapshot sebelum P1. Langkah implementasi berikutnya P2 setelah validasi perangkat P1.
+
 Diperbarui 28 Oktober 2026. Mulai dari dokumen ini saat melanjutkan rework. [NEXT_STEPS.md](NEXT_STEPS.md) berisi pekerjaan berikutnya; [walkthrough eksperimen awal](dual-radio-test/WALKTHROUGH.md) disimpan sebagai riwayat hardware/diagnostik.
+
+## Ringkasan untuk melanjutkan
+
+| Bagian | Status terakhir | Berikutnya |
+|---|---|---|
+| Dual LoRa satu hub | Main NusaNode + companion RX/TX, quasi satu kanal, giliran per frame dan handover setelah kegagalan sebelum TX yang aman dicoba lagi | Flash berpasangan dan ukur koordinasi/penerimaan nyata |
+| QoS firmware audio | Cadangan raw/batch, FIFO, fairness audio/bulk, jitter sambil RX, CAD per pemancar, token gate lama ditolak, TX ambigu tanpa replay otomatis | Uji beban campuran serta putus/reboot anggota |
+| Codec2 | Encode/decode persisten di HP; firmware meneruskan chunk berprioritas | Ukur suara pertama, buffering dan kelengkapan arsip |
+| P1 admission | Konfirmasi antrean lokal/capability/query tersedia di software; bukan delivery ACK | Validasi HP langsung ke node di perangkat |
+| P2/P3 | Kredit/backpressure dan bundling adaptif belum diimplementasikan | Kerjakan setelah baseline perangkat tercatat |
+| Bukti terbaru firmware | 11 suite host dan build main BLE/WiFi + companion lulus pada tahap implementasi sebelumnya | Belum ada flash/RF/latensi perangkat; dokumentasi sesi ini tidak menjalankan ulang tes |
+
+**Next langsung:** ikuti [checklist berurutan dan template hasil](NEXT_STEPS.md#urutan-kerja-berikutnya--mulai-dari-sini). Dua LilyGo sekarang membentuk satu hub; pengujian penerimaan end-to-end memerlukan minimal satu node radio lawan. Target berikutnya tetap validasi firmware, bukan mengaktifkan eksperimen full duplex.
 
 ## Baseline yang dipertahankan
 
 - Satu hub logis dengan dua radio SX1276; sementara memakai dua LilyGo T3 v1.6.1. Target hardware berikutnya satu MCU + dua modul LoRa.
 - Quasi duplex pada kanal yang sama. Kedua radio dapat RX/TX, tetapi hanya satu frame lokal dipancarkan pada satu waktu. Setelah frame selesai dan kesempatan RX, paket berikutnya dapat memakai radio lain.
-- Pembagian TX saat ini **bergantian per frame**, belum memilih radio berdasarkan beban, RSSI atau kondisi antena. Tidak menjanjikan bandwidth dua kali lipat, bebas interferensi atau tanpa antrean.
+- Pembagian TX sehat **bergantian per frame**, dengan cooldown/pindah pemancar setelah kegagalan sebelum TX yang diketahui aman untuk dicoba kembali. Belum memilih berdasarkan RSSI/kondisi antena. Tidak menjanjikan bandwidth dua kali lipat, bebas interferensi atau tanpa antrean.
 - BLE/WiFi, routing, antrean dan identitas mesh dikelola board utama. Anggota kedua adalah coprocessor radio RX/TX, belum NusaNode penuh dengan layanan BLE/WiFi sendiri.
 - Entry point tetap `NusaNode/NusaNode.ino`. Pemanggilan library, setup, loop dan callback pada INO utama tidak diubah. Implementasi modular berada di `NusaNode/src/`, header root menjadi penghubung include lama.
 - Full duplex/frekuensi silang tetap eksperimen nonaktif. Jangan menggandakan NODE_ID dua node mandiri untuk membentuk satu hub.
@@ -59,7 +76,7 @@ Untuk satu radio, QUASI=0 dan FULL=0. Untuk susunan historis TX utama + RX anggo
 | NodeQueue aplikasi | Pacing 3500 ms, burst 2, bagian airtime 4% | Chunk yang terbentuk tiap 1,44 detik dapat menumpuk |
 | Radio | Anggaran airtime bersama dan RX window minimal 500 ms | Token aplikasi/antrean kosong tidak berarti radio langsung boleh TX |
 | Dua radio | Satu kanal, satu penjadwal, satu anggaran hub | Kapasitas udara tidak otomatis bertambah |
-| Flow control HP–node | Belum ada kontrak ACK admission/credit yang lengkap | BLE accepted belum membuktikan paket masuk antrean radio atau sampai ke penerima |
+| Flow control HP–node | P1 admission sudah tersedia; kredit/backpressure dinamis P2 belum ada | BLE write saja bukan admission; ACCEPTED P1 juga belum membuktikan penerimaan akhir |
 
 Token 0,3 tersebut menghitung paket aplikasi yang diajukan ke backbone, bukan setiap frame Codec2 6 byte. Satu paket aplikasi dapat dipecah lagi menjadi beberapa frame RF. Perubahan token radio anggota tidak otomatis menambah jatah HP/hub.
 
@@ -83,7 +100,7 @@ Output lokal diabaikan Git: `firmware/build/output/quasi-takeover/`, `firmware/b
 
 1. Baca dokumen ini, lalu [NEXT_STEPS.md](NEXT_STEPS.md).
 2. Periksa `git status`, perubahan pengguna, config/identitas/PHY aktual dan versi kedua board. Jangan reset seluruh working tree untuk kembali ke quasi.
-3. Kerjakan tahap **P1: observasi dan ACK admission** terlebih dahulu. Tahap ini belum diimplementasikan; kontrak dan kriteria selesai ada di NEXT_STEPS.md.
+3. Baca FIRMWARE_QOS.md dan ADMISSION_P1.md, lalu ikuti checklist NEXT_STEPS.md: flash berpasangan, UART/koordinasi, admission dan beban campuran dengan node lawan. Sesudah baseline perangkat tercatat, lanjut **P2: backpressure/kredit kapasitas**; jangan langsung menghapus pacing/limiter.
 4. Pertahankan INO utama, wire v3 radio anggota, batas buffer, atomic enqueue, dedup dan anggaran airtime bersama. Ubah protokol dengan fallback/capability yang jelas.
 5. Jalankan hanya pengujian yang relevan dengan perubahan. Simpan bukti software terpisah dari bukti perangkat/RF.
 
@@ -100,7 +117,7 @@ Host test membutuhkan compiler yang tersedia (lihat parameter `-Compiler` pada s
 
 ## Catatan untuk commit/push GitHub
 
-Snapshot saat dokumentasi dibuat masih **belum di-stage/commit**. File CPP lama pada root NusaNode/SF terlihat deleted karena implementasi dipindah ke `src/`; header root penghubung tetap ada. Folder `src/`, firmware anggota, skrip pengujian dan dokumen baru masih untracked. Masukkan pemindahan dan file baru bersama agar clone berikutnya bisa dibangun.
+Pengguna sudah melaporkan push baseline sebelumnya. Pada pemeriksaan sesi dokumentasi ini, working tree masih memuat perubahan P1, penguatan firmware, tes dan MD yang belum di-commit, termasuk file baru yang untracked. Jangan menganggap seluruhnya sudah ikut push sebelumnya; gunakan `git status` aktual. Catatan pemindahan CPP pada tahap awal bukan daftar perubahan Git saat ini.
 
 Kelompok perubahan yang perlu ikut review: `firmware/`, sumber aplikasi `apps/nusamesh/composeApp/src/`, serta `apps/nusamesh/scripts/test-codec2-host.ps1` dan `codec2_bridge_test.c`. Folder build, compiler unduhan, cache, APK dan BIN lokal sudah diabaikan Git; deliverable rilis ditangani terpisah bila nanti dibuat.
 

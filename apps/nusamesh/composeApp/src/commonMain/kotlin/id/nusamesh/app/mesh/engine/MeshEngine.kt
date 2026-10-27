@@ -16,6 +16,11 @@ import id.nusamesh.app.mesh.mobility.HandoverDecider
 import id.nusamesh.app.mesh.mobility.HandoverEvent
 import id.nusamesh.app.mesh.mobility.MobilityConfig
 import id.nusamesh.app.mesh.mobility.RssiSample
+import id.nusamesh.app.mesh.protocol.NodeAdmission
+import id.nusamesh.app.mesh.protocol.NodeAdmissionClient
+import id.nusamesh.app.mesh.protocol.NodeAdmissionEvent
+import id.nusamesh.app.mesh.protocol.NodeAdmissionReport
+import id.nusamesh.app.mesh.protocol.AdmissionState
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.LoraRxMeta
 import id.nusamesh.app.mesh.protocol.MeshMessage
@@ -90,6 +95,7 @@ class MeshEngine(
         var mtu = 185
         var lastAttempt = Long.MIN_VALUE / 2
         var queue: NodeQueue? = null
+        var admission: NodeAdmissionClient? = null
         val isNode get() = peerId?.let { isNusaNodeId(it, name) } ?: (name?.startsWith("NusaNode-") == true)
     }
 
@@ -143,6 +149,8 @@ class MeshEngine(
     val snapshot: StateFlow<EngineSnapshot> = _snapshot.asStateFlow()
     private val _messages = MutableSharedFlow<IncomingMessage>(extraBufferCapacity = 64)
     val messages: SharedFlow<IncomingMessage> = _messages.asSharedFlow()
+    private val _admissions = MutableSharedFlow<NodeAdmissionEvent>(extraBufferCapacity=64)
+    val admissions = _admissions.asSharedFlow()
     private val _files = MutableSharedFlow<IncomingFile>(extraBufferCapacity = 16)
     private val _acks = MutableSharedFlow<IncomingAck>(extraBufferCapacity = 64)
     val acks: SharedFlow<IncomingAck> = _acks
@@ -183,7 +191,7 @@ class MeshEngine(
         diagnostics.record(DiagnosticLayer.SYSTEM, "MESH_STOPPED")
         jobs.forEach { it.cancel() }
         jobs.clear()
-        devices.values.forEach { it.queue?.close() }
+        devices.values.forEach { it.admission?.close(); it.queue?.close() }
         devices.clear()
         servingNode = null
         link.stop()
@@ -394,6 +402,12 @@ class MeshEngine(
                 return
             }
             if (pid != null && servingNode == null && lockedNode == null) servingNode = pid
+            val admissionSession = random.nextLong().let { if(it==0L) 1L else it }
+            d.admission = NodeAdmissionClient(admissionSession, control={ payload ->
+                val packet=WirePacket(type=NodeAdmission.CONTROL,senderId=myIdBytes,
+                    recipientId=d.peerId?.let(::peerIdBytes),timestamp=now(),payload=payload,ttl=1)
+                link.send(d.id,WireProtocol.encode(packet,pad=false))
+            })
             d.queue = NodeQueue(myIdBytes, now) { d.peerId?.let { nodeHealth[it]?.sf } ?: NodeQueue.DEFAULT_SF }.also { it.start(scope) }
             if (pid != null && pid == pendingHandoverTo) {
                 mobilityLog.log("BLE_CONNECTED", null, pid, null, null, now() - pendingHandoverAt, "since_attempt")
@@ -409,6 +423,7 @@ class MeshEngine(
         val d = devices[deviceId] ?: return
         d.connected = false
         d.connecting = false
+        d.admission?.close(); d.admission=null
         d.queue?.close()
         d.queue = null
         updateMtus()
@@ -434,6 +449,11 @@ class MeshEngine(
             return
         }
         val d = device(deviceId)
+        if(packet.type==NodeAdmission.STATUS) {
+            if(d.connected && d.isNode && packet.ttl==1 && packet.senderHex==d.peerId && packet.recipientHex==myPeerId)
+                d.admission?.receive(packet.payload)
+            return // Local-only; never guard-cache, relay or treat as delivery ACK.
+        }
         // Data ukur dari node: simpan, lalu pasangkan ke paket berikutnya dari node yang sama.
         if (packet.type == MessageType.NODE_RX_META.value) {
             val meta = if (d.isNode) LoraRxMeta.decode(packet.payload) else null
@@ -458,6 +478,8 @@ class MeshEngine(
             }
         }
         receivedCount++
+        if(packet.type==MessageType.NODE_LORA_HEALTH.value && d.isNode && packet.senderHex==d.peerId &&
+            packet.ttl==1 && packet.payload.size>=8 && packet.payload[7]==1.toByte()) d.admission?.enable()
         diagnostics.record(DiagnosticLayer.MESH, "RX_PACKET", deviceId = deviceId, bytes = data.size,
             detail = "type=${packet.type}; sender=${packet.senderHex}; ttl=${packet.ttl}")
         processPacket(packet, d, rx)
@@ -797,6 +819,7 @@ class MeshEngine(
         val encoded = parts.map { WireProtocol.encode(it, random = random) }
         val q = d.queue
         val enqueued = diagnostics.elapsedMs()
+        var nodeConfirmed=0
         suspend fun transmit(bytes: ByteArray): Boolean {
             if (q != null) diagnostics.record(DiagnosticLayer.QUEUE, "QUEUE_DEQUEUED", deviceId = d.id,
                 messageId = messageId, bytes = bytes.size, durationMs = diagnostics.elapsedMs() - enqueued)
@@ -812,9 +835,26 @@ class MeshEngine(
             dirty = true
             return success
         }
+        suspend fun transmitChecked(bytes:ByteArray):Boolean {
+            val client=d.admission ?: return transmit(bytes)
+            if(messageId!=null) _admissions.tryEmit(NodeAdmissionEvent(messageId,
+                NodeAdmissionReport(AdmissionState.WAITING,nodeConfirmed,encoded.size)))
+            val result=try { client.send(bytes) { transmit(it) } } catch(cancelled:CancellationException) {
+                _admissions.tryEmit(NodeAdmissionEvent(messageId,NodeAdmissionReport(
+                    AdmissionState.UNKNOWN,nodeConfirmed,encoded.size,detail="Pengiriman dihentikan sebelum konfirmasi node")))
+                throw cancelled
+            }
+            if(result.state==AdmissionState.ACCEPTED) nodeConfirmed++
+            val report=result.copy(confirmed=nodeConfirmed,total=encoded.size)
+            _admissions.tryEmit(NodeAdmissionEvent(messageId,report))
+            diagnostics.record(DiagnosticLayer.QUEUE,"NODE_ADMISSION_${result.state}",
+                if(result.state==AdmissionState.ACCEPTED||result.state==AdmissionState.LEGACY) DiagnosticLevel.INFO else DiagnosticLevel.WARN,
+                deviceId=d.id,messageId=messageId,detail="confirmed=$nodeConfirmed/${encoded.size}; ${result.detail}; free=${result.receipt?.freeSlots}; sf=${result.receipt?.sf}")
+            return result.state==AdmissionState.ACCEPTED||result.state==AdmissionState.LEGACY
+        }
         if (q != null) {
             // Ke Nusa Node: lewat antrean berjeda (airtime LoRa) dengan kebijakan HCMA.
-            val accepted = q.offerBatch(encoded, { bytes -> transmit(bytes) }, onProgress, { success ->
+            val accepted = q.offerBatch(encoded, { bytes -> transmitChecked(bytes) }, onProgress, { success ->
                 diagnostics.record(DiagnosticLayer.QUEUE, if (success) "BATCH_COMPLETE" else "BATCH_FAILED",
                     if (success) DiagnosticLevel.INFO else DiagnosticLevel.WARN, d.id, messageId,
                     detail = "fragments=${encoded.size}; pending=${q.size}")

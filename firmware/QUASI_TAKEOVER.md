@@ -1,5 +1,7 @@
 # Quasi duplex dua radio dan perbaikan Codec2
 
+> Penguatan firmware terbaru: [FIRMWARE_QOS.md](FIRMWARE_QOS.md), termasuk hasil build dan 11 suite host. Angka validasi lama di bawah adalah snapshot sebelumnya.
+
 Titik lanjut keseluruhan: [WALKTHROUGH.md](WALKTHROUGH.md); roadmap ACK admission/backpressure ada di [NEXT_STEPS.md](NEXT_STEPS.md), masih rencana.
 
 > Update audio 28 Oktober 2026: [jalur Codec2 bertahap Android](CODEC2_STREAMING.md) sudah ditambahkan. Keterangan voice-note-only di bawah adalah snapshot tahap sebelumnya; lihat dokumen baru untuk status, aktivasi, batas dan validasi.
@@ -10,9 +12,9 @@ Keputusan 27 Oktober 2026: kembali ke quasi duplex pada kanal yang sama. Percoba
 
 - Satu identitas mesh/hub, satu antrean TX, satu anggaran airtime gabungan. Board kedua tidak memakai NODE_ID yang sama sebagai node mesh mandiri.
 - Kedua radio dapat RX dan TX. Saat tidak memancar, kedua radio mendengarkan. Salinan frame yang sama dari dua penerima disaring sebelum masuk handler hub (cache 32 frame, 2 detik).
-- Pemilik TX bergantian setiap frame: utama, anggota kedua, utama, dan seterusnya. Satu transfer berfragmen dapat diteruskan oleh radio lain karena msgId/indeks fragmennya tetap sama.
+- Saat sehat pemilik TX bergantian setiap frame: utama, anggota kedua, utama, dan seterusnya. Kegagalan CAD membuka handover ke pemancar lain; start TX ambigu tidak diulang. Satu transfer berfragmen dapat diteruskan oleh radio lain karena msgId/indeks fragmennya tetap sama.
 - Sebelum TX: beri jendela RX, minta standby anggota, tunggu ACK dengan token yang cocok, hentikan RX lokal, lalu kirim satu frame. Setelah selesai kembali RX. Tidak ada dua pancaran lokal bersamaan dan tidak ada janji TX/RX RF simultan.
-- Takeover berarti penyerahan **paket berikutnya**, bukan memotong frame yang sedang memancar. Ini penjadwal terpusat dengan giliran tetap, belum penyeimbangan berdasarkan kualitas RF atau dua anggota aplikasi penuh.
+- Takeover berarti penyerahan **frame berikutnya**, bukan memotong frame yang sedang memancar. Ini penjadwal terpusat dengan giliran normal dan cooldown kegagalan, belum penyeimbangan berdasarkan kualitas RF atau dua anggota aplikasi penuh.
 - Status UART diterima bukan bukti RF berhasil. Counter TX bertambah setelah TX_DONE. Timeout/hasil tidak diketahui dibebankan ke anggaran, tidak dihitung berhasil, dan tidak otomatis mengirim ulang frame yang mungkin sudah terpancar. Penolakan sebelum RF (misalnya CAD sibuk) mempertahankan slot antrean agar radio lain dapat mencoba kemudian, tanpa menganggapnya terkirim.
 - Perintah TX memakai token, dengan penolakan duplikat/token lama. Pembatalan juga menutup token yang perintah TX-nya hilang. TX lokal tertahan sampai anggota memastikan pembatalan/standby atau konfigurasi ulang yang cocok.
 
@@ -50,7 +52,7 @@ Set `LORA_QUASI_TAKEOVER=0` untuk susunan historis radio utama TX + anggota RX-o
 - Decoder tetap menerima NC2 v1/3200 lama. Header yang jumlah frame/sampelnya tidak sesuai, kosong, terpotong, atau punya frame tambahan ditolak. Perhitungan panjang native memakai intermediate 64 bit.
 - Penanda `voicePriority` pada flag aplikasi 0x08 dipasang hanya untuk FILE_TRANSFER audio/x-codec2 yang dibuat engine. Flag ikut semua fragmen, decode/encode dan relay TTL. Penjadwal hanya menggunakannya untuk FILE/FRAGMENT, bukan menebak isi terenkripsi.
 - Prioritas: ACK/registrasi, teks, Codec2, bulk/lainnya, gossip. Pada firmware prioritas relay biasa tetap kelas tersendiri di bawah bulk; hint audio dikenali juga di dalam header routing terarah.
-- Setiap fragmen LoRa audio membawa NUSA_FLAG_VOICE=0x08. Firmware menyisakan 4 slot saat menerima batch bulk, dan 2 slot saat menerima batch audio untuk teks/ACK. Masuk batch tetap semua-atau-tidak, tanpa membuang fragmen gambar yang sudah diantrekan.
+- Setiap fragmen LoRa audio membawa NUSA_FLAG_VOICE=0x08. Firmware menyisakan 6 slot untuk bulk, 2 untuk audio dan 1 untuk teks, pada enqueue mentah maupun batch. Masuk batch tetap semua-atau-tidak, tanpa membuang fragmen gambar yang sudah diantrekan. Fairness per frame dijelaskan di [FIRMWARE_QOS.md](FIRMWARE_QOS.md).
 - Hint bukan autentikasi atau izin bypass. Rate limit dan anggaran airtime tetap berlaku. Peer/firmware lama masih dapat menerima format payload, tetapi belum tentu mengenal prioritas baru.
 
 **Belum streaming langsung:** Android masih merekam/trim/encode setelah Stop dan penerima memutar setelah berkas utuh. Prioritas baru membuat audio mendahului fragmen gambar yang masih antre, tetapi tidak menghapus paket yang sudah diserahkan ke firmware, tidak menambah bandwidth, dan tidak menjamin mulai terdengar 2-3 detik. Antrean yang sudah kehabisan airtime tetap menunggu.

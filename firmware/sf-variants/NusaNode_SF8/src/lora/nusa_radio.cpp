@@ -27,10 +27,12 @@ struct TxItem {
   uint8_t  len;
   uint8_t  prio;
   uint32_t queuedAt;
+  uint32_t order;
   bool     used;
 };
 static TxItem   s_q[TXQ_SLOTS];
 static uint16_t s_qCount = 0;
+static uint32_t s_enqueueOrder = 0;
 static portMUX_TYPE s_queueMux = portMUX_INITIALIZER_UNLOCKED;
 // Short critical sections only: no SPI/radio calls while the queue is locked.
 struct QueueGuard {
@@ -50,6 +52,13 @@ static uint32_t s_txErrors = 0, s_txStarted = 0, s_rxDeliveredDuringTx = 0;
 static bool s_remoteTx = false, s_nextRemote = false;
 static int s_remoteSlot = -1;
 static uint32_t s_mainTxCount = 0, s_memberTxCount = 0;
+static uint32_t s_jitterStarted = 0, s_jitterDelay = 0;
+static bool s_jitterActive = false, s_holdActive = false;
+static uint32_t s_radioFailedAt[2] = {}, s_radioCooldown[2] = {};
+static uint8_t s_radioFailures[2] = {};
+static uint32_t s_cadBusy = 0, s_cadErrors = 0, s_ownerFallbacks = 0;
+static uint8_t s_voiceRun = 0;
+static bool s_activeVoice = false;
 static float    s_rssi = 0, s_snr = 0;
 
 // SF saat berjalan (uji QoS). Permintaan dari callback BLE hanya menyetel
@@ -84,9 +93,13 @@ static void deliver(const uint8_t* data, size_t len, float rssi, float snr) {
 
 #if LORA_SEPARATE_RX
 static bool s_pauseRequested = false;
+#if !LORA_FULL_DUPLEX
 static uint32_t s_rxWindowStarted = 0;
+#endif
+static bool s_rxWindowActive = false;
 static void resumeIndependentRx() {
-  s_pauseRequested = false; s_rxWindowStarted = 0;
+  if (s_pauseRequested) s_rxWindowActive = false;
+  s_pauseRequested = false;
   NusaReceiver::setListening(true);
 }
 #endif
@@ -173,7 +186,8 @@ static void refillBudget() {
 
 static bool airtimeAllows(float air) {
   uint32_t now = millis();
-  if (now < s_holdUntil) return false;
+  if (s_holdActive && (int32_t)(now - s_holdUntil) < 0) return false;
+  s_holdActive = false;
 
 #if DWELL_ENABLED
   if (air > DWELL_MAX_MS) return false;                    // paksa fragmen lebih kecil
@@ -190,21 +204,55 @@ static bool airtimeAllows(float air) {
 // ---------------------------------------------------------------------------
 //  Antrean
 // ---------------------------------------------------------------------------
+static uint8_t reservedSlots(NusaPrio prio) {
+  // Bulk cannot consume one complete 512-byte voice packet (3 RF frames)
+  // plus space for interactive traffic. Apply equally to forwarded raw frames.
+  return prio >= PRIO_LOCAL ? 6 : (prio >= PRIO_VOICE ? 2 : (prio == PRIO_TEXT ? 1 : 0));
+}
+static bool ownerCooling(bool remote) {
+  unsigned i = remote ? 1 : 0;
+  return s_radioCooldown[i] && millis() - s_radioFailedAt[i] < s_radioCooldown[i];
+}
+static void ownerFailed(bool remote) {
+  unsigned i = remote ? 1 : 0;
+  if (s_radioFailures[i] < 5) ++s_radioFailures[i];
+  s_radioFailedAt[i] = millis();
+  s_radioCooldown[i] = 500UL << (s_radioFailures[i] - 1); // 0.5..8 seconds
+}
+static void ownerSucceeded(bool remote) {
+  unsigned i = remote ? 1 : 0;
+  s_radioFailures[i] = 0; s_radioCooldown[i] = 0;
+}
+static void channelBackoff() {
+  s_holdUntil = millis() + BACKOFF_BASE_MS + random(BACKOFF_MAX_MS);
+  s_holdActive = true;
+}
+static void chargeAttempt() {
+  s_budget -= s_pendingAir; s_txDoneAt = millis(); s_pendingAir = 0;
+  if (s_activeVoice) { if (s_voiceRun < 3) ++s_voiceRun; }
+  else s_voiceRun = 0;
+}
 static int findBest() {
   QueueGuard guard;
   int best = -1;
   uint8_t bestPrio = 255;
   uint32_t oldest = 0;
+  int bulk = -1;
   for (int i = 0; i < TXQ_SLOTS; i++) {
     if (!s_q[i].used) continue;
     uint32_t age = millis() - s_q[i].queuedAt;
     // Anti-kelaparan: item yang menunggu lebih dari 2 menit dinaikkan satu tingkat.
     uint8_t prio = s_q[i].prio;
-    if (age > 120000UL && prio > 0) prio--;
-    if (prio < bestPrio || (prio == bestPrio && age > oldest)) {
+    if (age > 120000UL && prio > PRIO_LOCAL) prio--;
+    if (prio < bestPrio || (prio == bestPrio &&
+        (age > oldest || (age == oldest && (best < 0 || (int32_t)(s_q[i].order - s_q[best].order) < 0))))) {
       bestPrio = prio; oldest = age; best = i;
     }
+    if (s_q[i].prio >= PRIO_LOCAL && airtimeAllows(NusaRadio::airtimeMs(s_q[i].len)) &&
+        (bulk < 0 || (int32_t)(s_q[i].order - s_q[bulk].order) < 0)) bulk = i;
   }
+  // A bounded bulk turn after three voice frames; ACK/text still win.
+  if (bestPrio == PRIO_VOICE && s_voiceRun >= 3 && bulk >= 0) return bulk;
   return best;
 }
 
@@ -212,6 +260,8 @@ bool NusaRadio::enqueue(const uint8_t* frame, size_t len, NusaPrio prio) {
   if (!frame || len == 0 || len > NUSA_FRAME_MAX) return false;
   if (len >= NUSA_FRAME_HDR && (frame[0] & NUSA_FLAG_VOICE) && prio >= PRIO_VOICE) prio = PRIO_VOICE;
   QueueGuard guard;
+
+  if (TXQ_SLOTS - s_qCount < 1 + reservedSlots(prio)) { ++s_dropCount; return false; }
 
   int slot = -1;
   for (int i = 0; i < TXQ_SLOTS; i++) {
@@ -224,6 +274,7 @@ bool NusaRadio::enqueue(const uint8_t* frame, size_t len, NusaPrio prio) {
   s_q[slot].len      = (uint8_t)len;
   s_q[slot].prio     = prio;
   s_q[slot].queuedAt = millis();
+  s_q[slot].order    = s_enqueueOrder++;
   s_q[slot].used     = true;
   s_qCount++;
   return true;
@@ -236,7 +287,7 @@ uint8_t NusaRadio::enqueuePacket(const uint8_t* packet, size_t len, uint8_t hop,
 
 uint8_t NusaRadio::enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_t hop,
                                        NusaPrio prio, uint64_t msgId) {
-  if (!packet || len == 0 || len > REASM_MAX_BYTES) return 0;
+  if (!packet || len == 0 || len > REASM_MAX_BYTES) { NusaAdmissionTrace::radio(false,NusaAdmissionTrace::SIZE); return 0; }
   // Routing header [0xD1,dst,src,next] encloses the original app packet.
   const size_t off = packet[0] == 0xD1 ? 4 : 0;
   bool voice = len >= off + 24 && (packet[off] == 1 || packet[off] == 2) &&
@@ -245,8 +296,8 @@ uint8_t NusaRadio::enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_
   if (voice && prio >= PRIO_VOICE) prio = PRIO_VOICE;
   const uint8_t total = (len + NUSA_FRAG_MAX_DATA - 1) / NUSA_FRAG_MAX_DATA;
   QueueGuard guard;
-  const uint8_t reserve = prio >= PRIO_LOCAL ? 4 : (prio >= PRIO_VOICE ? 2 : 0);
-  if (TXQ_SLOTS - s_qCount < total + reserve) { s_dropCount += total; return 0; }
+  const uint8_t reserve = reservedSlots(prio);
+  if (TXQ_SLOTS - s_qCount < total + reserve) { s_dropCount += total; NusaAdmissionTrace::radio(false); return 0; }
   uint8_t fragment = 0;
   for (int slot = 0; slot < TXQ_SLOTS && fragment < total; ++slot) {
     if (s_q[slot].used) continue;
@@ -264,9 +315,11 @@ uint8_t NusaRadio::enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_
     s_q[slot].len = nusaFrameEncode(s_q[slot].data, frame);
     s_q[slot].prio = prio;
     s_q[slot].queuedAt = millis();
+    s_q[slot].order = s_enqueueOrder++;
     s_q[slot].used = true;
     ++s_qCount;
   }
+  NusaAdmissionTrace::radio(true);
   return total;
 }
 
@@ -279,6 +332,17 @@ bool NusaRadio::begin(NusaRxHandler handler) {
   s_handler = handler;
   for (int i = 0; i < TXQ_SLOTS; i++) s_q[i].used = false;
   s_qCount = 0;
+  s_enqueueOrder = 0;
+  s_budget = DUTY_BUDGET_MAX_MS; s_pendingAir = 0; s_pendingSf = 0;
+  s_holdActive = s_jitterActive = false;
+  s_txDoneAt = millis(); s_remoteTx = s_nextRemote = false; s_remoteSlot = -1;
+  s_txCount = s_rxCount = s_dropCount = s_crcErrCount = s_timeoutCount = 0;
+  s_txErrors = s_mainTxCount = s_memberTxCount = s_rxDeliveredDuringTx = 0;
+  s_cadBusy = s_cadErrors = s_ownerFallbacks = 0; s_voiceRun = 0;
+  for (unsigned i = 0; i < 2; ++i) { s_radioCooldown[i] = 0; s_radioFailures[i] = 0; }
+#if LORA_SEPARATE_RX
+  s_pauseRequested = false; s_rxWindowActive = false;
+#endif
 
   loraSpi.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
 
@@ -399,6 +463,7 @@ static void serviceTx() {
 #endif
 #endif
   if (NusaRadio::queueDepth() == 0) {
+    s_jitterActive = false;
 #if LORA_SEPARATE_RX && !LORA_FULL_DUPLEX
     resumeIndependentRx();
 #endif
@@ -410,22 +475,42 @@ static void serviceTx() {
 
   float air = NusaRadio::airtimeMs(s_q[idx].len);
   if (!airtimeAllows(air)) {
+    s_jitterActive = false;
 #if LORA_SEPARATE_RX && !LORA_FULL_DUPLEX
     resumeIndependentRx();
 #endif
     return;
   }
 
+  // Wait with both receivers active. Never hold a PAUSE across the jitter.
+  if (!s_jitterActive) {
+    s_jitterStarted = millis(); s_jitterDelay = random(BACKOFF_BASE_MS);
+    s_jitterActive = true; return;
+  }
+  if (millis() - s_jitterStarted < s_jitterDelay) return;
+
+  s_remoteTx = false;
+  bool ownerFallback = false;
+#if LORA_SEPARATE_RX && !LORA_FULL_DUPLEX && LORA_QUASI_TAKEOVER
+  s_remoteTx = s_nextRemote;
+  if (ownerCooling(s_remoteTx)) {
+    if (ownerCooling(!s_remoteTx)) return;
+    s_remoteTx = !s_remoteTx; ownerFallback = true;
+  }
+#else
+  if (ownerCooling(false)) return;
+#endif
+
 #if LORA_SEPARATE_RX && !LORA_FULL_DUPLEX
   // Quasi-duplex: offer an RX window, request PAUSE, and wait for the
   // companion to acknowledge standby BEFORE starting any local RF TX.
   if (!s_pauseRequested) {
     if (!NusaReceiver::listening(true)) { NusaReceiver::setListening(true); return; }
-    if (!s_rxWindowStarted) { s_rxWindowStarted = millis(); return; }
+    if (!s_rxWindowActive) { s_rxWindowStarted = millis(); s_rxWindowActive = true; return; }
     uint32_t window = max((uint32_t)LORA_RX_WINDOW_MS,
                           (uint32_t)(NusaRadio::airtimeMs(NUSA_FRAME_MAX) + 20));
     if (millis() - s_rxWindowStarted < window) return;
-    NusaReceiver::setListening(false); s_pauseRequested = true;
+    NusaReceiver::setListening(false); s_pauseRequested = true; s_rxWindowActive = false;
   }
   if (!NusaReceiver::listening(false)) return;
   // Quasi ownership: stop the local receiver as well before either TX.
@@ -433,23 +518,11 @@ static void serviceTx() {
   s_irq = false; s_state = R_IDLE;
 #endif
 
-  // Jitter acak DULU, sebelum menyentuh radio sama sekali: dua node yang
-  // bertabrakan tanpa jitter akan mengulang bertabrakan pada percobaan
-  // berikutnya. Selama menunggu, radio dibiarkan diam total di mode RX —
-  // penting, karena scanChannel() (CAD di bawah) bila dipanggil di SETIAP
-  // tick loop() (dulunya terjadi di sini) berbagi pin DIO0 dengan penerima
-  // paket dan memicu interupsi RX palsu berulang, membuat node nyaris tuli
-  // terhadap tetangganya. Sekarang CAD hanya dipanggil SEKALI, tepat saat
-  // jitter habis dan node benar-benar siap mancar.
-  static uint32_t jitterUntil = 0;
-  if (jitterUntil == 0) {
-    jitterUntil = millis() + random(BACKOFF_BASE_MS);
-    return;
-  }
-  if (millis() < jitterUntil) return;
-  jitterUntil = 0;
+  s_jitterActive = false;
+  if (ownerFallback) ++s_ownerFallbacks;
 
 #if CAD_ENABLED
+  if (!s_remoteTx) {
   // CAD pada SX1276 hanya mendeteksi preamble, dan buta terhadap hidden node.
   // Karena itu ia pertahanan pertama, bukan satu-satunya — jitter di atas
   // yang menanggung sisanya.
@@ -466,17 +539,20 @@ static void serviceTx() {
   // dipakai buat mutuskan apa pun.
   s_irq = false;
 
-  if (cad == RADIOLIB_PREAMBLE_DETECTED) {
-    s_holdUntil = millis() + BACKOFF_BASE_MS + random(BACKOFF_MAX_MS);
+  if (cad != RADIOLIB_CHANNEL_FREE) {
+    if (cad == RADIOLIB_PREAMBLE_DETECTED) { ++s_cadBusy; channelBackoff(); }
+    else {
+      ++s_cadErrors; ++s_txErrors; ownerFailed(false);
+#if LORA_SEPARATE_RX && !LORA_FULL_DUPLEX && LORA_QUASI_TAKEOVER
+      s_nextRemote = true; ++s_ownerFallbacks;
+#endif
+    }
     returnToIdle();
     return;
   }
+  }
 #endif
 
-  s_remoteTx = false;
-#if LORA_SEPARATE_RX && !LORA_FULL_DUPLEX && LORA_QUASI_TAKEOVER
-  s_remoteTx = s_nextRemote;
-#endif
   int16_t st = RADIOLIB_ERR_NONE;
 #if LORA_SEPARATE_RX
   if (s_remoteTx) {
@@ -487,11 +563,23 @@ static void serviceTx() {
   if (st != RADIOLIB_ERR_NONE) {
     Serial.printf("[RADIO] startTransmit kode %d\n", st);
     ++s_txErrors;
+    ownerFailed(s_remoteTx);
+    if (!s_remoteTx) {
+      // startTransmit may fail after setting TX mode. No automatic replay:
+      // charge a possible attempt and require confirmed standby before RX.
+      s_pendingAir = air; s_activeVoice = s_q[idx].prio == PRIO_VOICE;
+      chargeAttempt();
+      { QueueGuard guard; s_q[idx].used = false; --s_qCount; }
+      if (radio.standby() != RADIOLIB_ERR_NONE) { s_healthy = false; return; }
+    }
+    s_nextRemote = !s_remoteTx;
+    s_irq = false;
     returnToIdle();
     return;
   }
 
   s_pendingAir = air;
+  s_activeVoice = s_q[idx].prio == PRIO_VOICE;
   s_txStarted  = millis();
   s_state      = R_TX;
   s_nextRemote = !s_remoteTx;
@@ -534,6 +622,11 @@ void NusaRadio::loop() {
 #if LORA_SEPARATE_RX
   // Always drain RX, even when TX is active or companion readiness is lost.
   NusaReceiver::loop();
+#if !LORA_FULL_DUPLEX
+  if (!s_pauseRequested && NusaReceiver::listening(true)) {
+    if (!s_rxWindowActive) { s_rxWindowStarted = millis(); s_rxWindowActive = true; }
+  } else s_rxWindowActive = false;
+#endif
 #endif
   applyPendingSf();
   refillBudget();
@@ -548,13 +641,18 @@ void NusaRadio::loop() {
 #if LORA_SEPARATE_RX
   if (s_state == R_TX && s_remoteTx && NusaReceiver::transmitState() != NusaDuplexWire::TX_BUSY) {
     const bool rejected = NusaReceiver::transmitState() == NusaDuplexWire::TX_REJECTED;
-    if (NusaReceiver::transmitState() == NusaDuplexWire::TX_DONE) { ++s_txCount; ++s_memberTxCount; }
+    if (NusaReceiver::transmitState() == NusaDuplexWire::TX_DONE) {
+      ++s_txCount; ++s_memberTxCount; ownerSucceeded(true);
+    }
     else ++s_txErrors;
+    if (rejected) {
+      if (NusaReceiver::transmitError() == RADIOLIB_PREAMBLE_DETECTED) { ++s_cadBusy; channelBackoff(); }
+      else { ++s_cadErrors; ownerFailed(true); }
+    } else if (NusaReceiver::transmitState() != NusaDuplexWire::TX_DONE) ownerFailed(true);
     if (!rejected && s_remoteSlot >= 0) { QueueGuard guard; s_q[s_remoteSlot].used = false; --s_qCount; }
     s_remoteSlot = -1;
     NusaReceiver::finishTransmit();
-    if (!rejected) { s_budget -= s_pendingAir; s_txDoneAt = millis(); }
-    else s_holdUntil = millis() + BACKOFF_BASE_MS + random(BACKOFF_MAX_MS);
+    if (!rejected) chargeAttempt();
     s_pendingAir = 0;
     s_irq = false; returnToIdle();
   }
@@ -563,11 +661,13 @@ void NusaRadio::loop() {
   if (s_irq) {
     s_irq = false;
     if (s_state == R_TX && !s_remoteTx) {
-      if (radio.finishTransmit() == RADIOLIB_ERR_NONE) { ++s_txCount; ++s_mainTxCount; }
-      else ++s_txErrors;
-      s_budget   -= s_pendingAir;         // bayar dari anggaran
-      s_txDoneAt  = millis();
-      s_pendingAir = 0;
+      if (radio.finishTransmit() == RADIOLIB_ERR_NONE) { ++s_txCount; ++s_mainTxCount; ownerSucceeded(false); }
+      else {
+        ++s_txErrors; ownerFailed(false);
+        if (radio.standby() != RADIOLIB_ERR_NONE) s_healthy = false;
+      }
+      chargeAttempt();
+      if (!s_healthy) return;
       returnToIdle();
     } else if (s_state != R_TX) {
 #if !LORA_SEPARATE_RX || (!LORA_FULL_DUPLEX && LORA_QUASI_TAKEOVER)
@@ -580,6 +680,7 @@ void NusaRadio::loop() {
   // conservatively even when completion is unknown; no retry/ACK is invented.
   if (s_state == R_TX && millis() - s_txStarted > (uint32_t)(s_pendingAir * 2 + 1000)) {
     ++s_txErrors; ++s_timeoutCount;
+    ownerFailed(s_remoteTx);
 #if LORA_SEPARATE_RX
     if (s_remoteTx) {
       NusaReceiver::cancelTransmit();
@@ -587,7 +688,8 @@ void NusaRadio::loop() {
       s_remoteSlot = -1;
     }
 #endif
-    s_budget -= s_pendingAir; s_pendingAir = 0; s_txDoneAt = millis();
+    chargeAttempt();
+    if (!s_remoteTx && radio.standby() != RADIOLIB_ERR_NONE) { s_healthy = false; return; }
     s_irq = false;
     Serial.println("[RADIO] TX timeout; recover to idle; frame delivery unknown");
     returnToIdle();
@@ -598,10 +700,11 @@ void NusaRadio::loop() {
   static uint32_t reported = 0;
   if (millis() - reported >= 5000) {
     reported = millis();
-    Serial.printf("[DUPLEX] rxReady=%u rxDeliveredDuringTx=%lu wireBad=%lu wireDrop=%lu txErr=%lu q=%u mainTx=%lu memberTx=%lu\n",
+    Serial.printf("[DUPLEX] rxReady=%u rxDeliveredDuringTx=%lu wireBad=%lu wireDrop=%lu txErr=%lu q=%u mainTx=%lu memberTx=%lu cadBusy=%lu cadErr=%lu fallback=%lu\n",
       NusaReceiver::ready(), (unsigned long)s_rxDeliveredDuringTx,
       (unsigned long)NusaReceiver::wireErrors(), (unsigned long)NusaReceiver::wireDrops(),
-      (unsigned long)s_txErrors, queueDepth(), (unsigned long)s_mainTxCount, (unsigned long)s_memberTxCount);
+      (unsigned long)s_txErrors, queueDepth(), (unsigned long)s_mainTxCount, (unsigned long)s_memberTxCount,
+      (unsigned long)s_cadBusy, (unsigned long)s_cadErrors, (unsigned long)s_ownerFallbacks);
   }
 #endif
 }
@@ -643,3 +746,5 @@ bool     NusaRadio::healthy()    {
   return s_healthy;
 #endif
 }
+
+float NusaRadio::queueAirtimeMs() { QueueGuard guard; float air=0; for(const auto& item:s_q) if(item.used) air+=airtimeMs(item.len); return air; }

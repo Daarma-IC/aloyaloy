@@ -18,6 +18,7 @@ bool configured = false;
 bool wantedListening = true, acknowledgedListening = false;
 uint16_t txToken = 0;
 TxState txState = TX_IDLE;
+int16_t txError = 0;
 bool txPending = false, cancelling = false;
 #if LORA_RX_BACKEND == 1
 HardwareSerial companion(2);
@@ -62,6 +63,7 @@ void IRAM_ATTR onRxIrq() { rxIrq = true; }
 
 bool NusaReceiver::begin(const NusaDuplexWire::Config& config, Handler handler) {
   callback = handler;
+  txPending = cancelling = false; txState = TX_IDLE; txToken = 0; txError = 0;
 #if LORA_RX_BACKEND == 1
   companion.setRxBufferSize(4096);
   companion.setTxBufferSize(2048);
@@ -109,6 +111,7 @@ void NusaReceiver::setListening(bool enabled) {
   gateSent = false;
   if (ready()) sendGate();
 #else
+  if (!configured) return; // A failed standby must not be followed by RX/TX.
   rxIrq = false;
   int16_t st = enabled ? receiver.startReceive() : receiver.standby();
   if (st == RADIOLIB_ERR_NONE) acknowledgedListening = enabled;
@@ -131,6 +134,7 @@ bool NusaReceiver::ready() {
 #endif
 }
 bool NusaReceiver::startTransmit(const uint8_t* data, size_t len) {
+  txError = -999;
   if (!data || !len || len > 255 || txPending || !listening(false)) return false;
   if (++txToken == 0) ++txToken;
 #if LORA_RX_BACKEND == 1
@@ -140,13 +144,24 @@ bool NusaReceiver::startTransmit(const uint8_t* data, size_t len) {
 #else
   rxIrq = false; receiver.setPacketSentAction(onRxIrq);
   int16_t cad = receiver.scanChannel(); rxIrq = false;
-  if (cad != RADIOLIB_CHANNEL_FREE) return false;
-  if (receiver.startTransmit(const_cast<uint8_t*>(data), len) != RADIOLIB_ERR_NONE) return false;
+  if (cad != RADIOLIB_CHANNEL_FREE) {
+    txError = cad; txState = TX_REJECTED;
+    if (receiver.standby() != RADIOLIB_ERR_NONE) configured = false;
+    return true; // Scheduler processes a proven pre-TX rejection without charging airtime.
+  }
+  txError = receiver.startTransmit(const_cast<uint8_t*>(data), len);
+  if (txError != RADIOLIB_ERR_NONE) {
+    txState = TX_UNKNOWN;
+    if (receiver.standby() != RADIOLIB_ERR_NONE) configured = false;
+    return true; // Ambiguous TX attempt must not be replayed.
+  }
 #endif
+  txError = 0;
   txPending = true; txState = TX_BUSY;
   return true;
 }
 NusaDuplexWire::TxState NusaReceiver::transmitState() { return txState; }
+int16_t NusaReceiver::transmitError() { return txError; }
 void NusaReceiver::cancelTransmit() {
   if (!txPending) return;
 #if LORA_RX_BACKEND == 1
@@ -181,6 +196,7 @@ void NusaReceiver::loop() {
         acknowledgedGate = get16(message.data + 18);
         if (txPending && get16(message.data + 20) == txToken && message.data[22] <= TX_REJECTED) {
           txState = (TxState)message.data[22];
+          txError = (int16_t)get16(message.data + 23);
           if (txState != TX_BUSY) { cancelling = false; txPending = false; }
         } else if (txPending && get16(message.data + 20) == 0 && acknowledgedGate == 0) {
           // Matching CONFIG ACK after a reboot proves the chip is in standby.
@@ -202,7 +218,8 @@ void NusaReceiver::loop() {
   if (txPending) {
     if (rxIrq) {
       rxIrq = false;
-      txState = receiver.finishTransmit() == RADIOLIB_ERR_NONE ? TX_DONE : TX_FAILED;
+      txError = receiver.finishTransmit();
+      txState = txError == RADIOLIB_ERR_NONE ? TX_DONE : TX_FAILED;
       if (receiver.standby() != RADIOLIB_ERR_NONE) configured = false;
       txPending = false;
     }

@@ -1,5 +1,9 @@
 # NusaOS — Firmware Nusa Node
 
+> Firmware terbaru: [QoS audio dan dual LoRa](../FIRMWARE_QOS.md), dengan cadangan antrean, FIFO/fairness, CAD per pemancar dan penanganan TX ambigu. Main BLE/WiFi dan companion berhasil dibangun; pengukuran perangkat belum dilakukan.
+
+> Update P1: [konfirmasi admission dan laporan kapasitas node](../ADMISSION_P1.md) sudah tersedia di software; kredit/backpressure dinamis P2 belum diterapkan.
+
 Titik lanjut keseluruhan: [WALKTHROUGH.md](../WALKTHROUGH.md); roadmap ACK admission/backpressure ada di [NEXT_STEPS.md](../NEXT_STEPS.md), masih rencana.
 
 **Default terkini: quasi duplex dua radio dengan takeover per frame.** `LORA_QUASI_DUPLEX=1`, `LORA_QUASI_TAKEOVER=1`, `LORA_FULL_DUPLEX=0`: kedua radio dapat RX/TX dengan satu antrean/anggaran airtime. `.ino` utama tetap. Flash kedua board dengan wire v3; lihat [wiring, status Codec2 dan validasi](../QUASI_TAKEOVER.md).

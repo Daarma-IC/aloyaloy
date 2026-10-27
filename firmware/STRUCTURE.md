@@ -1,5 +1,9 @@
 # Struktur firmware dan titik lanjut
 
+> Firmware terbaru: [FIRMWARE_QOS.md](FIRMWARE_QOS.md). Modul LoRa diperkuat untuk audio, pembagian pemancar dan hasil TX yang tidak pasti; ketujuh INO NusaNode tetap. Dokumen ini mempertahankan riwayat tahap sebelumnya.
+
+> Update P1: [konfirmasi admission dan laporan kapasitas node](ADMISSION_P1.md) sudah tersedia di software; kredit/backpressure dinamis P2 belum diterapkan.
+
 > Update audio 28 Oktober 2026: [jalur Codec2 bertahap Android](CODEC2_STREAMING.md) sudah ditambahkan. Keterangan voice-note-only di bawah adalah snapshot tahap sebelumnya; lihat dokumen baru untuk status, aktivasi, batas dan validasi.
 
 > Update aktif 27 Oktober 2026: [quasi dua radio dengan takeover dan perbaikan Codec2](QUASI_TAKEOVER.md). Bagian implementasi RX-only/target lama di bawah adalah riwayat; baca status terbaru sebelum melanjutkan.

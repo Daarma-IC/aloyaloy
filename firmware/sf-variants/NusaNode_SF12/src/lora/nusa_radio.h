@@ -64,6 +64,7 @@ bool requestSpreadingFactor(uint8_t sf);
 
 // --- telemetri untuk UI & keputusan penjadwalan ---
 uint16_t queueDepth();
+float queueAirtimeMs();
 float    budgetMs();        // sisa anggaran airtime
 uint32_t txCount();
 uint32_t rxCount();

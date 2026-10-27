@@ -13,8 +13,8 @@ int main() {
     std::vector<uint8_t> packet(700);
     for (size_t i=0; i<packet.size(); ++i) packet[i] = i % 251;
     uint8_t frame[20] = {};
-    for(int i=0;i<21;i++) assert(NusaRadio::enqueue(frame,sizeof(frame),PRIO_GOSSIP));
-    // Three fragment slots plus four reserved interactive slots do not fit: reject ALL.
+    for(int i=0;i<21;i++) assert(NusaRadio::enqueue(frame,sizeof(frame),PRIO_ACK));
+    // Three fragment slots plus six reserved interactive slots do not fit: reject ALL.
     assert(NusaFrag::sendPacket(packet.data(),packet.size(),3,PRIO_LOCAL)==0);
     assert(NusaRadio::queueDepth()==21);
     assert(NusaRadio::enqueue(frame,sizeof(frame),PRIO_ACK));

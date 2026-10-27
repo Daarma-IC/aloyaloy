@@ -69,6 +69,9 @@ void setListening(const Message& message) {
   uint16_t token = get16(message.data + 1);
   if (!token) return;
   bool enabled = message.data[0] == 1;
+  // Equal token is an idempotent query, never permission to change the state.
+  // Serial arithmetic permits 65535 -> 1, rejecting delayed RESUME commands.
+  if (gateToken && (int16_t)(token - gateToken) <= 0) { sendStatus(); return; }
   if (token != gateToken || listening != enabled) {
     rxIrq = false;
     if (enabled) radio.setPacketReceivedAction(onRxIrq);
@@ -89,10 +92,12 @@ void transmit(const Message& message) {
   txToken = token; rxIrq = false;
   radio.setPacketSentAction(onRxIrq);
   int16_t cad = radio.scanChannel(); rxIrq = false;
-  txError = cad == RADIOLIB_PREAMBLE_DETECTED ? cad :
-    (cad == RADIOLIB_CHANNEL_FREE ? radio.startTransmit(const_cast<uint8_t*>(message.data + 2), message.len - 2) : cad);
-  txState = txError == RADIOLIB_ERR_NONE ? TX_BUSY : TX_REJECTED;
-  if (txState == TX_REJECTED) {
+  if (cad != RADIOLIB_CHANNEL_FREE) { txError = cad; txState = TX_REJECTED; }
+  else {
+    txError = radio.startTransmit(const_cast<uint8_t*>(message.data + 2), message.len - 2);
+    txState = txError == RADIOLIB_ERR_NONE ? TX_BUSY : TX_UNKNOWN;
+  }
+  if (txState != TX_BUSY) {
     if (radio.standby() != RADIOLIB_ERR_NONE) radioReady = false;
     radio.setPacketReceivedAction(onRxIrq);
   }

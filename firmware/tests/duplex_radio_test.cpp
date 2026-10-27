@@ -73,7 +73,7 @@ int main() {
   assert(NusaRadio::timeoutCount() == 1 && NusaRadio::txCount() == 1);
   fakeTxFailure = true;
   assert(NusaRadio::enqueue(raw, len, PRIO_TEXT));
-  for (int i=0;i<4;++i) { testMillis += 100; NusaRadio::loop(); }
-  assert(transmitted.size() == 2 && NusaRadio::queueDepth() == 1);
+  for (int i=0;i<10;++i) { testMillis += 100; NusaRadio::loop(); }
+  assert(transmitted.size() == 2 && NusaRadio::queueDepth() == 0); // Ambiguous start is never replayed.
   std::cout << "PASS: ACK gating, RX delivered during active TX, SF synchronization, stale-link hold/retry, TX timeout/start failure\n";
 }

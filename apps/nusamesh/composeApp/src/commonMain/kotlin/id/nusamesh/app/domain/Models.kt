@@ -43,6 +43,7 @@ data class ChatMessage(
     val durationSeconds: Int? = null,
     /** 0..1 selama fragmen attachment keluar dari antrean transport. */
     val transferProgress: Float? = null,
+    val nodeAdmission: id.nusamesh.app.mesh.protocol.NodeAdmissionReport? = null,
     val transferStartedAtMs: Long? = null,
     val transferCompletedAtMs: Long? = null,
     val transferEstimate: id.nusamesh.app.mesh.engine.TransferEstimate? = null,

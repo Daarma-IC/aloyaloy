@@ -104,6 +104,7 @@ class MeshRepository(
 
     private fun publish(message: MeshMessage, onComplete: (Boolean) -> Unit = {}) =
         engine.sendPublic(OperationSecurity.seal(message, operationKey, myPeerId), onComplete)
+    val admissions = engine.admissions
     val acks: Flow<IncomingAck> = engine.acks
 
     fun sendAck(toPeerId: String, messageId: String) { engine.sendAck(toPeerId, messageId) }

@@ -5,6 +5,8 @@
 
 #include "nusa_ble.h"
 #include "../protocol/nusa_appproto.h"
+#include "../protocol/nusa_admission.h"
+#include "../protocol/nusa_admission_trace.h"
 #include <NimBLEDevice.h>
 
 // ---------------------------------------------------------------------------
@@ -56,6 +58,10 @@ int claimSlot(uint16_t h) {
   return -1;
 }
 
+bool admissionReply(const uint8_t* p,size_t n,uint8_t client) {
+  return s_chr && client<BLE_MAX_CLIENTS && s_clients[client].used && s_chr->notify(p,n,s_clients[client].handle);
+}
+
 // -------------------------------------------------------------------------
 //  Callback server: lacak koneksi, jaga iklan tetap hidup untuk klien baru.
 // -------------------------------------------------------------------------
@@ -72,6 +78,7 @@ class ServerCbs : public NimBLEServerCallbacks {
   void onDisconnect(NimBLEServer* srv, NimBLEConnInfo& info, int reason) override {
     int slot = slotOfHandle(info.getConnHandle());
     if (slot >= 0) {
+      NusaAdmission::disconnected(slot);
       s_clients[slot].used = false;
       s_closedSlots |= (1UL << slot);
     }
@@ -94,7 +101,7 @@ class ChrCbs : public NimBLECharacteristicCallbacks {
     if (v.length() == 0) return;
     int slot = slotOfHandle(info.getConnHandle());
     uint8_t clientId = (slot >= 0) ? (uint8_t)slot : 255;
-    if (s_handler) s_handler(v.data(), v.length(), clientId);
+    NusaAdmission::dispatch(v.data(), v.length(), clientId, s_handler, admissionReply);
   }
 
   void onSubscribe(NimBLECharacteristic* chr, NimBLEConnInfo& info,
@@ -170,7 +177,8 @@ void NusaBle::broadcast(const uint8_t* pkt, size_t len, uint8_t exceptClient) {
   for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
     if (!s_clients[i].used) continue;
     if (i == exceptClient) continue;
-    s_chr->notify(s_clients[i].handle);
+    bool accepted=s_chr->notify(pkt,len,s_clients[i].handle);
+    if(NusaAdmissionTrace::current && accepted) NusaAdmissionTrace::current->localSent=true;
   }
 }
 
@@ -187,7 +195,10 @@ bool NusaBle::rateAllows(uint8_t clientId) {
   b.tokens += (now - b.last) / 1000.0f * RATE_PER_SEC;
   if (b.tokens > RATE_BURST) b.tokens = RATE_BURST;
   b.last = now;
-  if (b.tokens < 1.0f) return false;
+  if (b.tokens < 1.0f) {
+    NusaAdmissionTrace::rate((uint32_t)ceilf((1.0f-b.tokens)/RATE_PER_SEC*1000));
+    return false;
+  }
   b.tokens -= 1.0f;
   return true;
 }

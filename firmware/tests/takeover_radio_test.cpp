@@ -33,7 +33,13 @@ static void pump(bool deliverToHub = true) {
   if (local->transmitting || member::radio.transmitting) assert(!local->listening && !member::radio.listening);
 }
 static void step(unsigned n = 1, bool deliver = true) { while (n--) { testMillis += 100; pump(deliver); } }
-static void untilTx(size_t count) { for (int i = 0; i < 100 && transmitted.size() < count; ++i) step(); assert(transmitted.size() == count); }
+static void untilTx(size_t count) {
+  for (int i = 0; i < 100 && transmitted.size() < count; ++i) step();
+  if (transmitted.size() != count) std::cerr << "Expected TX " << count << ", got " << transmitted.size()
+    << "; queue=" << NusaRadio::queueDepth() << "; member token=" << member::txToken
+    << "; member state=" << (int)member::txState << "; healthy=" << NusaRadio::healthy() << '\n';
+  assert(transmitted.size() == count);
+}
 int main() {
   fakeAutoTxDone = false;
   // Main reboots while its member still has an old RF transmission in flight.
@@ -42,9 +48,12 @@ int main() {
   assert(NusaRadio::begin(rx)); assert(!localRadio()->listening);
   pump(); pump();
   auto* local = localRadio();
+  step(10); // Count already-confirmed idle RX towards the next receive window.
   uint8_t image[100] = {2, 0x22}, voice[100] = {2, 0x22}; voice[11] = 0x08;
   assert(NusaRadio::enqueuePacket(image, sizeof(image), 1, PRIO_LOCAL));
   assert(NusaRadio::enqueuePacket(voice, sizeof(voice), 1, PRIO_LOCAL));
+  NusaRadio::loop();
+  assert(local->listening && member::radio.listening); // Jitter does not mute RX.
   untilTx(1);
   NusaFrame sent;
   assert(nusaFrameDecode(transmitted[0].data(), transmitted[0].size(), sent));
@@ -78,12 +87,53 @@ int main() {
   assert(NusaRadio::enqueuePacket(image, sizeof(image), 1, PRIO_LOCAL));
   untilTx(6); // Member rejects busy channel; same queued frame is taken by main.
   assert(local->transmitting && !member::radio.transmitting);
-  member::radio.cadResult = 0;
+  member::radio.cadResult = RADIOLIB_CHANNEL_FREE;
   member::transmit(duplicate); assert(transmitted.size() == 6); // Old token stays rejected.
+  local->irq(); step();
+  // A fault in the main radio's CAD must not block the healthy member.
+  // Next owner is member; its own CAD decides whether it can transmit.
+  local->cadResult = RADIOLIB_ERR_UNKNOWN;
+  assert(NusaRadio::enqueuePacket(image, sizeof(image), 1, PRIO_LOCAL));
+  untilTx(7); assert(member::radio.transmitting && !local->transmitting);
+  member::radio.irq(); step(); step();
+  // Main is preferred now, fails CAD before RF, then hands off the same frame.
+  assert(NusaRadio::enqueuePacket(image, sizeof(image), 1, PRIO_LOCAL));
+  untilTx(8); assert(member::radio.transmitting && !local->transmitting);
+  local->cadResult = RADIOLIB_CHANNEL_FREE;
+  member::radio.irq(); step(); step();
+  // Start errors on either board are UNKNOWN, not safe-to-retry rejections.
+  auto successful = NusaRadio::txCount();
+  float budgetBefore = NusaRadio::budgetMs();
+  local->txStartResult = -10;
+  assert(NusaRadio::enqueuePacket(image, sizeof(image), 1, PRIO_LOCAL));
+  step(20);
+  assert(transmitted.size() == 8 && NusaRadio::queueDepth() == 0 && NusaRadio::txCount() == successful);
+  assert(NusaRadio::budgetMs() <= budgetBefore + 2000 * DUTY_RATIO - NusaRadio::airtimeMs(112) + 0.1f);
+  local->txStartResult = 0; member::radio.txStartResult = -10;
+  budgetBefore = NusaRadio::budgetMs();
+  assert(NusaRadio::enqueuePacket(image, sizeof(image), 1, PRIO_LOCAL));
+  step(20);
+  assert(transmitted.size() == 8 && NusaRadio::queueDepth() == 0 && NusaRadio::txCount() == successful);
+  assert(NusaRadio::budgetMs() <= budgetBefore + 2000 * DUTY_RATIO - NusaRadio::airtimeMs(112) + 0.1f);
+  assert(member::txState == TX_UNKNOWN && local->listening && member::radio.listening);
+  member::radio.txStartResult = 0;
+  // Delayed RESUME, including conflicting same-token state, cannot undo PAUSE.
   Message missing{}; missing.type = MSG_CANCEL; missing.seq = member::configSeq; missing.len = 2;
   put16(missing.data, member::txToken + 1); member::cancel(missing);
   assert(member::txState == TX_UNKNOWN); // Cancel a TX command lost before acceptance.
   missing.type = MSG_TX; missing.len = 3; missing.data[2] = 1;
-  member::transmit(missing); assert(transmitted.size() == 6);
+  member::transmit(missing); assert(transmitted.size() == 8);
+  Message gate{}; gate.seq = member::configSeq; gate.type = MSG_LISTEN; gate.len = 3;
+  member::gateToken = 65534;
+  gate.data[0] = 0; put16(gate.data + 1, 65535); member::setListening(gate);
+  assert(!member::listening && member::gateToken == 65535);
+  gate.data[0] = 1; member::setListening(gate); // Same token cannot change state.
+  assert(!member::listening);
+  put16(gate.data + 1, 65534); member::setListening(gate);
+  assert(!member::listening && member::gateToken == 65535);
+  gate.data[0] = 0; put16(gate.data + 1, 1); member::setListening(gate);
+  assert(!member::listening && member::gateToken == 1);
+  gate.data[0] = 1; put16(gate.data + 1, 65535); member::setListening(gate);
+  assert(!member::listening && member::gateToken == 1);
   std::cout << "PASS: real companion command handler, alternate TX owners, no overlap, voice over image, dual RX dedup, idempotence, lost completion recovery\n";
 }

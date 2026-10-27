@@ -6,6 +6,8 @@
 
 #include "nusa_link.h"
 #include "../protocol/nusa_appproto.h"
+#include "../protocol/nusa_admission.h"
+#include "../protocol/nusa_admission_trace.h"
 #include <WiFi.h>
 #include <WebSocketsServer.h>
 
@@ -24,6 +26,10 @@ Bucket s_bucket[AP_MAX_CLIENTS + 1];
 constexpr float RATE_PER_SEC = 0.3f;   // TESTING: ~1 pesan/3 detik (produksi: 0.1)
 constexpr float RATE_BURST   = 3.0f;   // produksi: 3
 
+bool admissionReply(const uint8_t* p,size_t n,uint8_t client) {
+  return s_ws.sendBIN(client,const_cast<uint8_t*>(p),n);
+}
+
 void onWsEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t len) {
   switch (type) {
     case WStype_CONNECTED: {
@@ -39,13 +45,14 @@ void onWsEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t len) {
     }
 
     case WStype_DISCONNECTED:
+      NusaAdmission::disconnected(num);
       if (s_clients) s_clients--;
       if (num < 32) s_closedSlots |= (1UL << num);
       Serial.printf("[LINK] user #%u terputus (sisa %u)\n", num, s_clients);
       break;
 
     case WStype_BIN:
-      if (s_handler && len > 0) s_handler(payload, len, num);
+      if (len > 0) NusaAdmission::dispatch(payload, len, num, s_handler, admissionReply);
       break;
 
     case WStype_TEXT:
@@ -99,7 +106,8 @@ void NusaLink::broadcast(const uint8_t* pkt, size_t len, uint8_t exceptClient) {
   }
   for (uint8_t i = 0; i < AP_MAX_CLIENTS; i++) {
     if (i == exceptClient) continue;
-    s_ws.sendBIN(i, (uint8_t*)pkt, len);
+    bool accepted=s_ws.sendBIN(i, (uint8_t*)pkt, len);
+    if(NusaAdmissionTrace::current && accepted) NusaAdmissionTrace::current->localSent=true;
   }
 }
 
@@ -118,7 +126,10 @@ bool NusaLink::rateAllows(uint8_t clientId) {
   b.tokens += (now - b.last) / 1000.0f * RATE_PER_SEC;
   if (b.tokens > RATE_BURST) b.tokens = RATE_BURST;
   b.last = now;
-  if (b.tokens < 1.0f) return false;
+  if (b.tokens < 1.0f) {
+    NusaAdmissionTrace::rate((uint32_t)ceilf((1.0f-b.tokens)/RATE_PER_SEC*1000));
+    return false;
+  }
   b.tokens -= 1.0f;
   return true;
 }

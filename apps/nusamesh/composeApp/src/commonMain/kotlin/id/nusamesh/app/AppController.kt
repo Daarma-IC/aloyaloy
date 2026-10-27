@@ -45,6 +45,7 @@ import id.nusamesh.app.mesh.engine.EngineSnapshot
 import id.nusamesh.app.mesh.engine.IncomingFile
 import id.nusamesh.app.mesh.engine.IncomingMessage
 import id.nusamesh.app.mesh.mobility.MobilityConfig
+import id.nusamesh.app.mesh.protocol.AdmissionState
 import id.nusamesh.app.mesh.protocol.LocationTelemetry
 import id.nusamesh.app.mesh.protocol.EmergencyTelemetry
 import id.nusamesh.app.mesh.protocol.GeoPoint
@@ -164,6 +165,7 @@ class AppController(
         }
         scope.launch { repository.messages.collect(::onIncomingMessage) }
         scope.launch { repository.files.collect(::onIncomingFile) }
+        scope.launch { repository.admissions.collect(::onNodeAdmission) }
         scope.launch { while(isActive) { delay(1000); expireVoiceStreams() } }
         scope.launch { repository.acks.collect { ack -> onAck(ack.messageId, ack.fromPeerId) } }
     }
@@ -401,6 +403,23 @@ class AppController(
         })
     }
 
+    private val admissionAliases=linkedMapOf<String,String>()
+    private val admissionExpected=linkedMapOf<String,Int>()
+    private val admissionConfirmed=linkedMapOf<String,MutableSet<String>>()
+    private fun onNodeAdmission(event:id.nusamesh.app.mesh.protocol.NodeAdmissionEvent) {
+        val key=event.messageId ?: return
+        val id=admissionAliases[key] ?: key
+        var report=event.report
+        if(id!=key || admissionExpected.containsKey(id)) {
+            val confirmed=admissionConfirmed.getOrPut(id){mutableSetOf()}
+            if(report.state==AdmissionState.ACCEPTED && report.confirmed==report.total) confirmed+=key
+            report=report.copy(confirmed=confirmed.size,total=admissionExpected[id] ?: report.total)
+        }
+        _state.update { state -> state.copy(messages=state.messages.map {
+            if(it.id==id) it.copy(nodeAdmission=report) else it
+        }) }
+    }
+
     private class OutgoingVoice(val conversation: String, val timestamp: Long, val key: OperationKey?) {
         var streamId: Long? = null
         var next = 0
@@ -446,6 +465,12 @@ class AppController(
         recordVoiceEvent("VOICE_CHUNK_QUEUED", "stream=${chunk.streamId}; seq=${chunk.sequence}; samples=${chunk.samples}; codec_bytes=${chunk.frames.size}; end=${chunk.end}")
         val name = FieldChannels.tagAttachmentName(ctx.conversation, "v${chunk.streamId.toULong().toString(16)}")
         val attachment = ChatAttachment(name, VoiceStream.MIME, VoiceStream.encode(chunk), ChatMessageKind.Voice)
+        val baseId=id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId,ctx.timestamp)
+        val chunkId=id.nusamesh.app.mesh.engine.fileTransferId(repository.myPeerId,ctx.timestamp+chunk.sequence)
+        admissionAliases[chunkId]=baseId
+        admissionExpected[baseId]=ctx.next
+        while(admissionAliases.size>512)admissionAliases.remove(admissionAliases.keys.first())
+        while(admissionExpected.size>64){val old=admissionExpected.keys.first();admissionExpected.remove(old);admissionConfirmed.remove(old)}
         repository.sendAttachment(attachment, encrypt = ctx.conversation != GLOBAL_CHAT_ID,
             operationKeyOverride = ctx.key, timestampMs = ctx.timestamp + chunk.sequence,
             onComplete = { success -> scope.launch {
