@@ -1,5 +1,7 @@
 # Walkthrough NusaNode dan Codec2 — titik lanjut
 
+> **Mulai sesi baru dari [SESSION_HANDOFF.md](SESSION_HANDOFF.md):** ringkasan keputusan percakapan, pekerjaan selesai, usulan diagnostik yang belum dikerjakan, batas pengujian dan prompt pemanggilan ulang.
+
 > Firmware terbaru: [penguatan QoS audio dan dual LoRa](FIRMWARE_QOS.md). Cadangan antrean juga berlaku untuk relay, FIFO/fairness diperbaiki, CAD mengikuti pemancar, dan TX ambigu tidak diulang otomatis. Sebelas suite host serta build main BLE/WiFi dan companion lulus; uji perangkat belum dilakukan.
 
 > P1 sudah ditambahkan pada 28 Oktober 2026: [konfirmasi antrean HP–node](ADMISSION_P1.md). Status/hasil P1 terbaru ada di sana; angka build/APK di bagian hasil terdahulu di bawah adalah snapshot sebelum P1. Langkah implementasi berikutnya P2 setelah validasi perangkat P1.

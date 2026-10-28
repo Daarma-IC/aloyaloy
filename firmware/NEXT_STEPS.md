@@ -1,5 +1,7 @@
 # Pekerjaan berikutnya: selaraskan aplikasi dan firmware
 
+Ringkasan percakapan dan prompt untuk melanjutkan: [SESSION_HANDOFF.md](SESSION_HANDOFF.md). Usulan diagnostik detail per-frame/alasan menunggu/statistik audio/laporan HP masih belum diimplementasikan; jangan tertukar dengan telemetri agregat dan admission P1 yang sudah tersedia. Pengguna akan menguji perangkat nanti.
+
 Prioritas terbaru pengguna: **firmware didahulukan sebelum P2**. Penguatan antrean audio dan penjadwal dua radio sudah tersedia; baca [FIRMWARE_QOS.md](FIRMWARE_QOS.md) untuk perubahan, 11 suite host, build dan uji perangkat. P4 sebagian terimplementasi melalui cooldown/pemilihan radio setelah kegagalan sebelum TX; kualitas RF/beban adaptif belum diukur.
 
 Status 28 Oktober 2026: **P1 sudah diimplementasikan di software**, lihat [ADMISSION_P1.md](ADMISSION_P1.md) untuk kontrak, hasil dan batas validasi. P2/P3 masih roadmap, P4 sebagian tersedia pada penguatan firmware, dan pembuktian perangkat P5 belum dilakukan. Baseline dan hasil terdahulu ada di [WALKTHROUGH.md](WALKTHROUGH.md). Validasi perangkat P1 sebelum mengganti pacing melalui P2; jangan langsung menghapus limiter atau menaikkan bitrate Codec2.
