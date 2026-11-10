@@ -10,29 +10,25 @@ import android.os.Build
 import java.io.ByteArrayOutputStream
 
 /**
- * Profil gambar jalur LoRa (lewat Nusa Node), port dari Nusa Mesh Android: sisi terpanjang ≤ 128 px, WebP
- * ≤ 1200 B, agar satu gambar muat antrean LoRa. Penerima dapat memperjelasnya dengan FSRCNN ×3.
- *
- * Langkah degradasi HARUS sama dengan ml/fsrcnn/fsrcnn_kaggle.py (model dilatih pada artefak ini).
+ * Profil gambar jalur LoRa (lewat Nusa Node), port dari Nusa Mesh Android: ukuran mengikuti [LoraImageQuality].
+ * Penerima dapat memperjelasnya dengan AI ×4 (lihat SuperResolution).
  */
 object LoraImageCodec {
-    const val MAX_SIDE = 128
     const val MIN_SIDE = 64
-    const val MAX_BYTES = 1200
     private const val QUALITY_MIN = 5
     private const val QUALITY_MAX = 90
     private const val SIDE_SHRINK = 0.85
 
-    /** Penanda nama file: penerima menjalankan FSRCNN hanya untuk gambar berawalan ini. */
+    /** Penanda nama file gambar profil LoRa; hanya gambar berawalan ini yang boleh lewat Nusa Node. */
     const val FILE_PREFIX = "lora_"
     const val MIME = "image/webp"
 
-    fun encode(source: ByteArray): ByteArray? {
+    fun encode(source: ByteArray, quality: LoraImageQuality): ByteArray? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(source, 0, source.size, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         val rotation = exifRotation(source)
-        var side = MAX_SIDE
+        var side = quality.maxSide
         while (true) {
             val small = downscale(source, bounds.outWidth, bounds.outHeight, rotation, side) ?: return null
             var lo = QUALITY_MIN
@@ -41,7 +37,7 @@ object LoraImageCodec {
             while (lo <= hi) {
                 val mid = (lo + hi) / 2
                 val data = webp(small, mid)
-                if (data.size <= MAX_BYTES) { best = data; lo = mid + 1 } else hi = mid - 1
+                if (data.size <= quality.maxBytes) { best = data; lo = mid + 1 } else hi = mid - 1
             }
             if (best != null || side <= MIN_SIDE) return best ?: webp(small, QUALITY_MIN)
             side = maxOf(MIN_SIDE, (side * SIDE_SHRINK).toInt())

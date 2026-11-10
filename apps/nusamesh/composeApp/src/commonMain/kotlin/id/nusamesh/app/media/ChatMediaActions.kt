@@ -8,6 +8,16 @@ class EnhancedImage(val bytes: ByteArray, val model: String, val millis: Long)
 /** Waktu proses satu model di HP ini (null bila gagal dimuat). */
 data class SrSpeed(val model: String, val millis: Long?, val sizeKb: Int, val error: String? = null)
 
+/**
+ * Pilihan kualitas gambar lewat Nusa Node: sisi terpanjang dan batas byte hasil kompresi.
+ * [estimate] dihitung dari airtime SF7 dengan jatah 4% per HP, satu hop.
+ */
+enum class LoraImageQuality(val label: String, val maxSide: Int, val maxBytes: Int, val estimate: String) {
+    Fast("Cepat", 160, 2000, "±1 menit"),
+    Balanced("Seimbang", 256, 4000, "±2 menit"),
+    Detail("Detail", 256, 8000, "±5 menit"),
+}
+
 /** Jembatan picker, recorder, dan player supaya UI bersama tidak bergantung pada platform. */
 interface ChatMediaActions {
     val supportsVoiceStreaming: Boolean get() = false
@@ -16,12 +26,12 @@ interface ChatMediaActions {
     fun cancelVoiceStream() = Unit
     fun setLiveVoiceListening(enabled: Boolean) = Unit
     fun receiveVoiceChunk(event: IncomingVoiceChunk) = Unit
-    /** [loraProfile] = true bila pesan akan lewat Nusa Node: gambar dikecilkan ke profil LoRa (≤ 1,2 KB). */
-    fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)
+    /** [loraQuality] diisi bila pesan akan lewat Nusa Node: gambar dikecilkan sesuai profil itu; null = jalur Bluetooth. */
+    fun pickImage(loraQuality: LoraImageQuality?, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)
     fun pickFile(onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit)
 
-    /** Ubah gambar biasa ke profil LoRa (WebP ≤128 px, ≤1,2 KB); dipakai bila Nusa Node tersambung saat gambar dipilih. */
-    fun toLoraImage(attachment: ChatAttachment, onResult: (ChatAttachment) -> Unit, onError: (String) -> Unit) = onResult(attachment)
+    /** Ubah gambar biasa ke profil LoRa [quality]; dipakai bila Nusa Node tersambung saat gambar dipilih. */
+    fun toLoraImage(attachment: ChatAttachment, quality: LoraImageQuality, onResult: (ChatAttachment) -> Unit, onError: (String) -> Unit) = onResult(attachment)
     fun startVoiceNote(onError: (String) -> Unit)
     fun stopVoiceNote(onRecorded: (ChatAttachment) -> Unit, onError: (String) -> Unit)
     /** Putar voice note. [onStarted] membawa durasi (ms), [onFinished] dipanggil saat selesai/dihentikan. */
@@ -55,7 +65,7 @@ interface ChatMediaActions {
 }
 
 object UnavailableChatMediaActions : ChatMediaActions {
-    override fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) =
+    override fun pickImage(loraQuality: LoraImageQuality?, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) =
         onError("Pemilih gambar tersedia di aplikasi Android/iOS")
 
     override fun pickFile(onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) =

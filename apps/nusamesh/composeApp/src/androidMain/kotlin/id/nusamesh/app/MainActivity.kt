@@ -42,6 +42,7 @@ import id.nusamesh.app.media.SuperResolution
 import id.nusamesh.app.ui.OfflineMapActions
 import id.nusamesh.app.ui.OfflineTileStore
 import id.nusamesh.app.media.LoraImageCodec
+import id.nusamesh.app.media.LoraImageQuality
 import id.nusamesh.app.media.VoiceSilenceTrimmer
 import id.nusamesh.app.media.VoiceLogEntry
 import id.nusamesh.app.media.VoiceLog
@@ -57,7 +58,7 @@ import kotlinx.coroutines.flow.StateFlow
 class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionActions, LocationAccessActions, SensorEventListener, DocumentActions, OfflineMapActions {
     private lateinit var process: NusaMeshProcess.Holder
     private var imageResult: ((ChatAttachment) -> Unit)? = null
-    private var imageLoraProfile = false
+    private var imageLoraQuality: LoraImageQuality? = null
     private var fileResult: ((ChatAttachment) -> Unit)? = null
     private var mediaError: ((String) -> Unit)? = null
     private var recorder: AudioRecord? = null
@@ -287,15 +288,15 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         super.onDestroy()
     }
 
-    override fun toLoraImage(attachment: ChatAttachment, onResult: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+    override fun toLoraImage(attachment: ChatAttachment, quality: LoraImageQuality, onResult: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
         runCatching {
-            val bytes = LoraImageCodec.encode(attachment.bytes) ?: error("Gambar tidak dapat diproses")
+            val bytes = LoraImageCodec.encode(attachment.bytes, quality) ?: error("Gambar tidak dapat diproses")
             ChatAttachment("${LoraImageCodec.FILE_PREFIX}${System.currentTimeMillis()}.webp", LoraImageCodec.MIME, bytes, ChatMessageKind.Image)
         }.onSuccess(onResult).onFailure { onError(it.message ?: "Gagal memproses gambar") }
     }
 
-    override fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
-        imageLoraProfile = loraProfile
+    override fun pickImage(loraQuality: LoraImageQuality?, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+        imageLoraQuality = loraQuality
         imageResult = onPicked
         mediaError = onError
         imagePicker.launch("image/*")
@@ -665,7 +666,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     }
 
     private fun loadImage(uri: Uri) {
-        if (imageLoraProfile) return loadLoraImage(uri)
+        imageLoraQuality?.let { return loadLoraImage(uri, it) }
         runCatching {
             val bitmap = contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream)
                 ?: error("Gambar tidak dapat dibaca")
@@ -693,11 +694,11 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
             .onFailure { mediaError?.invoke(it.message ?: "Gagal memproses gambar") }
     }
 
-    /** Profil LoRa: 128 px WebP ≤ 1,2 KB supaya gambar ikut melintas Nusa Node. */
-    private fun loadLoraImage(uri: Uri) {
+    /** Profil LoRa: WebP sesuai [quality] supaya gambar ikut melintas Nusa Node. */
+    private fun loadLoraImage(uri: Uri, quality: LoraImageQuality) {
         runCatching {
             val source = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Gambar tidak dapat dibaca")
-            val bytes = LoraImageCodec.encode(source) ?: error("Gambar tidak dapat diproses")
+            val bytes = LoraImageCodec.encode(source, quality) ?: error("Gambar tidak dapat diproses")
             ChatAttachment("${LoraImageCodec.FILE_PREFIX}${System.currentTimeMillis()}.webp", LoraImageCodec.MIME, bytes, ChatMessageKind.Image)
         }.onSuccess { imageResult?.invoke(it) }
             .onFailure { mediaError?.invoke(it.message ?: "Gagal memproses gambar") }

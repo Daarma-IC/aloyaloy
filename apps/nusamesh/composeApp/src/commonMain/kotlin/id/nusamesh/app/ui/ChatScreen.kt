@@ -80,6 +80,7 @@ import id.nusamesh.app.domain.ChatPreview
 import id.nusamesh.app.AppController
 import id.nusamesh.app.domain.DeliveryPath
 import id.nusamesh.app.media.EnhancedImage
+import id.nusamesh.app.media.LoraImageQuality
 import id.nusamesh.app.domain.DeliveryState
 import id.nusamesh.app.domain.FieldChannels
 import id.nusamesh.app.mesh.protocol.AdmissionState
@@ -392,6 +393,25 @@ private fun GlobalConversationScreen(
         }
         // Dibaca saat galeri selesai (bukan saat dibuka): status node bisa berubah selama memilih gambar.
         val loraPathNow by rememberUpdatedState(state.mesh.engine.loraPathAvailable)
+        var loraQualityOpen by remember { mutableStateOf(false) }
+        val pickImage = { quality: LoraImageQuality? ->
+            mediaActions.pickImage(
+                loraQuality = quality,
+                onPicked = { picked ->
+                    attachmentOpen = false
+                    // Node bisa tersambung selama galeri terbuka: cek ulang supaya gambar tetap ikut lewat LoRa.
+                    val needsLora = picked.kind == ChatMessageKind.Image && loraPathNow &&
+                        !MeshMediaCodec.isLoraImage(picked.name, picked.bytes.size)
+                    if (needsLora) mediaActions.toLoraImage(picked, quality ?: LoraImageQuality.Balanced, onSendAttachment, onNotice)
+                    else onSendAttachment(picked)
+                },
+                onError = onNotice,
+            )
+        }
+        if (loraQualityOpen) LoraQualityDialog(
+            onPick = { loraQualityOpen = false; pickImage(it) },
+            onDismiss = { loraQualityOpen = false },
+        )
         if(mediaActions.supportsVoiceStreaming) Row(
             Modifier.fillMaxWidth().padding(horizontal=18.dp),
             verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween,
@@ -411,19 +431,7 @@ private fun GlobalConversationScreen(
             onToggleAttachment = { attachmentOpen = !attachmentOpen },
             recording = recording,
             preparingVoice = preparingVoice,
-            onImage = {
-                mediaActions.pickImage(
-                    loraProfile = state.mesh.engine.loraPathAvailable,
-                    onPicked = { picked ->
-                        attachmentOpen = false
-                        // Node bisa tersambung selama galeri terbuka: cek ulang supaya gambar tetap ikut lewat LoRa.
-                        val needsLora = picked.kind == ChatMessageKind.Image && loraPathNow &&
-                            !MeshMediaCodec.isLoraImage(picked.name, picked.bytes.size)
-                        if (needsLora) mediaActions.toLoraImage(picked, onSendAttachment, onNotice) else onSendAttachment(picked)
-                    },
-                    onError = onNotice,
-                )
-            },
+            onImage = { if (state.mesh.engine.loraPathAvailable) loraQualityOpen = true else pickImage(null) },
             onQos = { attachmentOpen = false; qosOpen = true },
             onSrBenchmark = { attachmentOpen = false; srOpen = true },
             onFile = {
@@ -780,7 +788,7 @@ private fun ImagePreview(message: ChatMessage, onEnhance: Enhancer? = null) {
             bitmap = shown,
             contentDescription = "Gambar dari ${message.senderName}",
             contentScale = ContentScale.Fit,
-            // Gambar profil LoRa hanya 128 px: tampil lebih besar dengan filter halus.
+            // Gambar profil LoRa kecil (≤256 px): tampil lebih besar dengan filter halus.
             filterQuality = FilterQuality.Medium,
             modifier = Modifier.widthIn(min = 150.dp, max = 230.dp).aspectRatio(shown.width.toFloat() / shown.height.coerceAtLeast(1))
                 .clip(RoundedCornerShape(12.dp)).pressableClick { fullscreen = true },

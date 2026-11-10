@@ -70,7 +70,7 @@ class IosMediaActions : ChatMediaActions {
     // ------------------------------------------------------------------------------------------
     //  Gambar
     // ------------------------------------------------------------------------------------------
-    override fun pickImage(loraProfile: Boolean, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
+    override fun pickImage(loraQuality: LoraImageQuality?, onPicked: (ChatAttachment) -> Unit, onError: (String) -> Unit) {
         val host = presenter ?: return onError("Pemilih gambar belum siap")
         val config = PHPickerConfiguration().apply {
             filter = PHPickerFilter.imagesFilter
@@ -82,7 +82,7 @@ class IosMediaActions : ChatMediaActions {
             pickerDelegate = null
             if (result == null) return@ImagePickerDelegate onError("Pemilihan gambar dibatalkan")
             result.itemProvider.loadDataRepresentationForTypeIdentifier(UTTypeImage.identifier) { data, _ ->
-                val attachment = data?.let { encodeImage(it, loraProfile) }
+                val attachment = data?.let { encodeImage(it, loraQuality) }
                 dispatch_async(dispatch_get_main_queue()) {
                     if (attachment != null) onPicked(attachment) else onError("Gagal memproses gambar")
                 }
@@ -93,15 +93,15 @@ class IosMediaActions : ChatMediaActions {
         host.presentViewController(picker, animated = true, completion = null)
     }
 
-    private fun encodeImage(data: NSData, loraProfile: Boolean): ChatAttachment? {
+    private fun encodeImage(data: NSData, loraQuality: LoraImageQuality?): ChatAttachment? {
         val image = UIImage.imageWithData(data) ?: return null
         val now = currentEpochMillis()
-        return if (loraProfile) {
-            // Profil LoRa: sisi terpanjang 128 px, JPEG ≤ 1200 B (iOS tidak punya encoder WebP bawaan).
-            var side = LORA_MAX_SIDE
+        return if (loraQuality != null) {
+            // Profil LoRa sesuai pilihan pengguna, dalam JPEG (iOS tidak punya encoder WebP bawaan).
+            var side = loraQuality.maxSide
             while (true) {
                 val small = resize(image, side)
-                val bytes = bestJpeg(small, LORA_MAX_BYTES)
+                val bytes = bestJpeg(small, loraQuality.maxBytes)
                 if (bytes != null || side <= LORA_MIN_SIDE) {
                     val out = bytes ?: UIImageJPEGRepresentation(small, 0.05)?.toByteArray() ?: return null
                     return ChatAttachment("lora_$now.jpg", "image/jpeg", out, ChatMessageKind.Image)
@@ -243,9 +243,7 @@ class IosMediaActions : ChatMediaActions {
     }
 
     private companion object {
-        const val LORA_MAX_SIDE = 128
         const val LORA_MIN_SIDE = 64
-        const val LORA_MAX_BYTES = 1200
     }
 }
 
