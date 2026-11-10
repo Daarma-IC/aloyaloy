@@ -759,7 +759,7 @@ private fun ImagePreview(message: ChatMessage, onEnhance: Enhancer? = null) {
     var aiError by remember(message.id) { mutableStateOf<String?>(null) }
     val aiBitmap = remember(enhanced) { enhanced?.bytes?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() } }
     // Hanya gambar kecil (profil LoRa): gambar BLE ±960 px sudah tajam, AI justru mengarang detail (terbukti di HP).
-    val canEnhance = onEnhance != null && message.attachmentData != null && maxOf(bitmap.width, bitmap.height) <= 256
+    val canEnhance = onEnhance != null && message.attachmentData != null && maxOf(bitmap.width, bitmap.height) <= 384
     val shown = if (showAi && aiBitmap != null) aiBitmap else bitmap
     val subtle = if (message.outgoing) Color.White.copy(alpha = .8f) else Slate
     var fullscreen by remember { mutableStateOf(false) }
@@ -773,7 +773,7 @@ private fun ImagePreview(message: ChatMessage, onEnhance: Enhancer? = null) {
             bitmap = shown,
             contentDescription = "Gambar dari ${message.senderName}",
             contentScale = ContentScale.Fit,
-            // Gambar profil LoRa kecil (≤256 px): tampil lebih besar dengan filter halus.
+            // Gambar profil LoRa kecil (≤384 px): tampil lebih besar dengan filter halus.
             filterQuality = FilterQuality.Medium,
             modifier = Modifier.widthIn(min = 150.dp, max = 230.dp).aspectRatio(shown.width.toFloat() / shown.height.coerceAtLeast(1))
                 .clip(RoundedCornerShape(12.dp)).pressableClick { fullscreen = true },

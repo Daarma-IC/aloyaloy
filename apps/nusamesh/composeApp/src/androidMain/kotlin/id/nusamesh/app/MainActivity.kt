@@ -500,7 +500,7 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                 val start = System.nanoTime()
                 val out = superResolution.enhance(source, model) { done, total -> runOnUiThread { onProgress(done, total) } }
                 val ms = (System.nanoTime() - start) / 1_000_000
-                // Hasil >512 px (input 129–256 px) disimpan JPEG supaya hemat memori; hasil LoRa 512 px tetap PNG.
+                // Hasil >512 px (input 129–384 px) disimpan JPEG supaya hemat memori; hasil LoRa 512 px tetap PNG.
                 val big = maxOf(out.width, out.height) > 512
                 val encoded = java.io.ByteArrayOutputStream().also {
                     out.compress(if (big) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG, if (big) 92 else 100, it)
