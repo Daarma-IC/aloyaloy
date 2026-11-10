@@ -3,6 +3,8 @@ package id.nusamesh.app
 import id.nusamesh.app.media.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import id.nusamesh.app.data.ChatHistory
+import id.nusamesh.app.data.FileStore
 import id.nusamesh.app.data.KeyValueStore
 import id.nusamesh.app.data.GpxCodec
 import id.nusamesh.app.data.MapPersistence
@@ -61,12 +63,15 @@ import id.nusamesh.app.mesh.protocol.VictimInfo
 import id.nusamesh.app.mesh.protocol.WaypointTelemetry
 import id.nusamesh.app.mesh.protocol.WaypointType
 import id.nusamesh.app.security.OperationKey
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -85,6 +90,7 @@ class AppController(
     /** Isi file graf jalan offline (dibaca sekali saat rute pertama diminta); null = tidak tersedia. */
     private val roadGraph: () -> ByteArray? = { null },
     appScope: CoroutineScope? = null,
+    private val historyDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val scope = appScope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val _state = MutableStateFlow(
@@ -97,7 +103,7 @@ class AppController(
             loraOnly = store.get(KEY_LORA_ONLY) == "1",
             role = FieldRole.entries.firstOrNull { it.name == store.get(KEY_ROLE) } ?: FieldRole.Warga,
             team = store.get(KEY_TEAM)?.let(FieldChannels::teamSlug),
-            chats = listOf(globalPreview("Chat bersama semua pengguna di mesh", 0, "")),
+            chats = listOf(globalPreview(EMPTY_GLOBAL_PREVIEW, 0, "")),
         ),
     )
     val state: StateFlow<AppUiState> = _state.asStateFlow()
@@ -123,6 +129,7 @@ class AppController(
         }
         _state.update { it.copy(qosRuns = QosRecords.decode(store.get(KEY_QOS))) }
         _state.update { it.copy(chats = withChannelPreviews(it.chats, it.role, it.team)) }
+        store.files?.let(::startChatHistory)
         scope.launch { repository.snapshot.collect(::onSnapshot) }
         // Jalur & titik disimpan permanen; ditunda sedikit supaya update GPS beruntun cukup satu tulis.
         scope.launch {
@@ -355,6 +362,39 @@ class AppController(
     }
 
     fun closeChat() = _state.update { it.copy(activeConversationId = null) }
+
+    /** Satu-satunya jalan riwayat global terhapus: penulis riwayat menghapus berkas pesan yang hilang dari state. */
+    fun clearGlobalHistory() = _state.update { current ->
+        current.copy(
+            messages = current.messages.filterNot { it.conversationId == GLOBAL_CHAT_ID },
+            chats = current.chats.map { if (it.peerId == GLOBAL_CHAT_ID) globalPreview(EMPTY_GLOBAL_PREVIEW, 0, "") else it },
+        )
+    }
+
+    private fun keptInHistory(message: ChatMessage) = message.conversationId == GLOBAL_CHAT_ID && message.viaName != SYSTEM
+
+    private fun startChatHistory(files: FileStore) = scope.launch {
+        val history = ChatHistory(files)
+        val saved = runCatching { withContext(historyDispatcher) { history.load() } }.getOrDefault(emptyList())
+        _state.update { current ->
+            val known = current.messages.mapTo(HashSet()) { it.id }
+            val last = saved.lastOrNull()
+            current.copy(
+                messages = saved.filterNot { it.id in known } + current.messages,
+                chats = if (last == null || current.messages.any(::keptInHistory)) current.chats else upsertPreview(
+                    current.chats, GLOBAL_CHAT_ID,
+                    QuickStatus.display(last.body).let { if (last.outgoing) it else "${last.senderName}: $it" }, 0, last.time,
+                ),
+            )
+        }
+        var warned = false
+        _state.map { it.messages }.distinctUntilChanged { a, b -> a === b }.collect { messages ->
+            val kept = messages.filter(::keptInHistory)
+            val result = runCatching { withContext(historyDispatcher) { history.sync(kept) } }
+            if (result.isFailure && !warned) showNotice("Riwayat chat gagal disimpan. Periksa ruang penyimpanan HP.")
+            warned = result.isFailure
+        }
+    }
 
     /** Pesan ke percakapan yang sedang dibuka (global / operasional SAR / tim). */
     fun sendMessage(text: String) = sendChat(text, activeConversation())
@@ -1658,6 +1698,7 @@ class AppController(
         const val GLOBAL_CHAT_ID = "global"
         /** Penanda [ChatMessage.viaName] untuk pesan sistem (ditampilkan sebagai kartu info, bukan gelembung). */
         const val SYSTEM = "\u0000system"
+        private const val EMPTY_GLOBAL_PREVIEW = "Chat bersama semua pengguna di mesh"
         private const val KEY_ACTIVE = "mesh_active"
         private const val KEY_SOS_ACTIVE = "sos_active"
         private const val KEY_LORA_ONLY = "lora_only_test"

@@ -45,6 +45,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.CircularProgressIndicator
@@ -98,6 +99,7 @@ fun ChatScreen(
     onCreateGlobal: () -> Unit,
     onOpenChat: (String) -> Unit,
     onBack: () -> Unit,
+    onClearGlobalHistory: () -> Unit,
     onSend: (String) -> Unit,
     onSendAttachment: (ChatAttachment) -> Unit,
     onVoiceStart: () -> Boolean = { false },
@@ -123,6 +125,7 @@ fun ChatScreen(
             padding = padding,
             mediaActions = mediaActions,
             onBack = onBack,
+            onClearGlobalHistory = onClearGlobalHistory,
             onSend = onSend,
             onSendAttachment = onSendAttachment,
             onVoiceStart = onVoiceStart, onVoiceChunk = onVoiceChunk,
@@ -284,6 +287,7 @@ private fun GlobalConversationScreen(
     padding: PaddingValues,
     mediaActions: ChatMediaActions,
     onBack: () -> Unit,
+    onClearGlobalHistory: () -> Unit,
     onSend: (String) -> Unit,
     onSendAttachment: (ChatAttachment) -> Unit,
     onVoiceStart: () -> Boolean = { false },
@@ -327,7 +331,24 @@ private fun GlobalConversationScreen(
             bottom = padding.calculateBottomPadding(),
         ),
     ) {
-        ConversationHeader(state, onBack)
+        var confirmClear by remember { mutableStateOf(false) }
+        val canClear = state.activeConversationId == AppController.GLOBAL_CHAT_ID && messages.any { it.viaName != AppController.SYSTEM }
+        ConversationHeader(state, onBack, if (canClear) ({ confirmClear = true }) else null)
+        if (confirmClear) AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            containerColor = Color.White,
+            title = { Text("Hapus riwayat?", color = Danger, fontWeight = FontWeight.Bold) },
+            text = { Text("Semua pesan, gambar, dan suara di Global Mesh akan dihapus dari HP ini.", color = Slate) },
+            confirmButton = {
+                Text("Hapus", color = Danger, fontWeight = FontWeight.Bold, modifier = Modifier.padding(12.dp).pressableClick {
+                    confirmClear = false
+                    mediaActions.stopVoicePlayback()
+                    playback = null
+                    onClearGlobalHistory()
+                })
+            },
+            dismissButton = { Text("Batal", color = Slate, modifier = Modifier.padding(12.dp).pressableClick { confirmClear = false }) },
+        )
         state.nebengNotice?.let { notice ->
             Box(Modifier.background(Color.White).padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) { NebengBanner(notice, onDismissNebeng) }
         }
@@ -473,7 +494,7 @@ private fun GlobalConversationScreen(
 }
 
 @Composable
-private fun ConversationHeader(state: AppUiState, onBack: () -> Unit) {
+private fun ConversationHeader(state: AppUiState, onBack: () -> Unit, onClearHistory: (() -> Unit)?) {
     val snapshot = state.mesh.engine
     val node = snapshot.servingNode
     val phones = snapshot.peers.count { it.direct }
@@ -497,6 +518,9 @@ private fun ConversationHeader(state: AppUiState, onBack: () -> Unit) {
                 },
                 color = Slate, fontSize = 9.sp, maxLines = 1,
             )
+        }
+        onClearHistory?.let {
+            Text("Hapus", color = Danger, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.pressableClick(it).padding(6.dp))
         }
         when {
             !state.mesh.active -> StatusPill("Offline", Slate, Color(0xFFF1F5F9))

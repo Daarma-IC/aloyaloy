@@ -174,6 +174,7 @@ fun NusaMeshApp(
                         onCreateGlobal = controller::createGlobalChat,
                         onOpenChat = controller::openChat,
                         onBack = controller::closeChat,
+                        onClearGlobalHistory = controller::clearGlobalHistory,
                         onSend = controller::sendMessage,
                         onSendAttachment = controller::sendAttachment,
                         onVoiceStart = controller::beginVoiceStream,
