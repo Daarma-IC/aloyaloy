@@ -8,6 +8,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
+/** Hasil satu percobaan kirim ke node. */
+sealed interface SendOutcome {
+    object Sent : SendOutcome
+    object Failed : SendOutcome
+    /** Node belum menerima (sibuk/tak terkonfirmasi): coba lagi paling cepat setelah [afterMs]. */
+    class Retry(val afterMs: Long) : SendOutcome
+}
+
 /**
  * Antrean kirim ke satu Nusa Node — kebijakan HCMA (docs/HCMA.md, NodePacketQueue.kt Nusa Mesh).
  *
@@ -47,6 +55,10 @@ class NodeQueue(
         const val RATE_INTERVAL_MS = 3500.0
         const val RATE_BURST = 2.0
         private const val RECHECK_MS = 500L
+        // Total jeda ±75 detik: melewati TTL 60 detik cache admission pada firmware lama.
+        const val MAX_RETRIES = 8
+        private const val RETRY_BASE_MS = 1_000L
+        private const val RETRY_MAX_MS = 15_000L
 
         private const val LORA_FRAME_DATA = 243      // NUSA_FRAG_MAX_DATA
         private const val LORA_FRAME_HEADER = 12     // NUSA_FRAME_HDR
@@ -84,7 +96,7 @@ class NodeQueue(
         }
 
         fun priorityOf(bytes: ByteArray): Int = when (bytes.getOrNull(1)?.toInt()?.and(0xFF)) {
-            TYPE_NODE_REGISTER, 0x0A, 0x0C -> 0
+            TYPE_NODE_REGISTER, 0x0A, 0x0C, 0x0E -> 0
             0x04 -> 1
             0x01, 0x13, 0x30, 0x31 -> 4
             0x22, 0x05, 0x06, 0x07 -> if ((bytes.getOrNull(11)?.toInt() ?: 0) and 0x08 != 0) 2 else 3
@@ -96,9 +108,10 @@ class NodeQueue(
         val bytes: ByteArray,
         val enqueuedAt: Long,
         val own: Boolean,
-        internal val send: suspend (ByteArray) -> Boolean,
+        internal val send: suspend (ByteArray) -> SendOutcome,
         internal val batch: Batch?,
     ) {
+        internal var retries = 0
         val priority = priorityOf(bytes)
         /** NODE_REGISTER tak pernah dipancarkan ke LoRa: tak perlu jeda airtime. */
         val localOnly = bytes.getOrNull(1)?.toInt()?.and(0xFF) == TYPE_NODE_REGISTER
@@ -158,6 +171,18 @@ class NodeQueue(
         onProgress: (Int, Int) -> Unit = { _, _ -> },
         onComplete: (Boolean) -> Unit = {},
         onEstimate: ((Long) -> Unit)? = null,
+    ): Boolean = offerBatchWithRetry(
+        packets, { bytes -> if (send(bytes)) SendOutcome.Sent else SendOutcome.Failed },
+        onProgress, onComplete, onEstimate,
+    )
+
+    /** Seperti [offerBatch], tetapi [send] boleh meminta percobaan ulang tanpa menggugurkan batch. */
+    fun offerBatchWithRetry(
+        packets: List<ByteArray>,
+        send: suspend (ByteArray) -> SendOutcome,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+        onComplete: (Boolean) -> Unit = {},
+        onEstimate: ((Long) -> Unit)? = null,
     ): Boolean {
         if (closed || packets.isEmpty() || pending.size + packets.size > MAX_PENDING) {
             onComplete(false)
@@ -192,6 +217,8 @@ class NodeQueue(
     private var airCreditMs = BURST_AIR_MS
     private var rateTokens = RATE_BURST
     private var lastRefill = now()
+    /** Node minta menunggu: berlaku untuk semua paket ber-airtime, karena batasnya per HP/per radio. */
+    private var holdUntil = Long.MIN_VALUE
 
     private fun refill(t: Long) {
         val dt = (t - lastRefill).coerceAtLeast(0)
@@ -202,11 +229,14 @@ class NodeQueue(
 
     /** Berapa lama lagi sampai paket ber-airtime berikutnya boleh dikirim (0 = sekarang). */
     fun waitMs(): Long {
-        refill(now())
+        val t = now()
+        refill(t)
         val air = if (airCreditMs >= 0) 0.0 else -airCreditMs / DUTY_SHARE
         val rate = if (rateTokens >= 1.0) 0.0 else (1.0 - rateTokens) * RATE_INTERVAL_MS
-        return ceil(maxOf(air, rate)).toLong()
+        return maxOf(ceil(maxOf(air, rate)).toLong(), holdRemaining(t))
     }
+
+    private fun holdRemaining(t: Long) = if (holdUntil > t) holdUntil - t else 0L
 
     private fun peekNext(): Item? {
         val t = now()
@@ -232,6 +262,7 @@ class NodeQueue(
             air = minOf(BURST_AIR_MS, air+ms*DUTY_SHARE)
             tokens = minOf(RATE_BURST, tokens+ms/RATE_INTERVAL_MS)
         }
+        advance(holdRemaining(start))
         while(rest.isNotEmpty()) {
             val next = rest.minBy { it.rank(at) }
             if(!next.localOnly) {
@@ -264,25 +295,40 @@ class NodeQueue(
                     pending.remove(next)
                     inFlight = next
                     val started = now()
-                    val success = try { next.send(next.bytes) } finally { inFlight = null }
+                    val outcome = try { next.send(next.bytes) } finally { inFlight = null }
                     val duration = (now()-started).coerceAtLeast(0).toDouble()
                     writeDurationMs = if(writeDurationMs==0.0) duration else writeDurationMs*.75+duration*.25
-                    if (success) {
-                        if (!next.localOnly) {
-                            airCreditMs -= airtimeMs(next.bytes, spreadingFactor())
-                            rateTokens -= 1.0
+                    when (outcome) {
+                        SendOutcome.Sent -> {
+                            if (!next.localOnly) {
+                                airCreditMs -= airtimeMs(next.bytes, spreadingFactor())
+                                rateTokens -= 1.0
+                            }
+                            next.batch?.sentOne()
                         }
-                        next.batch?.sentOne()
-                    } else {
-                        val batch = next.batch
-                        if (batch != null) {
-                            pending.removeAll { it.batch === batch }
-                            batch.finish(false)
-                        }
+                        SendOutcome.Failed -> failBatch(next)
+                        is SendOutcome.Retry -> scheduleRetry(next, outcome.afterMs)
                     }
                 }
             }
         }
+    }
+
+    private fun failBatch(item: Item) {
+        val batch = item.batch ?: return
+        pending.removeAll { it.batch === batch }
+        batch.finish(false)
+    }
+
+    private fun scheduleRetry(item: Item, afterMs: Long) {
+        if (closed || item.retries >= MAX_RETRIES) {
+            failBatch(item)
+            return
+        }
+        item.retries += 1
+        val backoff = minOf(RETRY_MAX_MS, RETRY_BASE_MS shl (item.retries - 1))
+        holdUntil = now() + maxOf(afterMs, backoff)
+        pending.add(0, item) // Tetap di depan supaya urutan fragmen sekelas tidak berubah.
     }
 
     fun close() {

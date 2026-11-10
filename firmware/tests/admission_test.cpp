@@ -51,8 +51,9 @@ int main(){
   allow=false;auto limited=packet(40,2);auto limitedId=idOf(limited);
   NusaAdmission::dispatch(limited.data(),limited.size(),0,handler,reply);
   assert(answer[50]==BUSY&&answer[51]==RATE&&!dedup.seen(limitedId));
-  allow=true;control(0,124);NusaAdmission::dispatch(limited.data(),limited.size(),0,handler,reply);
-  assert(answer[50]==ACCEPTED&&NusaRadio::queueDepth()==2);
+  // A replay in the same session is re-evaluated instead of answered from the cached BUSY.
+  allow=true;NusaAdmission::dispatch(limited.data(),limited.size(),0,handler,reply);
+  assert(answer[50]==ACCEPTED&&NusaRadio::queueDepth()==2&&dedup.seen(limitedId));
   // Atomic batch admission: no partial RF enqueue when capacity is insufficient.
   uint8_t raw[12]={};while(NusaRadio::queueDepth()<20)assert(NusaRadio::enqueue(raw,12,PRIO_ACK));
   auto big=packet(500,3);auto depth=NusaRadio::queueDepth();

@@ -50,6 +50,36 @@ class NodeQueueTimingTest {
         assertTrue(remaining>before)
     }
 
+    @Test fun retryKeepsTheBatchAndHonoursNodeDelayInFragmentOrder() = runTest {
+        val q=NodeQueue(me,{testScheduler.currentTime})
+        val sent=mutableListOf<Int>()
+        val completed=mutableListOf<Boolean>()
+        var busy=true
+        q.offerBatchWithRetry(List(2){packet(size=25+it)}, { bytes ->
+            if(busy) { busy=false; SendOutcome.Retry(3000) } else { sent+=bytes.size; SendOutcome.Sent }
+        }, onComplete={completed+=it})
+        q.start(backgroundScope);runCurrent()
+        assertTrue(sent.isEmpty())
+        advanceTimeBy(2900);runCurrent()
+        assertTrue(sent.isEmpty(),"must wait for the delay the node asked for")
+        advanceTimeBy(600);runCurrent()
+        advanceTimeBy(4000);runCurrent()
+        assertEquals(listOf(25,26),sent)
+        assertEquals(listOf(true),completed)
+    }
+
+    @Test fun retryBudgetExhaustionFailsTheWholeBatch() = runTest {
+        val q=NodeQueue(me,{testScheduler.currentTime})
+        val completed=mutableListOf<Boolean>()
+        var attempts=0
+        q.offerBatchWithRetry(List(2){packet()}, { attempts++; SendOutcome.Retry(0) }, onComplete={completed+=it})
+        q.start(backgroundScope)
+        advanceTimeBy(120_000);runCurrent()
+        assertEquals(listOf(false),completed)
+        assertEquals(NodeQueue.MAX_RETRIES+1,attempts)
+        assertEquals(0,q.size)
+    }
+
     @Test fun closeAlsoFailsTheFragmentCurrentlyWaitingForBleCallback() = runTest {
         val q=NodeQueue(me,{testScheduler.currentTime})
         val completed=mutableListOf<Boolean>()

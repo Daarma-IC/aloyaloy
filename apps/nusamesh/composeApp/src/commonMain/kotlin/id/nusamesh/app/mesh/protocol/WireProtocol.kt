@@ -10,7 +10,7 @@ enum class MessageType(val value: Int) {
     ANNOUNCE(0x01), LEAVE(0x03), MESSAGE(0x04),
     FRAGMENT_START(0x05), FRAGMENT_CONTINUE(0x06), FRAGMENT_END(0x07),
     CHANNEL_ANNOUNCE(0x08), CHANNEL_RETENTION(0x09),
-    DELIVERY_ACK(0x0A), DELIVERY_STATUS_REQUEST(0x0B), READ_RECEIPT(0x0C), DELETION(0x0D),
+    DELIVERY_ACK(0x0A), DELIVERY_STATUS_REQUEST(0x0B), READ_RECEIPT(0x0C), DELETION(0x0D), FRAGMENT_NACK(0x0E),
     NOISE_HANDSHAKE_INIT(0x10), NOISE_HANDSHAKE_RESP(0x11), NOISE_ENCRYPTED(0x12), NOISE_IDENTITY_ANNOUNCE(0x13),
     CHANNEL_KEY_VERIFY_REQUEST(0x14), CHANNEL_KEY_VERIFY_RESPONSE(0x15), CHANNEL_PASSWORD_UPDATE(0x16),
     CHANNEL_METADATA(0x17), NODE_LORA_HEALTH(0x18), NODE_RX_META(0x19), NODE_RADIO_CFG(0x1A),
@@ -52,6 +52,7 @@ class WirePacket(
     val recipientHex: String? get() = recipientId?.toHex()
 
     fun withTtl(newTtl: Int) = WirePacket(version, type, senderId, recipientId, timestamp, payload, signature, newTtl, voicePriority)
+    fun withTimestamp(newTimestamp: Long) = WirePacket(version, type, senderId, recipientId, newTimestamp, payload, signature, ttl, voicePriority)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -348,7 +348,9 @@ static void onPacketFromUser(const uint8_t* pkt, size_t len, uint8_t clientId) {
     // DELIVERY-ACK (0x0A) & READ-RECEIPT (0x0C): pendek, dan menahannya di
     // antrean cuma memicu HP pengirim retry — jauh lebih mahal daripada
     // meluluskannya sekarang. Ini persis kasus yang PRIO_ACK didesain untuk.
-    else if (h.type == 0x0A || h.type == 0x0C) {
+    // FRAGMENT-NACK (0x0E) sama: permintaan kirim ulang yang tertahan hanya
+    // memperpanjang transfer gambar/voice note yang sedang pincang.
+    else if (h.type == 0x0A || h.type == 0x0C || h.type == 0x0E) {
       prio = PRIO_ACK;
     }
     // PESAN (0x04): chat teks pendek yang diketik user, bukan lampiran.

@@ -1,5 +1,6 @@
 package id.nusamesh.app.mesh.engine
 
+import id.nusamesh.app.mesh.core.NodeQueue
 import id.nusamesh.app.mesh.protocol.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.*
@@ -64,9 +65,27 @@ class NodeAdmissionIntegrationTest {
         val before=node.dataCount
         node.result=2;node.dropReply=false;completed=null
         engine.sendFile(FilePacket("voice2.c2","audio/x-codec2",ByteArray(90)),onComplete={completed=it})
+        // A busy node delays the transfer; it only fails once the retry budget runs out.
         advanceTimeBy(15000);runCurrent()
+        assertNull(completed)
+        advanceTimeBy(120000);runCurrent()
         assertEquals(false,completed)
         assertTrue(events.any{it.report.state==AdmissionState.BUSY})
-        assertEquals(before+1,node.dataCount)
+        assertEquals(before+1+NodeQueue.MAX_RETRIES,node.dataCount)
+    }
+    @Test fun busyNodeRecoversWithoutFailingTheTransfer()=runTest {
+        val radio=FakeRadio();val node=Node(radio){base+testScheduler.currentTime}
+        val engine=MeshEngine(FakeLink(radio,"A"),"0a0a0a0a0a0a0a0a",backgroundScope,
+            {base+testScheduler.currentTime},Random(3))
+        engine.start();radio.setRssi("A","N",-55)
+        backgroundScope.launch {while(isActive){radio.scanTick();delay(1000)}}
+        advanceTimeBy(5000);runCurrent()
+        var completed:Boolean?=null
+        node.result=2
+        engine.sendFile(FilePacket("voice.c2","audio/x-codec2",ByteArray(80)),onComplete={completed=it})
+        advanceTimeBy(500);runCurrent();assertNull(completed)
+        node.result=1
+        advanceTimeBy(5000);runCurrent()
+        assertEquals(true,completed)
     }
 }

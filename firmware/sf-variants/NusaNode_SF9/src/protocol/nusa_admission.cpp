@@ -98,6 +98,8 @@ void NusaAdmission::dispatch(const uint8_t* data,size_t len,uint8_t client,Handl
   {Lock lock;session=sessions[client];
     for(size_t i=0;i<CACHE;++i){auto& e=entries[i];
       if(e.used&&millis()-e.at>=TTL)e.used=false;
+      // BUSY means nothing was queued (dedup rolled back); a replay must be re-evaluated, not answered from cache.
+      if(e.used&&e.id==id&&e.client==client&&e.session==session&&e.result==NusaAdmissionTrace::BUSY)e.used=false;
       if(e.used&&e.id==id&&((e.client==client&&e.session==session)||e.result==ACCEPTED)){cached=e;break;}
       if(!e.used&&slot<0)slot=i;
     }

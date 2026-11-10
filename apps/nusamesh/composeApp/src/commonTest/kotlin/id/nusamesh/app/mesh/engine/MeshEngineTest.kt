@@ -77,6 +77,34 @@ class MeshEngineTest {
     }
 
     @Test
+    fun lostFragmentIsRecoveredThroughNackWithoutResendingTheRest() = runTest {
+        val radio=world()
+        val a=phone(radio,"A","0a0a0a0a0a0a0a0a","Ayu")
+        val b=phone(radio,"B","0b0b0b0b0b0b0b0b","Budi")
+        radio.setRssi("A","B",-55)
+        advanceTimeBy(5_000);runCurrent()
+        var lost=0
+        var fragmentsToB=0
+        radio.lose={ from,to,data ->
+            val p=WireProtocol.decode(data)
+            val fragment=from=="A"&&to=="B"&&p!=null&&p.type in 0x05..0x07
+            if(fragment) fragmentsToB++
+            val index=p?.payload?.let { ((it[8].toInt() and 255) shl 8) or (it[9].toInt() and 255) }
+            (fragment&&index==1&&lost++==0)
+        }
+        val file=FilePacket("foto.jpg","image/jpeg",Random(7).nextBytes(1200))
+        a.engine.sendFile(file)
+        advanceTimeBy(10_000);runCurrent()
+        assertEquals(1,lost)
+        assertTrue(b.files.isEmpty())
+        val originals=fragmentsToB
+        advanceTimeBy(60_000);runCurrent()
+        assertTrue(b.files.any { it.content.contentEquals(file.content) })
+        assertEquals(originals+1,fragmentsToB)
+        assertTrue(a.engine.diagnostics.snapshot.value.count("FRAGMENT_NACK_RX")>0)
+    }
+
+    @Test
     fun voiceTransferWithoutPathStopsWaitingWithFailure() = runTest {
         val a=phone(world(),"A","0a0a0a0a0a0a0a0a","Ayu")
         val completed=mutableListOf<Boolean>()

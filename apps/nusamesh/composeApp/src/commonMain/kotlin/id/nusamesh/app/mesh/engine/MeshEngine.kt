@@ -1,5 +1,6 @@
 package id.nusamesh.app.mesh.engine
 
+import id.nusamesh.app.mesh.core.FragmentNackCodec
 import id.nusamesh.app.mesh.core.Fragmenter
 import id.nusamesh.app.mesh.core.GuardVerdict
 import id.nusamesh.app.mesh.core.Hcma
@@ -9,6 +10,8 @@ import id.nusamesh.app.mesh.core.NodeQueue
 import id.nusamesh.app.mesh.core.PacketGuard
 import id.nusamesh.app.mesh.core.RelayDecision
 import id.nusamesh.app.mesh.core.RelayPolicy
+import id.nusamesh.app.mesh.core.SendOutcome
+import id.nusamesh.app.mesh.core.SentFragmentCache
 import id.nusamesh.app.mesh.core.TopologyGossipCodec
 import id.nusamesh.app.mesh.core.isNusaNodeId
 import id.nusamesh.app.mesh.core.nusaNodeNumber
@@ -119,6 +122,7 @@ class MeshEngine(
     private val nodeHealth = HashMap<String, NodeHealth>()
     private val guard = PacketGuard(myPeerId, now)
     private val fragmenter = Fragmenter(random, now)
+    private val sentFragments = SentFragmentCache(now)
     private val relay = RelayPolicy(myPeerId, random)
     val topology = MeshTopology(now)
     private val handover = HandoverDecider(now)
@@ -548,6 +552,7 @@ class MeshEngine(
                     // Paket utuh hasil rakitan diproses seperti datang langsung (tanpa relay ulang: fragmennya sudah di-relay).
                     if (guard.check(inner) == GuardVerdict.Accept) processInner(inner, from, rx)
                 }
+            MessageType.FRAGMENT_NACK -> if (forMe) onFragmentNack(p, from)
             MessageType.TOPOLOGY_GOSSIP -> {
                 val neighbors = TopologyGossipCodec.decode(p.payload).filter { it.peerId != sender }
                 if (neighbors.isNotEmpty()) {
@@ -586,6 +591,15 @@ class MeshEngine(
             else -> if (forMe) _packets.tryEmit(inner to inner.senderHex)
         }
         if (forMe && inner.messageType == MessageType.MESSAGE) _packets.tryEmit(inner to inner.senderHex)
+    }
+
+    /** Penerima kehilangan fragmen milik kita: kirim ulang hanya bagian yang diminta. */
+    private suspend fun onFragmentNack(p: WirePacket, from: Device) {
+        val (key, missing) = FragmentNackCodec.decode(p.payload) ?: return
+        val resend = sentFragments.take(key, missing)
+        diagnostics.record(DiagnosticLayer.MESH, "FRAGMENT_NACK_RX", deviceId = from.id,
+            detail = "set=$key; requested=${missing.size}; resending=${resend?.packets?.size ?: 0}; from=${p.senderHex}")
+        resend?.packets?.forEach { broadcast(it, except = null, allowLora = resend.allowLora) }
     }
 
     private fun emitFile(p: WirePacket, from: Device, forMe: Boolean, rx: LoraRxMeta? = null) {
@@ -632,6 +646,9 @@ class MeshEngine(
         // Firmware uji QoS: [5] = SF aktif, [6] = mode uji jarak.
         if (payload.size >= 6) h.sf = (payload[5].toInt() and 0xFF).takeIf { it in 7..12 }
         if (payload.size >= 7) h.testMode = payload[6].toInt() != 0
+        // Jangan menganggap set macet sebelum dua kali jeda terpanjang antar-paket pada SF ini.
+        val paceMs = NodeQueue.airtimeMs(ByteArray(512), h.sf ?: NodeQueue.DEFAULT_SF) / NodeQueue.DUTY_SHARE
+        fragmenter.nackMinIdleMs = maxOf(Fragmenter.NACK_MIN_IDLE_MS, (paceMs * 2).toLong())
         diagnostics.record(DiagnosticLayer.LORA, "NODE_HEALTH", deviceId = nodeId, rssiDbm = h.bestRssi?.toDouble(),
             snrDb = h.bestSnr?.toDouble(), sf = h.sf, detail = "neighbors=${h.neighbors}; source=strongest_neighbor; test_mode=${h.testMode}")
         // Registrasi berkala / ulang bila ACK belum datang.
@@ -770,6 +787,7 @@ class MeshEngine(
             return
         }
         val parts = fragmenter.split(packet)
+        val resendKey = rememberOwnFragments(packet, parts, allowLora)
         val totalUnits = targets.size * parts.size
         var sentUnits = 0
         var completedTargets = 0
@@ -798,7 +816,10 @@ class MeshEngine(
                     completedTargets += 1
                     estimates[index] = 0L
                     publishEstimate()
-                    if (completedTargets == targets.size) onComplete?.invoke(!failed)
+                    if (completedTargets == targets.size) {
+                        resendKey?.let(sentFragments::finished)
+                        onComplete?.invoke(!failed)
+                    }
                 },
                 messageId = trackingId ?: if (packet.messageType == MessageType.MESSAGE) MeshMessage.decode(packet.payload)?.id else null,
                 onEstimate = onEstimate?.let { { ms -> estimates[index]=ms; publishEstimate() } },
@@ -806,7 +827,15 @@ class MeshEngine(
         }
     }
 
-    private suspend fun sendToDevice(d: Device, packet: WirePacket) = sendParts(d, fragmenter.split(packet))
+    private suspend fun sendToDevice(d: Device, packet: WirePacket) {
+        val parts = fragmenter.split(packet)
+        val resendKey = rememberOwnFragments(packet, parts, allowLora = true)
+        sendParts(d, parts, onComplete = { resendKey?.let(sentFragments::finished) })
+    }
+
+    /** Hanya fragmen milik sendiri yang bisa diminta ulang; relay tidak menyimpan salinan. */
+    private fun rememberOwnFragments(packet: WirePacket, parts: List<WirePacket>, allowLora: Boolean) =
+        if (packet.senderId.contentEquals(myIdBytes)) sentFragments.remember(parts, allowLora) else null
 
     private suspend fun sendParts(
         d: Device,
@@ -835,8 +864,8 @@ class MeshEngine(
             dirty = true
             return success
         }
-        suspend fun transmitChecked(bytes:ByteArray):Boolean {
-            val client=d.admission ?: return transmit(bytes)
+        suspend fun transmitChecked(bytes:ByteArray):SendOutcome {
+            val client=d.admission ?: return if(transmit(bytes)) SendOutcome.Sent else SendOutcome.Failed
             if(messageId!=null) _admissions.tryEmit(NodeAdmissionEvent(messageId,
                 NodeAdmissionReport(AdmissionState.WAITING,nodeConfirmed,encoded.size)))
             val result=try { client.send(bytes) { transmit(it) } } catch(cancelled:CancellationException) {
@@ -850,11 +879,16 @@ class MeshEngine(
             diagnostics.record(DiagnosticLayer.QUEUE,"NODE_ADMISSION_${result.state}",
                 if(result.state==AdmissionState.ACCEPTED||result.state==AdmissionState.LEGACY) DiagnosticLevel.INFO else DiagnosticLevel.WARN,
                 deviceId=d.id,messageId=messageId,detail="confirmed=$nodeConfirmed/${encoded.size}; ${result.detail}; free=${result.receipt?.freeSlots}; sf=${result.receipt?.sf}")
-            return result.state==AdmissionState.ACCEPTED||result.state==AdmissionState.LEGACY
+            return when(result.state) {
+                AdmissionState.ACCEPTED,AdmissionState.LEGACY -> SendOutcome.Sent
+                AdmissionState.REJECTED -> SendOutcome.Failed
+                // Aman diulang: node menjawab dari cache bila paket ini ternyata sudah diterima.
+                else -> SendOutcome.Retry(result.receipt?.retryMs ?: 0L)
+            }
         }
         if (q != null) {
             // Ke Nusa Node: lewat antrean berjeda (airtime LoRa) dengan kebijakan HCMA.
-            val accepted = q.offerBatch(encoded, { bytes -> transmitChecked(bytes) }, onProgress, { success ->
+            val accepted = q.offerBatchWithRetry(encoded, { bytes -> transmitChecked(bytes) }, onProgress, { success ->
                 diagnostics.record(DiagnosticLayer.QUEUE, if (success) "BATCH_COMPLETE" else "BATCH_FAILED",
                     if (success) DiagnosticLevel.INFO else DiagnosticLevel.WARN, d.id, messageId,
                     detail = "fragments=${encoded.size}; pending=${q.size}")
@@ -915,6 +949,11 @@ class MeshEngine(
     private fun maintenance() {
         val t = now()
         fragmenter.expire()
+        sentFragments.expire()
+        fragmenter.dueNacks().forEach { nack ->
+            diagnostics.record(DiagnosticLayer.MESH, "FRAGMENT_NACK_TX", detail = "missing=${nack.missing.size}; to=${nack.senderHex}")
+            sendTo(nack.senderHex, MessageType.FRAGMENT_NACK.value, FragmentNackCodec.encode(nack.fragmentId, nack.missing))
+        }
         guard.expire()
         topology.pruneStale()
         val directPeers = devices.values.filter { it.connected }.mapNotNull { it.peerId }.toSet()

@@ -41,6 +41,7 @@ static inline const char* nusaTypeName(uint8_t t) {
     case 0x07: return "FRAG-AKHIR";
     case 0x0A: return "DELIVERY-ACK";
     case 0x0C: return "READ-RECEIPT";
+    case 0x0E: return "FRAGMENT-NACK";
     case 0x10: return "NOISE-INIT";
     case 0x11: return "NOISE-RESP";
     case 0x12: return "NOISE-ENC";

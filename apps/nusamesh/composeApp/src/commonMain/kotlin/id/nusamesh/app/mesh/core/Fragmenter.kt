@@ -8,6 +8,37 @@ import id.nusamesh.app.mesh.protocol.WireProtocol
 import id.nusamesh.app.mesh.protocol.toHex
 import kotlin.random.Random
 
+/** Permintaan ke [senderHex] untuk mengirim ulang fragmen [missing] dari set [fragmentId]. */
+class FragmentNack(val senderHex: String, val fragmentId: ByteArray, val missing: List<Int>)
+
+/** Payload FRAGMENT_NACK: id set 8 B, jumlah 1 B, lalu indeks 2 B per fragmen. Muat satu frame LoRa. */
+object FragmentNackCodec {
+    const val MAX_INDICES = 64
+
+    fun encode(fragmentId: ByteArray, missing: List<Int>): ByteArray {
+        val indices = missing.take(MAX_INDICES)
+        val out = ByteArray(9 + indices.size * 2)
+        fragmentId.copyInto(out, 0, 0, 8)
+        out[8] = indices.size.toByte()
+        indices.forEachIndexed { i, index ->
+            out[9 + i * 2] = (index ushr 8).toByte()
+            out[10 + i * 2] = index.toByte()
+        }
+        return out
+    }
+
+    /** Mengembalikan (id set dalam hex, daftar indeks), atau null bila payload rusak. */
+    fun decode(payload: ByteArray): Pair<String, List<Int>>? {
+        if (payload.size < 9) return null
+        val count = payload[8].toInt() and 0xFF
+        if (count !in 1..MAX_INDICES || payload.size != 9 + count * 2) return null
+        val indices = List(count) { i ->
+            ((payload[9 + i * 2].toInt() and 0xFF) shl 8) or (payload[10 + i * 2].toInt() and 0xFF)
+        }
+        return payload.copyOfRange(0, 8).toHex() to indices
+    }
+}
+
 /**
  * Fragmentasi paket besar agar muat satu GATT write/notify — format identik dengan
  * FragmentManager.kt Nusa Mesh (payload fragmen: id 8 B, index 2 B, total 2 B, tipe asli 1 B, data).
@@ -29,6 +60,13 @@ class Fragmenter(
         private const val ATT_MAX_VALUE = 512           // NimBLE di Nusa Node menolak write > 512 B
         private const val MAX_PENDING_SETS = 32
         private const val MAX_TOTAL = 4096
+        /** Diam minimum sebelum set dianggap macet; jarak antar-fragmen LoRa SF7 bisa ±25 detik. */
+        const val NACK_MIN_IDLE_MS = 45_000L
+        private const val NACK_MAX_IDLE_MS = 15 * 60_000L
+        /** Sebar waktu NACK antar-penerima broadcast supaya tidak bertabrakan di LoRa. */
+        private const val NACK_JITTER_MS = 5_000
+        /** Berhenti meminta setelah sekian putaran berturut-turut tanpa fragmen baru. */
+        const val NACK_MAX_ROUNDS = 4
 
         fun maxWirePacketSize(mtu: Int) = minOf(mtu - 3, ATT_MAX_VALUE)
 
@@ -46,9 +84,19 @@ class Fragmenter(
         }
     }
 
-    private class Pending(val originalType: Int, val total: Int, val firstSeen: Long) {
+    private class Pending(
+        val id: ByteArray, val sender: String,
+        val originalType: Int, val total: Int, val firstSeen: Long,
+    ) {
         val parts = HashMap<Int, ByteArray>()
+        var lastNewAt = firstSeen
+        var maxGapMs = 0L
+        var nackRounds = 0
+        var nextNackAt = Long.MAX_VALUE
     }
+
+    /** Batas bawah "diam" sesuai SF node aktif; diperbarui engine dari laporan kesehatan node. */
+    var nackMinIdleMs = NACK_MIN_IDLE_MS
 
     private val pending = HashMap<String, Pending>()
     // Fragmen duplikat yang tiba SETELAH paket utuh tidak boleh membuka set baru yang tak akan pernah selesai.
@@ -106,7 +154,9 @@ class Fragmenter(
         val set = pending[key]
         if (set == null && pending.size >= MAX_PENDING_SETS) return null
         if (set != null && (set.originalType != originalType || set.total != total)) return null
-        val entry = set ?: Pending(originalType, total, now()).also { pending[key] = it }
+        val t = now()
+        val entry = set ?: Pending(p.copyOfRange(0, 8), fragment.senderHex, originalType, total, t).also { pending[key] = it }
+        if (index !in entry.parts) noteProgress(entry, t)
         entry.parts[index] = p.copyOfRange(FRAGMENT_HEADER_SIZE, p.size)
         if (entry.parts.size < total) return null
 
@@ -121,6 +171,28 @@ class Fragmenter(
             off += part.size
         }
         return WireProtocol.decode(out)
+    }
+
+    private fun noteProgress(set: Pending, t: Long) {
+        // Jeda saat NACK sedang berjalan bukan cerminan laju pengirim, jadi tidak ikut dipelajari.
+        if (set.parts.isNotEmpty() && set.nackRounds == 0) set.maxGapMs = maxOf(set.maxGapMs, t - set.lastNewAt)
+        set.lastNewAt = t
+        set.nackRounds = 0
+        set.nextNackAt = t + idleMs(set) + random.nextInt(NACK_JITTER_MS)
+    }
+
+    private fun idleMs(set: Pending) = maxOf(nackMinIdleMs, minOf(set.maxGapMs * 3, NACK_MAX_IDLE_MS))
+
+    /** Set yang macet dan perlu diminta ulang sekarang. Tiap panggilan memajukan jadwal set yang dikembalikan. */
+    fun dueNacks(): List<FragmentNack> {
+        val t = now()
+        return pending.values.mapNotNull { set ->
+            if (t < set.nextNackAt || set.nackRounds >= NACK_MAX_ROUNDS) return@mapNotNull null
+            val missing = (0 until set.total).filter { it !in set.parts }.take(FragmentNackCodec.MAX_INDICES)
+            set.nackRounds += 1
+            set.nextNackAt = t + (idleMs(set) shl set.nackRounds) + random.nextInt(NACK_JITTER_MS)
+            FragmentNack(set.sender, set.id, missing)
+        }
     }
 
     /** Buang set fragmen yang terlalu lama tak lengkap. Mengembalikan jumlah yang dibuang. */

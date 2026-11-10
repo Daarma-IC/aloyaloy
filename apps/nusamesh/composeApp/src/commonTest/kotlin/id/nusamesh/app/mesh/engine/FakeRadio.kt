@@ -70,8 +70,12 @@ class FakeRadio {
         if (connections.remove(setOf(a, b))) { endpoints[a]?.disconnected(b); endpoints[b]?.disconnected(a) }
     }
 
+    /** Simulasi paket hilang di udara: pengirim tetap melihat sukses, penerima tidak mendapat apa-apa. */
+    var lose: ((from: String, to: String, data: ByteArray) -> Boolean)? = null
+
     fun send(from: String, to: String, data: ByteArray): Boolean {
         if (setOf(from, to) !in connections) return false
+        if (lose?.invoke(from, to, data) == true) return true
         endpoints[to]?.received(from, data)
         return true
     }
