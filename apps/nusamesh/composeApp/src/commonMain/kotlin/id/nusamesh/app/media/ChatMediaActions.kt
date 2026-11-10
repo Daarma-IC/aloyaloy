@@ -15,7 +15,7 @@ data class SrSpeed(val model: String, val millis: Long?, val sizeKb: Int, val er
 enum class LoraImageQuality(val label: String, val maxSide: Int, val maxBytes: Int, val estimate: String) {
     Fast("Cepat", 160, 2000, "±1 menit"),
     Balanced("Seimbang", 256, 4000, "±2 menit"),
-    Detail("Detail", 256, 8000, "±5 menit"),
+    Detail("Detail", 384, 8000, "±5 menit"),
 }
 
 /** Jembatan picker, recorder, dan player supaya UI bersama tidak bergantung pada platform. */
@@ -48,7 +48,7 @@ interface ChatMediaActions {
     fun voiceLogCsv(): String = VoiceLog.HEADER + "\n"
 
     /**
-     * Perjelas gambar KECIL ×4 dengan AI di HP ini (profil LoRa ≤128 px sekali jalan; ≤256 px dipotong-potong
+     * Perjelas gambar KECIL ×4 dengan AI di HP ini (profil LoRa ≤128 px sekali jalan; ≤384 px dipotong-potong
      * dengan [onProgress]). Gambar besar ditolak: sudah tajam, AI hanya mengarang. Model sesuai kecepatan HP.
      * Hasilnya tebakan model — UI wajib menandainya "diperjelas AI".
      */

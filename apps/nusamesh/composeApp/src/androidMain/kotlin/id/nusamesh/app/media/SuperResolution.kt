@@ -48,7 +48,7 @@ class SuperResolution(private val context: Context) {
     }
 
     /**
-     * Gambar kecil saja (≤ [MAX_INPUT] px, mis. profil LoRa): ≤128 px sekali jalan, 129–256 px dipotong 128 px
+     * Gambar kecil saja (≤ [MAX_INPUT] px, mis. profil LoRa): ≤128 px sekali jalan, 129–384 px dipotong 128 px
      * bertumpang-tindih (SrTiling) pada resolusi ASLI. Gambar TIDAK PERNAH diperkecil dulu: uji di HP
      * menunjukkan gambar BLE (±960 px, mis. screenshot berteks) yang diperkecil lalu diperbesar AI justru
      * lebih buruk — teks yang hilang saat diperkecil "dikarang ulang" model.
@@ -119,7 +119,7 @@ class SuperResolution(private val context: Context) {
         /** Lebih lambat dari ini terasa macet: turun ke model yang lebih ringan. */
         const val MAX_MS = 1_500L
         /** Gambar lebih besar sudah cukup detail; AI hanya mengarang & lambat (lihat [enhance]). */
-        const val MAX_INPUT = 256
+        const val MAX_INPUT = 384
         private const val OVERLAP = SrTiling.OVERLAP
         private const val THREADS = 4
         private const val KEY_MODEL = "model"

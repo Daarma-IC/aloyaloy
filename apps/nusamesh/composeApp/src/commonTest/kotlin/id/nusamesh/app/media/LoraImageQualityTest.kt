@@ -16,8 +16,8 @@ class LoraImageQualityTest {
 
     @Test
     fun everyQualityFitsSuperResolutionInput() {
-        // SuperResolution.MAX_INPUT = 256: lebih besar dari itu tombol "Perjelas (AI)" hilang.
-        LoraImageQuality.entries.forEach { assertTrue(it.maxSide <= 256, it.label) }
+        // SuperResolution.MAX_INPUT = 384: lebih besar dari itu tombol "Perjelas (AI)" hilang.
+        LoraImageQuality.entries.forEach { assertTrue(it.maxSide <= 384, it.label) }
     }
 
     @Test
