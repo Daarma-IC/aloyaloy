@@ -7,8 +7,8 @@ Versi Android terbaru: [v0.3.1 (17)](v0.3.1/).
 - [Catatan dan verifikasi v0.3.1](v0.3.1/README.md).
 - [Release sebelumnya v0.3.0](v0.3.0/), termasuk source iOS v0.3.0 untuk build di Mac, **bukan IPA**.
 
-- `archive/`: APK lama sebelum v0.3.0, pindahan dari `apps/nusamesh/releases/`.
-- `dev/`: APK debug terbaru untuk uji coba.
+- `NusaMesh-terbaru.apk`: build uji terbaru (debug), pakai ini untuk tes di HP.
+- `archive/`: APK lama dan build uji sebelumnya.
 
 Manifest JSON memuat SHA-256 masing-masing artefak. Sertifikat dan hasil verifikasi signature Android disertakan. Keystore dan password tidak disertakan.
 
