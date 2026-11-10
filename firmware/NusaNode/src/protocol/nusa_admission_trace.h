@@ -12,6 +12,15 @@ struct Context {
 };
 // A radio callback on another task cannot acknowledge this ingress.
 inline thread_local Context* current=nullptr;
+// HP asal paket yang sedang diproses, untuk keadilan antrean radio. Di luar
+// dispatch (relay, gossip, tugas loop) nilainya tetap OWNER_NODE.
+constexpr uint8_t OWNER_NODE=0xFF;
+inline thread_local uint8_t currentOwner=OWNER_NODE;
+struct OwnerScope {
+  uint8_t previous;
+  explicit OwnerScope(uint8_t owner):previous(currentOwner){currentOwner=owner;}
+  ~OwnerScope(){currentOwner=previous;}
+};
 inline void radio(bool accepted, Reason reason=QUEUE_FULL) {
   if(!current)return;
   if(accepted){current->result=ACCEPTED;current->reason=NONE;current->scope=RADIO_QUEUE;}

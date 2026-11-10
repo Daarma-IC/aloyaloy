@@ -14,8 +14,8 @@ static bool allow=true,local=false,notify=true;
 static unsigned called=0;
 static void put64(uint8_t* p,uint64_t n){for(int i=0;i<8;++i)p[i]=n>>(56-8*i);}
 static bool reply(const uint8_t* p,size_t n,uint8_t){answer.assign(p,p+n);return true;}
-static void handler(const uint8_t* p,size_t n,uint8_t){
-  ++called;assert(!(p[11]&0x10));
+static void handler(const uint8_t* p,size_t n,uint8_t client){
+  ++called;assert(!(p[11]&0x10));assert(currentOwner==client);
   auto id=nusaMsgId(p,n);if(!dedup.admit(id))return;
   if(local){current->localSent=notify;current->localRoute=true;return;}
   if(!allow){rate(3334);return;}
@@ -84,5 +84,6 @@ int main(){
   std::thread a([&]{for(int i=1;i<=32;++i)assert(concurrent.admit(i));});
   std::thread b([&]{for(int i=33;i<=64;++i)assert(concurrent.admit(i));});a.join();b.join();
   for(int i=1;i<=64;++i)assert(concurrent.seen(i));
+  assert(currentOwner==OWNER_NODE);
   std::cout<<"PASS: capability, accepted/atomic busy, dedup rollback, cached query, two clients, local notify, bad size/format, TLS isolation, reconnect/expiry\n";
 }

@@ -51,6 +51,7 @@ void NusaAdmission::disconnected(uint8_t client){
   Lock lock;sessions[client]=0;for(auto& e:entries)if(e.used&&e.client==client)e.used=false;
 }
 void NusaAdmission::dispatch(const uint8_t* data,size_t len,uint8_t client,Handler handler,Reply reply){
+  OwnerScope owner(client);
   if(!data||len<12){if(handler)handler(data,len,client);return;}
   const bool control=data[1]==CONTROL;
   if(!control && !(data[11]&TRACK)){if(handler)handler(data,len,client);return;}

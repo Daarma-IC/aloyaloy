@@ -83,13 +83,13 @@
 // ---------------------------------------------------------------------------
 //  3. PERIFERAL BOARD
 // ---------------------------------------------------------------------------
-#define OLED_ENABLED         0         // 1 = LCD hidup. Init I2C aman: nusa_ui
+#define OLED_ENABLED         1         // 1 = LCD hidup. Init I2C aman: nusa_ui
                                         // probe alamat OLED dulu (timeout 50 ms)
                                         // sebelum init, jadi boot tak menggantung
                                         // walau layar bermasalah/tak ada.
 #define OLED_SDA             21
 #define OLED_SCL             22
-#define OLED_RST             16         // set -1 bila layar justru kacau
+#define OLED_RST             -1         // T3 v1.6.1: no OLED reset GPIO; GPIO16 is PICO-D4 flash
 #define BATT_ADC             35         // pembagi tegangan 1:2 ke baterai
 #define BUTTON_PIN           0          // tombol BOOT/PRG
 

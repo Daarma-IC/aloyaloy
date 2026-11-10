@@ -1,3 +1,6 @@
+# Hasil build arduino-cli
+.build-*/
+.build/
 /build/
 /NusaNode/build/
 /NusaRxCompanion/build/

@@ -17,7 +17,7 @@ Aturan sama berlaku pada enqueue frame mentah dan batch aplikasi. Hint voice `0x
 
 Batch tetap atomik: semua fragmen diterima atau semuanya ditolak. Fragmen yang sudah diterima tidak digusur. Nomor urut enqueue menjaga FIFO ketika timestamp sama dan slot awal dipakai ulang. Aging tidak menaikkan gambar menjadi audio atau audio menjadi teks.
 
-ACK dan teks didahulukan. Sesudah tiga percobaan frame audio yang dibebankan airtimenya, satu frame bulk menunggu boleh mendapat giliran bila budget cukup. Sesudah itu audio lanjut. Bulk yang belum terjangkau budget tidak menghalangi audio yang lebih kecil. Ini fairness per frame, bukan per HP; trafik ACK/teks terus-menerus masih dapat menunda kelas di bawahnya.
+ACK dan teks didahulukan. Sesudah tiga percobaan frame audio yang dibebankan airtimenya, satu frame bulk menunggu boleh mendapat giliran bila budget cukup. Sesudah itu audio lanjut. Bulk yang belum terjangkau budget tidak menghalangi audio yang lebih kecil. Giliran ini berlaku per frame; keadilan antar-HP dalam prioritas yang sama ada di [ANTREAN_ADIL.md](ANTREAN_ADIL.md). Trafik ACK/teks terus-menerus masih dapat menunda kelas di bawahnya.
 
 ## Koordinasi kedua radio
 

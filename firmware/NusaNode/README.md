@@ -297,7 +297,7 @@ Detail historis keduanya ada di `NUSAOS_BLUEPRINT.md` (Section 6.2 dan 7.2).
 | Gejala | Penyebab paling mungkin |
 |---|---|
 | `[RADIO] init GAGAL` | Pinout salah. Cek `LORA_CS/RST/DIO0` terhadap silkscreen board. |
-| OLED gelap | Coba ubah `OLED_RST` ke `-1`, atau ke `16`. Revisi board berbeda-beda. |
+| OLED gelap | T3 v1.6.1: `OLED_RST=-1`, SDA=21, SCL=22. Jangan gunakan GPIO16 pada ESP32-PICO-D4 (flash internal). |
 | Radio hidup, tidak ada `[BEACON]` | SF/freq/sync word berbeda antar node. Samakan `config.h`. |
 | Beacon terlihat, `RX` tidak naik | CRC gagal — di tepi jangkauan. Naikkan SF. |
 | `antre=` terus membesar | Anggaran airtime habis. Normal bila trafik padat; kalau menetap, turunkan SF atau kurangi trafik. |
@@ -347,3 +347,15 @@ Dukungan voice note Codec2 berada di Android; node meneruskan paket biner.
 Firmware memakai penerimaan antrean seluruh fragmen sekaligus dan timeout
 perakitan lebih panjang. Lihat [panduan Codec2 bertahap](../CODEC2_STREAMING.md)
 untuk build, batasan transport, dan langkah uji perangkat.
+
+## Tampilan OLED operasional
+
+OLED aktif secara default (`OLED_ENABLED 1`). Layar menampilkan `Nusa Node`,
+`User` (jumlah koneksi HP langsung lewat BLE atau WebSocket), antrean LoRa,
+total frame terkirim (`T`) dan diterima (`R`), serta tetangga LoRa dan RSSI.
+Dua baris terbawah menyimpan aktivitas TX dan RX terakhir, misalnya
+`42s TX +2`: pada uptime 42 detik teramati dua frame baru terkirim sejak
+refresh sebelumnya. Waktu log mengikuti refresh layar (500 ms); ini aktivitas
+frame LoRa, termasuk beacon/kontrol, bukan isi pesan atau bukti diterima tujuan.
+Sebelum ada aktivitas, tampil `TX: belum ada` / `RX: belum ada`.
+Tombol BOOT tetap membuka layar uji jarak.

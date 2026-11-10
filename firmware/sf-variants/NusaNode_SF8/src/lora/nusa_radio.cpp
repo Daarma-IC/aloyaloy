@@ -28,6 +28,7 @@ struct TxItem {
   uint8_t  prio;
   uint32_t queuedAt;
   uint32_t order;
+  uint8_t  owner;
   bool     used;
 };
 static TxItem   s_q[TXQ_SLOTS];
@@ -60,6 +61,21 @@ static uint32_t s_cadBusy = 0, s_cadErrors = 0, s_ownerFallbacks = 0;
 static uint8_t s_voiceRun = 0;
 static bool s_activeVoice = false;
 static float    s_rssi = 0, s_snr = 0;
+
+// Keadilan antar-HP. Tiap HP adalah satu flow, trafik node sendiri (relay dan
+// gossip) satu flow lagi. Dalam kelas prioritas yang sama, flow dengan airtime
+// terlayani paling kecil dipancarkan lebih dulu.
+#ifndef TXQ_OWNER_MAX
+#define TXQ_OWNER_MAX (TXQ_SLOTS / 3)  // batas frame antre per HP
+#endif
+static constexpr uint8_t USER_FLOWS = 8;
+static constexpr uint8_t NODE_FLOW = USER_FLOWS;
+static uint32_t s_flowServed[USER_FLOWS + 1] = {};
+static uint8_t s_activeFlow = NODE_FLOW;
+
+static uint8_t flowOf(uint8_t owner) {
+  return owner == NusaAdmissionTrace::OWNER_NODE ? NODE_FLOW : owner % USER_FLOWS;
+}
 
 // SF saat berjalan (uji QoS). Permintaan dari callback BLE hanya menyetel
 // s_pendingSf; radio baru disentuh di loop() — SPI radio tidak thread-safe.
@@ -228,28 +244,63 @@ static void channelBackoff() {
   s_holdActive = true;
 }
 static void chargeAttempt() {
+  const uint32_t served = (uint32_t)(s_pendingAir + 0.5f);
   s_budget -= s_pendingAir; s_txDoneAt = millis(); s_pendingAir = 0;
   if (s_activeVoice) { if (s_voiceRun < 3) ++s_voiceRun; }
   else s_voiceRun = 0;
+  QueueGuard guard;
+  s_flowServed[s_activeFlow] += served;
+}
+// Panggil sambil memegang QueueGuard.
+static uint8_t flowFrames(uint8_t flow) {
+  uint8_t frames = 0;
+  for (int i = 0; i < TXQ_SLOTS; i++) if (s_q[i].used && flowOf(s_q[i].owner) == flow) ++frames;
+  return frames;
+}
+// Bulk tidak boleh menghabiskan jatah HP itu sendiri, agar ACK dan teksnya tetap
+// bisa masuk saat lampirannya sedang antre.
+static uint8_t ownerLimit(NusaPrio prio) {
+  return TXQ_OWNER_MAX - (prio >= PRIO_LOCAL ? 2 : (prio == PRIO_ACK ? 0 : 1));
+}
+// Flow yang baru aktif mulai dari flow aktif terendah: yang diam tidak menimbun
+// jatah, dan beban lamanya juga tidak dibawa. Panggil sambil memegang QueueGuard.
+static void joinFlow(uint8_t flow) {
+  bool active = false;
+  uint32_t lowest = UINT32_MAX;
+  for (int i = 0; i < TXQ_SLOTS; i++) {
+    if (!s_q[i].used) continue;
+    const uint8_t other = flowOf(s_q[i].owner);
+    if (other == flow) return;
+    active = true;
+    if (s_flowServed[other] < lowest) lowest = s_flowServed[other];
+  }
+  if (active) s_flowServed[flow] = lowest;
+  else memset(s_flowServed, 0, sizeof(s_flowServed));
 }
 static int findBest() {
   QueueGuard guard;
   int best = -1;
   uint8_t bestPrio = 255;
+  uint32_t bestServed = 0;
   uint32_t oldest = 0;
   int bulk = -1;
+  uint32_t bulkServed = 0;
   for (int i = 0; i < TXQ_SLOTS; i++) {
     if (!s_q[i].used) continue;
     uint32_t age = millis() - s_q[i].queuedAt;
+    const uint32_t served = s_flowServed[flowOf(s_q[i].owner)];
     // Anti-kelaparan: item yang menunggu lebih dari 2 menit dinaikkan satu tingkat.
     uint8_t prio = s_q[i].prio;
     if (age > 120000UL && prio > PRIO_LOCAL) prio--;
-    if (prio < bestPrio || (prio == bestPrio &&
-        (age > oldest || (age == oldest && (best < 0 || (int32_t)(s_q[i].order - s_q[best].order) < 0))))) {
-      bestPrio = prio; oldest = age; best = i;
+    if (prio < bestPrio || (prio == bestPrio && (served < bestServed || (served == bestServed &&
+        (age > oldest || (age == oldest && (best < 0 || (int32_t)(s_q[i].order - s_q[best].order) < 0))))))) {
+      bestPrio = prio; bestServed = served; oldest = age; best = i;
     }
     if (s_q[i].prio >= PRIO_LOCAL && airtimeAllows(NusaRadio::airtimeMs(s_q[i].len)) &&
-        (bulk < 0 || (int32_t)(s_q[i].order - s_q[bulk].order) < 0)) bulk = i;
+        (bulk < 0 || served < bulkServed ||
+         (served == bulkServed && (int32_t)(s_q[i].order - s_q[bulk].order) < 0))) {
+      bulk = i; bulkServed = served;
+    }
   }
   // A bounded bulk turn after three voice frames; ACK/text still win.
   if (bestPrio == PRIO_VOICE && s_voiceRun >= 3 && bulk >= 0) return bulk;
@@ -270,11 +321,13 @@ bool NusaRadio::enqueue(const uint8_t* frame, size_t len, NusaPrio prio) {
 
   if (slot < 0) { s_dropCount++; return false; }
 
+  joinFlow(NODE_FLOW);
   memcpy(s_q[slot].data, frame, len);
   s_q[slot].len      = (uint8_t)len;
   s_q[slot].prio     = prio;
   s_q[slot].queuedAt = millis();
   s_q[slot].order    = s_enqueueOrder++;
+  s_q[slot].owner    = NusaAdmissionTrace::OWNER_NODE;
   s_q[slot].used     = true;
   s_qCount++;
   return true;
@@ -298,6 +351,17 @@ uint8_t NusaRadio::enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_
   QueueGuard guard;
   const uint8_t reserve = reservedSlots(prio);
   if (TXQ_SLOTS - s_qCount < total + reserve) { s_dropCount += total; NusaAdmissionTrace::radio(false); return 0; }
+  const uint8_t owner = NusaAdmissionTrace::currentOwner;
+  const uint8_t flow = flowOf(owner);
+  if (flow != NODE_FLOW) {
+    // Paket yang lebih besar dari jatah tetap boleh masuk saat flow-nya kosong,
+    // karena paket tidak bisa dipecah di sini.
+    const uint8_t frames = flowFrames(flow);
+    if (frames > 0 && frames + total > ownerLimit(prio)) {
+      s_dropCount += total; NusaAdmissionTrace::radio(false); return 0;
+    }
+  }
+  joinFlow(flow);
   uint8_t fragment = 0;
   for (int slot = 0; slot < TXQ_SLOTS && fragment < total; ++slot) {
     if (s_q[slot].used) continue;
@@ -316,6 +380,7 @@ uint8_t NusaRadio::enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_
     s_q[slot].prio = prio;
     s_q[slot].queuedAt = millis();
     s_q[slot].order = s_enqueueOrder++;
+    s_q[slot].owner = owner;
     s_q[slot].used = true;
     ++s_qCount;
   }
@@ -339,6 +404,7 @@ bool NusaRadio::begin(NusaRxHandler handler) {
   s_txCount = s_rxCount = s_dropCount = s_crcErrCount = s_timeoutCount = 0;
   s_txErrors = s_mainTxCount = s_memberTxCount = s_rxDeliveredDuringTx = 0;
   s_cadBusy = s_cadErrors = s_ownerFallbacks = 0; s_voiceRun = 0;
+  memset(s_flowServed, 0, sizeof(s_flowServed)); s_activeFlow = NODE_FLOW;
   for (unsigned i = 0; i < 2; ++i) { s_radioCooldown[i] = 0; s_radioFailures[i] = 0; }
 #if LORA_SEPARATE_RX
   s_pauseRequested = false; s_rxWindowActive = false;
@@ -568,6 +634,7 @@ static void serviceTx() {
       // startTransmit may fail after setting TX mode. No automatic replay:
       // charge a possible attempt and require confirmed standby before RX.
       s_pendingAir = air; s_activeVoice = s_q[idx].prio == PRIO_VOICE;
+      s_activeFlow = flowOf(s_q[idx].owner);
       chargeAttempt();
       { QueueGuard guard; s_q[idx].used = false; --s_qCount; }
       if (radio.standby() != RADIOLIB_ERR_NONE) { s_healthy = false; return; }
@@ -580,6 +647,7 @@ static void serviceTx() {
 
   s_pendingAir = air;
   s_activeVoice = s_q[idx].prio == PRIO_VOICE;
+  s_activeFlow = flowOf(s_q[idx].owner);
   s_txStarted  = millis();
   s_state      = R_TX;
   s_nextRemote = !s_remoteTx;
