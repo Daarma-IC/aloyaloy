@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import id.nusamesh.app.data.ChatHistory
 import id.nusamesh.app.data.FileStore
+import id.nusamesh.app.data.LogRecording
+import id.nusamesh.app.data.TransmissionLogRecorder
 import id.nusamesh.app.data.KeyValueStore
 import id.nusamesh.app.data.GpxCodec
 import id.nusamesh.app.data.MapPersistence
@@ -112,6 +114,15 @@ class AppController(
     fun clearTransmissionLog() = repository.clearTransmissionLog()
     fun transmissionLogCsv() = repository.transmissionLogCsv()
     fun transmissionSummaryCsv() = repository.transmissionSummaryCsv()
+
+    private val logRecorder = TransmissionLogRecorder(scope, repository.transmissionDiagnostics)
+    /** Rekaman log ke file di Documents; null = tidak merekam. */
+    val logRecording: StateFlow<LogRecording?> = logRecorder.recording
+
+    /** Mulai atau hentikan rekaman log transmisi ke file [fileName]. */
+    fun toggleLogRecording(documents: DocumentActions, fileName: String) {
+        showNotice(logRecorder.stop() ?: logRecorder.start(documents, fileName, currentEpochMillis()))
+    }
 
     /** true bila pengguna terakhir kali menyalakan mesh: aplikasi menyalakannya lagi saat dibuka. */
     val resumeMeshOnLaunch: Boolean get() = store.get(KEY_ACTIVE) == "1"

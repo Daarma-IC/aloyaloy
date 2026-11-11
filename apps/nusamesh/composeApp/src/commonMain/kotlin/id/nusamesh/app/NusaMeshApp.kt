@@ -98,6 +98,7 @@ fun NusaMeshApp(
     val offlineSummary by offlineMaps.cacheSummary.collectAsState()
     val mobilityLog by controller.mobilityLog.collectAsState()
     val transmissionDiagnostics by controller.transmissionDiagnostics.collectAsState()
+    val logRecording by controller.logRecording.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
     // Back: tutup lembar node / percakapan dulu, lalu kembali ke Beranda; baru di Beranda keluar aplikasi.
@@ -187,6 +188,11 @@ fun NusaMeshApp(
                         onExportLog = { documentActions.saveDocument(csvName("transmission-log"), "text/csv", controller.transmissionLogCsv(), controller::showNotice) },
                         onExportSummary = { documentActions.saveDocument(csvName("transmission-metrics"), "text/csv", controller.transmissionSummaryCsv(), controller::showNotice) },
                         onClear = controller::clearTransmissionLog,
+                        recording = logRecording,
+                        onToggleRecording = { controller.toggleLogRecording(documentActions, recordingName()) },
+                        onExportVoice = {
+                            documentActions.saveDocument(csvName("suara-codec2"), "text/csv", mediaActions.voiceLogCsv(), controller::showNotice)
+                        },
                         onBack = close,
                         ) },
                         qos = QosActions(
@@ -268,6 +274,10 @@ fun NusaMeshApp(
         }
     }
 }
+
+/** Nama file rekaman log: NusaMesh-log-2026-11-11T15-30-05.csv */
+private fun recordingName() =
+    "NusaMesh-log-" + GpxCodec.isoTime(currentEpochMillis()).take(19).replace(':', '-') + ".csv"
 
 private fun csvName(kind: String) =
     "nusamesh-$kind-" + GpxCodec.isoTime(currentEpochMillis()).take(16).replace(':', '-') + ".csv"

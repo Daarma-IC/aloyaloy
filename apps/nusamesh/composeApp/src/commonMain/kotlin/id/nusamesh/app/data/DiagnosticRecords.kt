@@ -40,8 +40,13 @@ object DiagnosticRecords {
         if (value is String && text.trimStart().firstOrNull() in listOf('=', '+', '-', '@')) text = "'" + text
         return "\"${text.replace("\"", "\"\"")}\""
     }
-    fun eventsCsv(events: List<DiagnosticEvent>): String = "\uFEFF" + fields.joinToString(",") + "\r\n" +
-        events.joinToString("\r\n") { values(it).joinToString(",", transform = ::cell) }
+    /** Baris judul CSV log (tanpa BOM), dipakai juga oleh rekaman log ke file. */
+    val csvHeader: String = fields.joinToString(",")
+
+    fun csvRow(e: DiagnosticEvent): String = values(e).joinToString(",", transform = ::cell)
+
+    fun eventsCsv(events: List<DiagnosticEvent>): String = "\uFEFF" + csvHeader + "\r\n" +
+        events.joinToString("\r\n", transform = ::csvRow)
 
     fun summaryCsv(s: DiagnosticSnapshot): String {
         val metrics = linkedMapOf<String, Any?>(

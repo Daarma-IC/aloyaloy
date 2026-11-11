@@ -36,6 +36,8 @@ import id.nusamesh.app.media.AndroidVoicePlayer
 import id.nusamesh.app.media.VoiceChunk
 import id.nusamesh.app.media.IncomingVoiceChunk
 import id.nusamesh.app.media.DocumentActions
+import id.nusamesh.app.media.AppendableFile
+import id.nusamesh.app.media.DocumentsFolder
 import id.nusamesh.app.media.EnhancedImage
 import id.nusamesh.app.media.SrSpeed
 import id.nusamesh.app.media.SuperResolution
@@ -151,6 +153,9 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         pendingSave = content to onResult
         (if (mimeType == "text/csv") csvSaver else gpxSaver).launch(fileName)
     }
+
+    override fun openAppendable(fileName: String, mimeType: String): AppendableFile? =
+        DocumentsFolder.openAppendable(applicationContext, fileName, mimeType)
 
     override fun openDocument(mimeTypes: List<String>, onOpened: (String) -> Unit, onError: (String) -> Unit) {
         pendingOpen = onOpened to onError

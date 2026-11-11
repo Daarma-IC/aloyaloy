@@ -24,6 +24,8 @@ import kotlin.math.roundToInt
 fun TransmissionMonitorScreen(
     diagnostics: DiagnosticSnapshot, engine: EngineSnapshot, padding: PaddingValues,
     onExportLog: () -> Unit, onExportSummary: () -> Unit, onClear: () -> Unit, onBack: () -> Unit,
+    recording: id.nusamesh.app.data.LogRecording? = null, onToggleRecording: () -> Unit = {},
+    onExportVoice: () -> Unit = {},
 ) {
     var frozen by remember { mutableStateOf<DiagnosticSnapshot?>(null) }
     var tab by remember { mutableStateOf(0) }
@@ -99,12 +101,25 @@ fun TransmissionMonitorScreen(
                     MetricLine("BLE RSSI",d.bleRssiDbm?.let { "$it dBm" } ?: "—")
                     MetricLine("LoRa RSSI / SNR","${d.loraRssiDbm ?: "—"} dBm / ${d.loraSnrDb ?: "—"} dB")
                 } } } }
+                engine.servingNode?.let { node -> item { LiveNodePanel(node.live) } }
+                item { MonitorCard {
+                    Text("Rekam log ke file",fontWeight=FontWeight.Bold,color=Ink)
+                    if (recording != null) {
+                        Text("Merekam: ${recording.rows} baris",color=Danger,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
+                        Text(recording.location,color=Slate,fontSize=10.sp)
+                        Button(onClick=onToggleRecording) { Text("Stop rekam") }
+                    } else {
+                        Text("Setiap log baru langsung ditulis ke Documents/NusaMesh di HP ini, tanpa batas 1.000 entri.",color=Slate,fontSize=10.sp)
+                        OutlinedButton(onClick=onToggleRecording) { Text("Mulai rekam") }
+                    }
+                } }
                 item { MonitorCard {
                     Text("Ekspor data",fontWeight=FontWeight.Bold,color=Ink)
                     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick=onExportLog) { Text("CSV log") }
                         OutlinedButton(onClick=onExportSummary) { Text("CSV metrik") }
                     }
+                    OutlinedButton(onClick=onExportVoice) { Text("CSV suara (Codec2)") }
                     Text("Ekspor memakai data live, termasuk riwayat log sesi sebelumnya.",fontSize=10.sp,color=Slate)
                 } }
                 item { Text("ACK RTT mencakup antrean dan perjalanan balik. Firmware belum melaporkan TX radio aktual; packet loss trafik umum tidak diasumsikan dari ketiadaan ACK.",color=Slate,fontSize=11.sp) }

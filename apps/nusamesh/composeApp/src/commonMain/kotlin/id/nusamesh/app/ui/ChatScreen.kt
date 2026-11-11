@@ -287,8 +287,6 @@ private fun GlobalConversationScreen(
     onDismissNebeng: () -> Unit,
     qos: QosActions,
 ) {
-    var qosOpen by remember { mutableStateOf(false) }
-    if (qosOpen) QosDialog(state, qos) { qosOpen = false }
     var srOpen by remember { mutableStateOf(false) }
     if (srOpen) SrBenchmarkDialog(mediaActions) { srOpen = false }
     var message by remember { mutableStateOf("") }
@@ -423,7 +421,6 @@ private fun GlobalConversationScreen(
             recording = recording,
             preparingVoice = preparingVoice,
             onImage = { if (state.mesh.engine.loraPathAvailable) loraQualityOpen = true else pickImage(null) },
-            onQos = { attachmentOpen = false; qosOpen = true },
             onSrBenchmark = { attachmentOpen = false; srOpen = true },
             onFile = {
                 mediaActions.pickFile(
@@ -890,7 +887,6 @@ private fun Composer(
     preparingVoice: Boolean,
     onImage: () -> Unit,
     onFile: () -> Unit,
-    onQos: () -> Unit,
     onSrBenchmark: () -> Unit,
     onVoice: () -> Unit,
     onSend: () -> Unit,
@@ -934,7 +930,6 @@ private fun Composer(
             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AttachmentAction(IconKind.Image, "Gambar", onImage)
                 AttachmentAction(IconKind.File, "File", onFile)
-                AttachmentAction(IconKind.Signal, "Uji QoS", onQos)
                 AttachmentAction(IconKind.Image, "Uji AI", onSrBenchmark)
             }
         }
