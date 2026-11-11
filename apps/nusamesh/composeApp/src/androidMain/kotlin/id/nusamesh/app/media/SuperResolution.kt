@@ -12,15 +12,18 @@ import java.nio.channels.FileChannel
 import kotlin.math.roundToInt
 
 /**
- * AI super-resolution ×4 untuk gambar LoRa (≤128 px): model TFLite int8 dari Qualcomm AI Hub (BSD-3),
- * input 128×128 RGB → output 512×512. Dipilih dari benchmark tools/sr-benchmark (gambar LoRa nyata:
- * 128 px + WebP ≤1,2 KB): Real-ESRGAN x4v3 terbaik secara persepsi; SESR-M5 & XLSR cadangan HP lambat.
+ * AI super-resolution ×4 untuk gambar LoRa: model TFLite int8, input 128×128 RGB → output 512×512.
+ * Utama: NusaSR v2, Real-ESRGAN General x4v3 yang dilatih ulang pada kerusakan LoRa app (160/256/384 px +
+ * WebP 2/4/8 KB) dan kondisi lapangan buatan (tools/sr-training/NusaSR_FineTune_Lapangan_Colab.ipynb).
+ * Uji 8 foto Kodak dengan pipeline app: +0,7..+1,2 dB PSNR dibanding x4v3 bawaan, lebih setia ke foto asli
+ * tetapi sedikit lebih halus (LPIPS lebih tinggi). SESR-M5 & XLSR (Qualcomm AI Hub) cadangan HP lambat.
  *
  * Tidak thread-safe: panggil dari satu thread latar (lihat MainActivity).
  */
 class SuperResolution(private val context: Context) {
+    // Urutan = prioritas: model pertama yang ≤ MAX_MS di HP ini yang dipakai (lihat [choose]).
     enum class Model(val asset: String, val label: String) {
-        RealEsrgan("sr/real_esrgan_x4v3_w8a8.tflite", "Real-ESRGAN x4v3"),
+        NusaSrLapangan("sr/real_esrgan_x4v3_lapangan_w8a8.tflite", "NusaSR v2 (lapangan)"),
         Sesr("sr/sesr_m5_w8a8.tflite", "SESR-M5"),
         Xlsr("sr/xlsr_w8a8.tflite", "XLSR"),
     }
@@ -122,7 +125,8 @@ class SuperResolution(private val context: Context) {
         const val MAX_INPUT = 384
         private const val OVERLAP = SrTiling.OVERLAP
         private const val THREADS = 4
-        private const val KEY_MODEL = "model"
-        private const val KEY_MS = "ms_per_tile"
+        // Kunci baru: pilihan model dari versi app lama (Real-ESRGAN bawaan) tidak dipakai lagi, benchmark diulang sekali.
+        private const val KEY_MODEL = "model_v2"
+        private const val KEY_MS = "ms_per_tile_v2"
     }
 }
