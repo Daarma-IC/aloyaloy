@@ -4,6 +4,7 @@ import id.nusamesh.app.mesh.core.NebengRoute
 import id.nusamesh.app.mesh.protocol.LoraRxMeta
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.MeshMessage
+import id.nusamesh.app.mesh.protocol.NodeLiveStats
 
 /** Peer mesh yang dikenal (langsung tersambung, atau terdengar lewat ANNOUNCE yang di-relay). */
 data class PeerInfo(
@@ -34,6 +35,8 @@ data class NodeInfo(
     /** Mode uji jarak aktif (tombol BOOT): hanya saat ini SF boleh diganti dari app. */
     val testMode: Boolean = false,
     val queuedPackets: Int = 0,
+    /** Statistik radio live dari node (firmware dengan blok live LORA_HEALTH); null = firmware lama. */
+    val live: NodeLiveStats? = null,
 )
 
 data class IncomingMessage(

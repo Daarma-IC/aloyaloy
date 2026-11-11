@@ -26,6 +26,7 @@ import id.nusamesh.app.mesh.protocol.NodeAdmissionReport
 import id.nusamesh.app.mesh.protocol.AdmissionState
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.LoraRxMeta
+import id.nusamesh.app.mesh.protocol.NodeLiveStats
 import id.nusamesh.app.mesh.protocol.MeshMessage
 import id.nusamesh.app.mesh.protocol.MessageType
 import id.nusamesh.app.mesh.protocol.SpecialRecipients
@@ -77,6 +78,8 @@ class MeshEngine(
         const val FRAGMENT_GAP_MS = 60L
         /** RX_META lebih tua dari ini dianggap basi (paketnya hilang/ditolak). */
         const val RX_META_MAX_AGE_MS = 5_000L
+        /** NODE_HEALTH yang isinya sama dicatat paling sering sekali per periode ini. */
+        const val NODE_HEALTH_LOG_MS = 10_000L
         /** Batas isi media yang boleh difragmentasi dan dikirim lewat LoRa. */
         const val LORA_FILE_MAX_BYTES = 96 * 1024
 
@@ -111,6 +114,9 @@ class MeshEngine(
         var neighbors: Int? = null, var bestRssi: Int? = null, var bestSnr: Float? = null,
         var slots: Pair<Int, Int>? = null,
         var sf: Int? = null, var testMode: Boolean = false,
+        var live: NodeLiveStats? = null,
+        /** Kapan NODE_HEALTH terakhir dicatat, dan isinya, supaya log tidak banjir tiap 2 detik. */
+        var loggedAt: Long = 0L, var loggedKey: String = "",
     )
 
     /** RX_META terakhir dari tiap node (per deviceId), menunggu paket yang dijelaskannya. */
@@ -649,10 +655,51 @@ class MeshEngine(
         // Jangan menganggap set macet sebelum dua kali jeda terpanjang antar-paket pada SF ini.
         val paceMs = NodeQueue.airtimeMs(ByteArray(512), h.sf ?: NodeQueue.DEFAULT_SF) / NodeQueue.DUTY_SHARE
         fragmenter.nackMinIdleMs = maxOf(Fragmenter.NACK_MIN_IDLE_MS, (paceMs * 2).toLong())
-        diagnostics.record(DiagnosticLayer.LORA, "NODE_HEALTH", deviceId = nodeId, rssiDbm = h.bestRssi?.toDouble(),
-            snrDb = h.bestSnr?.toDouble(), sf = h.sf, detail = "neighbors=${h.neighbors}; source=strongest_neighbor; test_mode=${h.testMode}")
+        val previous = h.live
+        h.live = NodeLiveStats.decode(payload)
+        h.live?.let { recordLiveChanges(nodeId, previous, it) }
+
+        // Firmware baru mengirim status tiap 2 detik: catat hanya bila berubah atau tiap 10 detik.
+        val key = "${h.neighbors}|${h.sf}|${h.testMode}|${h.live?.radioReady}|${h.bestRssi}"
+        val t = now()
+        if (key != h.loggedKey || t - h.loggedAt >= NODE_HEALTH_LOG_MS) {
+            h.loggedKey = key
+            h.loggedAt = t
+            val live = h.live?.let {
+                "; radio_ready=${it.radioReady}; dual_radio=${it.dualRadio}; tx=${it.txFrames}; rx=${it.rxFrames}" +
+                    "; queue=${it.queueDepth}; budget_ms=${it.budgetMs}; dropped=${it.droppedFrames}; crc=${it.crcErrors}"
+            } ?: ""
+            diagnostics.record(DiagnosticLayer.LORA, "NODE_HEALTH", deviceId = nodeId, rssiDbm = h.bestRssi?.toDouble(),
+                snrDb = h.bestSnr?.toDouble(), sf = h.sf,
+                detail = "neighbors=${h.neighbors}; source=strongest_neighbor; test_mode=${h.testMode}$live")
+        }
+        dirty = true
         // Registrasi berkala / ulang bila ACK belum datang.
         registerWithNode(nodeId, force = false)
+    }
+
+    /** Aktivitas radio node sejak status sebelumnya: frame dipancarkan, diterima, dibuang. */
+    private fun recordLiveChanges(nodeId: String, before: NodeLiveStats?, current: NodeLiveStats) {
+        if (before == null || before.radioReady != current.radioReady) {
+            diagnostics.record(DiagnosticLayer.LORA, if (current.radioReady) "NODE_RADIO_READY" else "NODE_RADIO_NOT_READY",
+                if (current.radioReady) DiagnosticLevel.INFO else DiagnosticLevel.WARN, nodeId,
+                detail = "dual_radio=${current.dualRadio}" + if (!current.radioReady && current.dualRadio) "; companion_not_ready" else "")
+        }
+        // Counter turun = node reboot: mulai lagi dari nilai baru tanpa mencatat selisih.
+        if (before == null || current.txFrames < before.txFrames || current.rxFrames < before.rxFrames) return
+        val sent = current.txFrames - before.txFrames
+        if (sent > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_TX_FRAMES", deviceId = nodeId,
+            detail = "frames=$sent; total=${current.txFrames}; queue=${current.queueDepth}; budget_ms=${current.budgetMs}")
+        val received = current.rxFrames - before.rxFrames
+        if (received > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_RX_FRAMES", deviceId = nodeId,
+            rssiDbm = current.lastRssiDbm.toDouble(), snrDb = current.lastSnrDb.toDouble(),
+            detail = "frames=$received; total=${current.rxFrames}; last_frame_signal")
+        val dropped = current.droppedFrames - before.droppedFrames
+        if (dropped > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_TX_DROPPED", DiagnosticLevel.WARN, nodeId,
+            detail = "frames=$dropped; total=${current.droppedFrames}; queue_full")
+        val corrupted = current.crcErrors - before.crcErrors
+        if (corrupted > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_RX_CRC_ERROR", DiagnosticLevel.WARN, nodeId,
+            detail = "frames=$corrupted; total=${current.crcErrors}")
     }
 
     private fun registerWithNode(nodeId: String, force: Boolean) {
@@ -989,6 +1036,7 @@ class MeshEngine(
                     userSlots = h?.slots, registered = registerAcked == pid, locked = lockedNode == pid,
                     spreadingFactor = h?.sf, testMode = h?.testMode == true,
                     queuedPackets = d.queue?.size ?: 0,
+                    live = h?.live,
                 )
             }.sortedByDescending { it.rssi ?: -999 },
             nebeng = nebeng,

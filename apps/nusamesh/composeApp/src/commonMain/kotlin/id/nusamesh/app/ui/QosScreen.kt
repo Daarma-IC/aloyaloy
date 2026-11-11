@@ -39,6 +39,7 @@ import id.nusamesh.app.media.ChatMediaActions
 import id.nusamesh.app.media.SrSpeed
 import androidx.compose.runtime.LaunchedEffect
 import id.nusamesh.app.mesh.core.NodeQueue
+import id.nusamesh.app.mesh.protocol.NodeLiveStats
 
 /** Aksi uji QoS (diteruskan ke AppController / pemilih file). */
 class QosActions(
@@ -76,6 +77,7 @@ fun QosDialog(state: AppUiState, actions: QosActions, onDismiss: () -> Unit) {
                 } ?: "Belum tersambung ke Nusa Node — paket hanya lewat Bluetooth.",
                 color = if (node == null) Warning else Slate, fontSize = 11.sp,
             )
+            if (node != null) LiveNodePanel(node.live)
 
             Text("Kirim paket uji", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             val sending = state.qosSending
@@ -138,6 +140,57 @@ fun QosDialog(state: AppUiState, actions: QosActions, onDismiss: () -> Unit) {
 
 /** Perkiraan ukuran satu paket uji di udara (header app + probe teks), untuk saran interval. */
 private const val QOS_PACKET_BYTES = 140
+
+/** Statistik radio node yang diperbarui tiap ±2 detik (blok live LORA_HEALTH). */
+@Composable
+private fun LiveNodePanel(live: NodeLiveStats?) {
+    Column(
+        Modifier.fillMaxWidth().background(BrandTint, RoundedCornerShape(12.dp)).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text("Radio LoRa node (live)", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        if (live == null) {
+            Text("Firmware node belum mengirim data live. Flash firmware NusaNode terbaru.", color = Slate, fontSize = 11.sp)
+            return@Column
+        }
+        if (!live.radioReady) {
+            val reason = if (live.dualRadio) "board companion belum tersambung atau belum siap" else "radio belum siap"
+            Text("Radio tidak bisa kirim/terima: $reason.", color = Warning, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        }
+        LiveRow("Mode", if (live.dualRadio) "dua radio" else "satu radio")
+        LiveRow("Frame terkirim", "${live.txFrames} (terakhir ${ageText(live.lastTxAgeSeconds)})")
+        LiveRow("Frame diterima", "${live.rxFrames} (terakhir ${ageText(live.lastRxAgeSeconds)})")
+        if (live.rxFrames > 0) {
+            LiveRow("Sinyal terakhir", "RSSI ${formatOne(live.lastRssiDbm)} dBm · SNR ${formatOne(live.lastSnrDb)} dB")
+        }
+        LiveRow("Antrean TX", "${live.queueDepth} frame · sisa airtime ${live.budgetMs} ms")
+        LiveRow(
+            "Dibuang / CRC rusak", "${live.droppedFrames} / ${live.crcErrors}",
+            warn = live.droppedFrames > 0 || live.crcErrors > 0,
+        )
+    }
+}
+
+@Composable
+private fun LiveRow(label: String, value: String, warn: Boolean = false) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = Slate, fontSize = 11.sp)
+        Text(value, color = if (warn) Warning else Ink, fontSize = 11.sp)
+    }
+}
+
+private fun ageText(seconds: Int?): String = when {
+    seconds == null -> "belum pernah"
+    seconds < 60 -> "$seconds dtk lalu"
+    else -> "${seconds / 60} mnt lalu"
+}
+
+private fun formatOne(value: Float): String {
+    val tenths = kotlin.math.round(value * 10).toInt()
+    val sign = if (tenths < 0) "-" else ""
+    val abs = kotlin.math.abs(tenths)
+    return "$sign${abs / 10},${abs % 10}"
+}
 
 @Composable
 private fun QosField(placeholder: String, value: String, numeric: Boolean = false, onChange: (String) -> Unit) {
