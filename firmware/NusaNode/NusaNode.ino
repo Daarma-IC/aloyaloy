@@ -51,6 +51,11 @@ static uint32_t s_lastBeaconRx = 0;
 static float    s_beaconRssi  = 0, s_beaconSnr = 0;
 
 static uint32_t s_lastStatus = 0, s_lastUi = 0, s_lastAnnounce = 0;
+static uint32_t s_lastHealth = 0;
+// Waktu frame LoRa terakhir dikirim/diterima, untuk blok live LORA_HEALTH.
+static uint32_t s_seenTx = 0, s_seenRx = 0;
+static uint32_t s_lastTxAt = 0, s_lastRxAt = 0;
+static bool     s_everTx = false, s_everRx = false;
 static uint32_t s_fromUsers = 0, s_toUsers = 0, s_relayed = 0;
 static uint32_t s_floodOriginated = 0;   // pesan user yang di-flood (pembanding mobility)
 
@@ -209,6 +214,52 @@ static bool bestNeighbor(float* outRssi, float* outSnr) {
   *outRssi = s_neighbors[best].rssi;
   *outSnr  = s_neighbors[best].snr;
   return true;
+}
+
+// Catat kapan counter TX/RX radio terakhir berubah (dipanggil tiap loop).
+static void trackRadioActivity(uint32_t now) {
+  uint32_t tx = NusaRadio::txCount();
+  uint32_t rx = NusaRadio::rxCount();
+  if (tx != s_seenTx) { s_seenTx = tx; s_lastTxAt = now; s_everTx = true; }
+  if (rx != s_seenRx) { s_seenRx = rx; s_lastRxAt = now; s_everRx = true; }
+}
+
+static uint16_t ageSeconds(bool ever, uint32_t at, uint32_t now) {
+  if (!ever) return 0xFFFF;
+  uint32_t s = (now - at) / 1000;
+  return s > 0xFFFE ? 0xFFFE : (uint16_t)s;
+}
+
+// Status node + statistik radio live ke semua HP yang tersambung langsung.
+// Lokal BLE saja — sengaja TIDAK lewat NusaFrag::sendPacket, jadi tidak
+// membebani antrean/airtime LoRa.
+static void sendHealth(uint32_t now) {
+  float bestRssi = 0, bestSnr = 0;
+  bool hasBest = bestNeighbor(&bestRssi, &bestSnr);
+
+  float budget = NusaRadio::budgetMs();
+  NusaHealthLive live;
+  live.radioReady = NusaRadio::healthy();
+  live.dualRadio  = LORA_SEPARATE_RX;
+  live.txFrames   = NusaRadio::txCount();
+  live.rxFrames   = NusaRadio::rxCount();
+  live.dropped    = NusaRadio::dropCount();
+  live.crcErrors  = NusaRadio::crcErrCount();
+  live.queueDepth = NusaRadio::queueDepth();
+  live.budgetMs   = budget < 0 ? 0 : (budget > 65535 ? 65535 : (uint16_t)budget);
+  live.lastRssi   = NusaRadio::lastRssi();
+  live.lastSnr    = NusaRadio::lastSnr();
+  live.lastRxAgeS = ageSeconds(s_everRx, s_lastRxAt, now);
+  live.lastTxAgeS = ageSeconds(s_everTx, s_lastTxAt, now);
+
+  uint8_t buf[80];
+  size_t len = nusaBuildLoraHealth(buf, sizeof(buf),
+                                   (uint8_t)neighborCount(),
+                                   hasBest, bestRssi, bestSnr,
+                                   UserLink::clientCount(), USER_MAX_CLIENTS,
+                                   NusaRadio::spreadingFactor(), s_rangeTest,
+                                   &live);
+  if (len) UserLink::broadcast(buf, len);
 }
 
 static void printNeighbors() {
@@ -608,6 +659,7 @@ void loop() {
   serviceButton();
 
   uint32_t now = millis();
+  trackRadioActivity(now);
 
   {
     uint32_t closed = UserLink::takeClosedSlots();
@@ -680,7 +732,11 @@ void loop() {
                   (unsigned long)s_toUsers,
                   (unsigned long)s_relayed,
                   NusaUI::readBatteryVolts());
-    Serial.printf("[STATUS] tetangga LoRa terdengar: %u\n", neighborCount());
+    Serial.printf("[STATUS] tetangga LoRa terdengar: %u | radio siap=%d "
+                  "duaRadio=%d | rssi terakhir=%.1f snr=%.1f\n",
+                  neighborCount(), NusaRadio::healthy() ? 1 : 0,
+                  LORA_SEPARATE_RX ? 1 : 0,
+                  NusaRadio::lastRssi(), NusaRadio::lastSnr());
     {
       MobLock lock;
       const NusaMob::Stats& ms = NusaMob::stats();
@@ -696,20 +752,11 @@ void loop() {
                     (unsigned long)ms.holdExpired);
     }
     printNeighbors();
+  }
 
-    // Lapor jumlah tetangga LoRa ke HP yang connect, supaya app bisa
-    // menampilkan status "backbone LoRa hidup atau tidak" tanpa buka serial.
-    // Lokal BLE saja — sengaja TIDAK lewat NusaFrag::sendPacket (tidak perlu
-    // membebani antrean/airtime LoRa untuk telemetri diri sendiri).
-    float bestRssi = 0, bestSnr = 0;
-    bool hasBest = bestNeighbor(&bestRssi, &bestSnr);
-
-    uint8_t healthBuf[32];
-    size_t healthLen = nusaBuildLoraHealth(healthBuf, sizeof(healthBuf),
-                                           (uint8_t)neighborCount(),
-                                           hasBest, bestRssi, bestSnr,
-                                           UserLink::clientCount(), USER_MAX_CLIENTS,
-                                           NusaRadio::spreadingFactor(), s_rangeTest);
-    if (healthLen) UserLink::broadcast(healthBuf, healthLen);
+  // Status live ke HP: tetangga LoRa + statistik radio (lihat sendHealth).
+  if (now - s_lastHealth >= HEALTH_PERIOD_MS) {
+    s_lastHealth = now;
+    sendHealth(now);
   }
 }

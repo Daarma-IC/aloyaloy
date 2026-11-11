@@ -7,8 +7,8 @@
 // ---------------------------------------------------------------------------
 //  1. IDENTITAS NODE  — WAJIB diubah per unit sebelum flash
 // ---------------------------------------------------------------------------
-#define NODE_ID              4         // 1..254, harus UNIK per node
-#define NODE_NAME            "NusaNode-D"   // Board A = ID 1/NusaNode-A · Board B = ID 2/NusaNode-B
+#define NODE_ID              1         // 1..254, harus UNIK per node
+#define NODE_NAME            "NusaNode-A"   // Board A = ID 1/NusaNode-A · Board B = ID 2/NusaNode-B
 
 // ---------------------------------------------------------------------------
 //  2. PINOUT LoRa (SX1276)  — [VERIFIKASI ke silkscreen board Anda]
@@ -30,12 +30,12 @@
 #define LORA_FULL_DUPLEX      0
 #endif
 #ifndef LORA_QUASI_DUPLEX
-#define LORA_QUASI_DUPLEX     1
+#define LORA_QUASI_DUPLEX     0
 #endif
 // One hub queue, both radios may TX; alternate ownership at frame boundaries.
 // No simultaneous local TX/RX is claimed. Set 0 for historical TX + RX-only split.
 #ifndef LORA_QUASI_TAKEOVER
-#define LORA_QUASI_TAKEOVER   1
+#define LORA_QUASI_TAKEOVER   0
 #endif
 #define LORA_SEPARATE_RX      (LORA_QUASI_DUPLEX || LORA_FULL_DUPLEX)
 #define LORA_RX_WINDOW_MS     500UL    // minimum RX opportunity between TX frames
@@ -261,6 +261,9 @@
 #define SERIAL_BAUD          115200
 #define STATUS_PERIOD_MS     5000
 #define UI_PERIOD_MS         500
+// Status live ke HP (LORA_HEALTH + blok live). Lokal BLE saja, tidak memakai
+// airtime LoRa. Paket ±62 byte per HP tersambung setiap periode.
+#define HEALTH_PERIOD_MS     2000
 
 #if LORA_SEPARATE_RX && LORA_RX_BACKEND == 2 && OLED_ENABLED
 #error "External SPI radio uses GPIO21/22: disable OLED or redesign pin allocation"

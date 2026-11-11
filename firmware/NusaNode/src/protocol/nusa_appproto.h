@@ -154,15 +154,67 @@ static inline size_t nusaBuildAnnounce(uint8_t* out, size_t cap) {
 //  Byte 6–7 (tambahan uji QoS): [sf aktif][mode uji jarak 0/1]. App lama
 //  hanya membaca 5 byte pertama, jadi tetap kompatibel.
 //  Payload byte 7: capability admission lokal v1 (tambahan; field lama tetap).
+//
+//  Blok LIVE (opsional, byte 8..37) — statistik radio node untuk panel live
+//  app, termasuk sisi kirim yang sebelumnya tidak pernah sampai ke HP:
+//    [8]       versi blok live = 1
+//    [9]       flag: bit0 radio siap kirim+terima, bit1 mode dua radio
+//    [10..13]  frame LoRa terkirim (u32 BE, sejak boot)
+//    [14..17]  frame LoRa diterima (u32 BE)
+//    [18..21]  frame dibuang karena antrean penuh (u32 BE)
+//    [22..25]  frame tiba tapi CRC rusak (u32 BE)
+//    [26..27]  isi antrean TX (u16 BE, frame)
+//    [28..29]  sisa anggaran airtime (u16 BE, ms)
+//    [30..31]  RSSI frame terakhir (int16 BE, x10 dBm)
+//    [32..33]  SNR frame terakhir (int16 BE, x10 dB)
+//    [34..35]  detik sejak frame terakhir diterima (u16 BE, 0xFFFF = belum)
+//    [36..37]  detik sejak frame terakhir dikirim (u16 BE, 0xFFFF = belum)
+//  App lama hanya membaca byte 0..7, jadi tetap kompatibel.
 //  @return panjang byte, atau 0 bila buffer terlalu kecil / jam belum sinkron.
 // ---------------------------------------------------------------------------
+struct NusaHealthLive {
+  bool radioReady;
+  bool dualRadio;
+  uint32_t txFrames;
+  uint32_t rxFrames;
+  uint32_t dropped;
+  uint32_t crcErrors;
+  uint16_t queueDepth;
+  uint16_t budgetMs;
+  float lastRssi;
+  float lastSnr;
+  uint16_t lastRxAgeS;
+  uint16_t lastTxAgeS;
+};
+
+static inline void nusaPut16(uint8_t* p, uint16_t v) {
+  p[0] = (uint8_t)(v >> 8);
+  p[1] = (uint8_t)v;
+}
+
+static inline void nusaPut32(uint8_t* p, uint32_t v) {
+  p[0] = (uint8_t)(v >> 24);
+  p[1] = (uint8_t)(v >> 16);
+  p[2] = (uint8_t)(v >> 8);
+  p[3] = (uint8_t)v;
+}
+
+static inline int16_t nusaTenths(float v) {
+  long x = (long)(v * 10.0f + (v >= 0 ? 0.5f : -0.5f));
+  if (x < -32768) x = -32768;
+  if (x > 32767) x = 32767;
+  return (int16_t)x;
+}
+
 static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neighborCount,
                                           bool hasBestNeighbor, float bestRssi, float bestSnr,
                                           uint8_t userCount, uint8_t userMax,
-                                          uint8_t sf, bool testMode) {
+                                          uint8_t sf, bool testMode,
+                                          const NusaHealthLive* live = nullptr) {
   if (!g_clockSynced) return 0;
 
-  const size_t payloadLen = 8;
+  const size_t liveLen = 30;
+  const size_t payloadLen = 8 + (live ? liveLen : 0);
   const size_t total = 16 + 8 + payloadLen;   // header v2 + senderID + payload
   if (cap < total) return 0;
 
@@ -209,6 +261,24 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
   out[i++] = testMode ? 1 : 0;
 
   out[i++] = 1; // local admission protocol v1 capability; old apps ignore extension
+
+  if (live) {
+    uint8_t flags = 0;
+    if (live->radioReady) flags |= 0x01;
+    if (live->dualRadio) flags |= 0x02;
+    out[i++] = 1;                         // versi blok live
+    out[i++] = flags;
+    nusaPut32(out + i, live->txFrames);   i += 4;
+    nusaPut32(out + i, live->rxFrames);   i += 4;
+    nusaPut32(out + i, live->dropped);    i += 4;
+    nusaPut32(out + i, live->crcErrors);  i += 4;
+    nusaPut16(out + i, live->queueDepth); i += 2;
+    nusaPut16(out + i, live->budgetMs);   i += 2;
+    nusaPut16(out + i, (uint16_t)nusaTenths(live->lastRssi)); i += 2;
+    nusaPut16(out + i, (uint16_t)nusaTenths(live->lastSnr));  i += 2;
+    nusaPut16(out + i, live->lastRxAgeS); i += 2;
+    nusaPut16(out + i, live->lastTxAgeS); i += 2;
+  }
   return i;
 }
 
