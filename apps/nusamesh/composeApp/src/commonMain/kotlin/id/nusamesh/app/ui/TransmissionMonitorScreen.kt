@@ -24,7 +24,7 @@ import kotlin.math.roundToInt
 fun TransmissionMonitorScreen(
     diagnostics: DiagnosticSnapshot, engine: EngineSnapshot, padding: PaddingValues,
     onExportLog: () -> Unit, onExportSummary: () -> Unit, onClear: () -> Unit, onBack: () -> Unit,
-    recording: id.nusamesh.app.data.LogRecording? = null, onToggleRecording: () -> Unit = {},
+    recording: id.nusamesh.app.data.LogRecording? = null, onToggleRecording: (label: String, pdrProbes: Boolean) -> Unit = { _, _ -> },
     onExportVoice: () -> Unit = {},
 ) {
     var frozen by remember { mutableStateOf<DiagnosticSnapshot?>(null) }
@@ -34,6 +34,8 @@ fun TransmissionMonitorScreen(
     var query by remember { mutableStateOf("") }
     var problems by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var recordLabel by remember { mutableStateOf("") }
+    var pdrProbes by remember { mutableStateOf(false) }
     val s = frozen ?: diagnostics
     val logScroll = rememberLazyListState()
     val charts = remember(s.events, s.elapsedMs, selectedDevice) { transmissionCharts(s, selectedDevice) }
@@ -107,10 +109,19 @@ fun TransmissionMonitorScreen(
                     if (recording != null) {
                         Text("Merekam: ${recording.rows} baris",color=Danger,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
                         Text(recording.location,color=Slate,fontSize=10.sp)
-                        Button(onClick=onToggleRecording) { Text("Stop rekam") }
+                        Button(onClick={ onToggleRecording(recordLabel, pdrProbes) }) { Text("Stop rekam") }
                     } else {
                         Text("Setiap log baru langsung ditulis ke Documents/NusaMesh di HP ini, tanpa batas 1.000 entri.",color=Slate,fontSize=10.sp)
-                        OutlinedButton(onClick=onToggleRecording) { Text("Mulai rekam") }
+                        OutlinedTextField(recordLabel,{recordLabel=it.take(60)},Modifier.fillMaxWidth(),singleLine=true,
+                            placeholder={Text("Label uji: jarak, kondisi, SF (mis. 500m LOS SF7)",fontSize=12.sp)})
+                        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                            Switch(checked=pdrProbes,onCheckedChange={pdrProbes=it})
+                            Column(Modifier.weight(1f)) {
+                                Text("Paket uji PDR otomatis",color=Ink,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
+                                Text("Kirim paket bernomor tiap 30 dtk selama rekam. HP penerima ikut merekam supaya PDR bisa dihitung.",color=Slate,fontSize=10.sp)
+                            }
+                        }
+                        OutlinedButton(onClick={ onToggleRecording(recordLabel, pdrProbes) }) { Text("Mulai rekam") }
                     }
                 } }
                 item { MonitorCard {

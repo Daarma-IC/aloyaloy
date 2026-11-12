@@ -251,8 +251,34 @@ static void sendHealth(uint32_t now) {
   live.lastSnr    = NusaRadio::lastSnr();
   live.lastRxAgeS = ageSeconds(s_everRx, s_lastRxAt, now);
   live.lastTxAgeS = ageSeconds(s_everTx, s_lastTxAt, now);
+  live.airtimeTotalMs  = NusaRadio::airtimeTotalMs();
+  live.lastTxAirtimeMs = NusaRadio::lastTxAirtimeMs();
+  live.freqKhz         = (uint32_t)(LORA_FREQ * 1000.0f + 0.5f);
+  live.txPowerDbm      = (int8_t)LORA_POWER;
+  live.bwKhz           = LORA_BW;
+  live.codingRate      = LORA_CR;
+#if DUTY_ENABLED
+  live.dutyPerTenThousand = (uint16_t)(DUTY_RATIO * 10000.0f + 0.5f);
+#else
+  live.dutyPerTenThousand = 10000;
+#endif
+  float capacity = NusaRadio::budgetCapacityMs();
+  live.budgetCapacityMs = capacity > 65535 ? 65535 : (uint16_t)capacity;
+  float volts = NusaUI::readBatteryVolts();
+  live.batteryMv = (volts > 0 && volts < 65.0f) ? (uint16_t)(volts * 1000.0f + 0.5f) : 0;
+#if USER_LINK_BLE
+  NusaBle::LinkStats ble = NusaBle::linkStats();
+  live.bleConnects    = ble.connects > 0xFFFF ? 0xFFFF : (uint16_t)ble.connects;
+  live.bleDisconnects = ble.disconnects > 0xFFFF ? 0xFFFF : (uint16_t)ble.disconnects;
+  live.bleNotifyFails = ble.notifyFails > 0xFFFF ? 0xFFFF : (uint16_t)ble.notifyFails;
+  live.bleLastReason  = (uint16_t)ble.lastReason;
+  live.bleLastDisconnectAgeS = ble.lastDisconnectAgeS > 0xFFFE ? 0xFFFF : (uint16_t)ble.lastDisconnectAgeS;
+#else
+  live.bleConnects = live.bleDisconnects = live.bleNotifyFails = live.bleLastReason = 0;
+  live.bleLastDisconnectAgeS = 0xFFFF;
+#endif
 
-  uint8_t buf[80];
+  uint8_t buf[112];
   size_t len = nusaBuildLoraHealth(buf, sizeof(buf),
                                    (uint8_t)neighborCount(),
                                    hasBest, bestRssi, bestSnr,
@@ -733,10 +759,11 @@ void loop() {
                   (unsigned long)s_relayed,
                   NusaUI::readBatteryVolts());
     Serial.printf("[STATUS] tetangga LoRa terdengar: %u | radio siap=%d "
-                  "duaRadio=%d | rssi terakhir=%.1f snr=%.1f\n",
+                  "duaRadio=%d | rssi terakhir=%.1f snr=%.1f | airtime total=%lums\n",
                   neighborCount(), NusaRadio::healthy() ? 1 : 0,
                   LORA_SEPARATE_RX ? 1 : 0,
-                  NusaRadio::lastRssi(), NusaRadio::lastSnr());
+                  NusaRadio::lastRssi(), NusaRadio::lastSnr(),
+                  (unsigned long)NusaRadio::airtimeTotalMs());
     {
       MobLock lock;
       const NusaMob::Stats& ms = NusaMob::stats();

@@ -63,6 +63,66 @@ class NodeLiveStatsTest {
     }
 
     @Test
+    fun decodesVersionTwoAirtimeAndRadioConfig() {
+        val v1 = payload()
+        v1[8] = 2
+        val extra = ArrayList<Byte>()
+        fun u8(v: Int) { extra += v.toByte() }
+        fun u16(v: Int) { u8(v shr 8); u8(v) }
+        fun u32(v: Long) { u16((v shr 16).toInt()); u16(v.toInt()) }
+        u32(123_456)      // airtime total ms
+        u16(9912)         // airtime frame terakhir ms (frame 255 B pada SF12)
+        u32(921_000)      // frekuensi kHz
+        u8(14)            // daya dBm
+        u16(1250)         // BW x10 kHz
+        u8(5)             // CR 4/5
+        u16(500)          // duty 5%
+        u16(8000)         // batas anggaran ms
+        val live = NodeLiveStats.decode(v1 + extra.toByteArray())!!
+        assertEquals(123_456L, live.airtimeTotalMs)
+        assertEquals(9912f, live.lastTxAirtimeMs)
+        val radio = live.radio!!
+        assertEquals(921.0, radio.frequencyMhz)
+        assertEquals(14, radio.txPowerDbm)
+        assertEquals(125.0f, radio.bandwidthKhz)
+        assertEquals(5, radio.codingRate)
+        assertEquals(5.0f, radio.dutyLimitPercent)
+        assertEquals(8000, radio.budgetCapacityMs)
+    }
+
+    @Test
+    fun decodesVersionThreeBattery() {
+        val v1 = payload()
+        v1[8] = 3
+        val extra = ByteArray(18) + byteArrayOf((4130 shr 8).toByte(), 4130.toByte())
+        val live = NodeLiveStats.decode(v1 + extra)!!
+        assertEquals(4130, live.batteryMv)
+        assertNull(NodeLiveStats.decode(payload())!!.batteryMv)
+    }
+
+    @Test
+    fun decodesVersionFourBleStats() {
+        val v1 = payload()
+        v1[8] = 4
+        fun u16(v: Int) = byteArrayOf((v shr 8).toByte(), v.toByte())
+        val extra = ByteArray(18) + u16(4130) + u16(5) + u16(3) + u16(1) + u16(0x208) + u16(42)
+        val ble = NodeLiveStats.decode(v1 + extra)!!.ble!!
+        assertEquals(5, ble.connects)
+        assertEquals(3, ble.disconnects)
+        assertEquals(1, ble.notifyFails)
+        assertEquals("supervision_timeout", BleReasons.nimble(ble.lastReason))
+        assertEquals(42, ble.lastDisconnectAgeSeconds)
+        assertEquals("gatt_error_133", BleReasons.android(133))
+    }
+
+    @Test
+    fun versionOneHasNoRadioConfig() {
+        val live = NodeLiveStats.decode(payload())!!
+        assertNull(live.radio)
+        assertNull(live.airtimeTotalMs)
+    }
+
+    @Test
     fun oldFirmwareHasNoLiveBlock() {
         assertNull(NodeLiveStats.decode(payload().copyOf(8)))
     }

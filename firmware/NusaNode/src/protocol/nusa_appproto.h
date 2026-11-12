@@ -157,7 +157,7 @@ static inline size_t nusaBuildAnnounce(uint8_t* out, size_t cap) {
 //
 //  Blok LIVE (opsional, byte 8..37) — statistik radio node untuk panel live
 //  app, termasuk sisi kirim yang sebelumnya tidak pernah sampai ke HP:
-//    [8]       versi blok live = 1
+//    [8]       versi blok live (1 = byte 8..37, 2 = sampai byte 55, 3 = sampai byte 57, 4 = sampai byte 67)
 //    [9]       flag: bit0 radio siap kirim+terima, bit1 mode dua radio
 //    [10..13]  frame LoRa terkirim (u32 BE, sejak boot)
 //    [14..17]  frame LoRa diterima (u32 BE)
@@ -169,6 +169,24 @@ static inline size_t nusaBuildAnnounce(uint8_t* out, size_t cap) {
 //    [32..33]  SNR frame terakhir (int16 BE, x10 dB)
 //    [34..35]  detik sejak frame terakhir diterima (u16 BE, 0xFFFF = belum)
 //    [36..37]  detik sejak frame terakhir dikirim (u16 BE, 0xFFFF = belum)
+//  Versi 2 menambah airtime dan konfigurasi radio (hasil uji lapangan 12 Nov:
+//  duty cycle hanya bisa ditaksir, frekuensi/daya tidak tercatat):
+//    [38..41]  total airtime dipancarkan sejak boot (u32 BE, ms)
+//    [42..43]  airtime frame terakhir (u16 BE, ms; muat sampai SF12 ±10 s)
+//    [44..47]  frekuensi (u32 BE, kHz)
+//    [48]      daya pancar (int8, dBm)
+//    [49..50]  bandwidth (u16 BE, x10 kHz)
+//    [51]      coding rate (5..8 = 4/5..4/8)
+//    [52..53]  batas duty cycle (u16 BE, per 10.000; 500 = 5%)
+//    [54..55]  batas tabungan anggaran airtime (u16 BE, ms)
+//  Versi 3 menambah tegangan baterai node (parameter daya CD-2 kosong di uji 12 Nov):
+//    [56..57]  tegangan baterai (u16 BE, mV; 0 = tidak terbaca)
+//  Versi 4 menambah statistik koneksi BLE HP <-> node (uji 12 Nov: alasan putus tak tercatat):
+//    [58..59]  jumlah koneksi HP sejak boot (u16 BE)
+//    [60..61]  jumlah putus koneksi HP sejak boot (u16 BE)
+//    [62..63]  notify BLE yang gagal (u16 BE)
+//    [64..65]  kode alasan putus terakhir NimBLE (u16 BE, mis. 0x208 supervision timeout)
+//    [66..67]  detik sejak putus terakhir (u16 BE, 0xFFFF = belum pernah)
 //  App lama hanya membaca byte 0..7, jadi tetap kompatibel.
 //  @return panjang byte, atau 0 bila buffer terlalu kecil / jam belum sinkron.
 // ---------------------------------------------------------------------------
@@ -185,6 +203,20 @@ struct NusaHealthLive {
   float lastSnr;
   uint16_t lastRxAgeS;
   uint16_t lastTxAgeS;
+  uint32_t airtimeTotalMs;
+  float lastTxAirtimeMs;
+  uint32_t freqKhz;
+  int8_t txPowerDbm;
+  float bwKhz;
+  uint8_t codingRate;
+  uint16_t dutyPerTenThousand;
+  uint16_t budgetCapacityMs;
+  uint16_t batteryMv;
+  uint16_t bleConnects;
+  uint16_t bleDisconnects;
+  uint16_t bleNotifyFails;
+  uint16_t bleLastReason;
+  uint16_t bleLastDisconnectAgeS;
 };
 
 static inline void nusaPut16(uint8_t* p, uint16_t v) {
@@ -213,7 +245,7 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
                                           const NusaHealthLive* live = nullptr) {
   if (!g_clockSynced) return 0;
 
-  const size_t liveLen = 30;
+  const size_t liveLen = 60;
   const size_t payloadLen = 8 + (live ? liveLen : 0);
   const size_t total = 16 + 8 + payloadLen;   // header v2 + senderID + payload
   if (cap < total) return 0;
@@ -266,7 +298,7 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
     uint8_t flags = 0;
     if (live->radioReady) flags |= 0x01;
     if (live->dualRadio) flags |= 0x02;
-    out[i++] = 1;                         // versi blok live
+    out[i++] = 4;                         // versi blok live
     out[i++] = flags;
     nusaPut32(out + i, live->txFrames);   i += 4;
     nusaPut32(out + i, live->rxFrames);   i += 4;
@@ -278,6 +310,24 @@ static inline size_t nusaBuildLoraHealth(uint8_t* out, size_t cap, uint8_t neigh
     nusaPut16(out + i, (uint16_t)nusaTenths(live->lastSnr));  i += 2;
     nusaPut16(out + i, live->lastRxAgeS); i += 2;
     nusaPut16(out + i, live->lastTxAgeS); i += 2;
+    nusaPut32(out + i, live->airtimeTotalMs); i += 4;
+    {
+      float air = live->lastTxAirtimeMs;
+      nusaPut16(out + i, air <= 0 ? 0 : (air >= 65535.0f ? 65535 : (uint16_t)(air + 0.5f)));
+      i += 2;
+    }
+    nusaPut32(out + i, live->freqKhz); i += 4;
+    out[i++] = (uint8_t)live->txPowerDbm;
+    nusaPut16(out + i, (uint16_t)nusaTenths(live->bwKhz)); i += 2;
+    out[i++] = live->codingRate;
+    nusaPut16(out + i, live->dutyPerTenThousand); i += 2;
+    nusaPut16(out + i, live->budgetCapacityMs); i += 2;
+    nusaPut16(out + i, live->batteryMv); i += 2;
+    nusaPut16(out + i, live->bleConnects); i += 2;
+    nusaPut16(out + i, live->bleDisconnects); i += 2;
+    nusaPut16(out + i, live->bleNotifyFails); i += 2;
+    nusaPut16(out + i, live->bleLastReason); i += 2;
+    nusaPut16(out + i, live->bleLastDisconnectAgeS); i += 2;
   }
   return i;
 }

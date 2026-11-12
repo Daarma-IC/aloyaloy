@@ -28,6 +28,11 @@ NimBLECharacteristic*  s_chr     = nullptr;
 struct Client { bool used; uint16_t handle; };
 Client s_clients[BLE_MAX_CLIENTS];
 volatile uint32_t s_closedSlots = 0;   // diisi task NimBLE, dikuras loop()
+// Statistik koneksi BLE untuk log app (uji lapangan 12 Nov: alasan putus tidak tercatat).
+volatile uint32_t s_connects = 0, s_disconnects = 0, s_notifyFails = 0;
+volatile int      s_lastReason = 0;
+volatile uint32_t s_lastDisconnectAt = 0;
+volatile bool     s_everDisconnected = false;
 
 // Token bucket per klien.
 struct Bucket { float tokens; uint32_t last; };
@@ -68,6 +73,7 @@ bool admissionReply(const uint8_t* p,size_t n,uint8_t client) {
 class ServerCbs : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* srv, NimBLEConnInfo& info) override {
     int slot = claimSlot(info.getConnHandle());
+    s_connects = s_connects + 1;
     Serial.printf("[BLE] HP tersambung (handle %u, slot %d)\n",
                   info.getConnHandle(), slot);
     // NimBLE berhenti beriklan saat ada koneksi; nyalakan lagi supaya HP lain
@@ -82,6 +88,10 @@ class ServerCbs : public NimBLEServerCallbacks {
       s_clients[slot].used = false;
       s_closedSlots |= (1UL << slot);
     }
+    s_disconnects = s_disconnects + 1;
+    s_lastReason = reason;
+    s_lastDisconnectAt = millis();
+    s_everDisconnected = true;
     Serial.printf("[BLE] HP terputus (handle %u, alasan %d)\n",
                   info.getConnHandle(), reason);
     NimBLEDevice::startAdvertising();
@@ -178,8 +188,19 @@ void NusaBle::broadcast(const uint8_t* pkt, size_t len, uint8_t exceptClient) {
     if (!s_clients[i].used) continue;
     if (i == exceptClient) continue;
     bool accepted=s_chr->notify(pkt,len,s_clients[i].handle);
+    if (!accepted) s_notifyFails = s_notifyFails + 1;
     if(NusaAdmissionTrace::current && accepted) NusaAdmissionTrace::current->localSent=true;
   }
+}
+
+NusaBle::LinkStats NusaBle::linkStats() {
+  LinkStats s;
+  s.connects = s_connects;
+  s.disconnects = s_disconnects;
+  s.notifyFails = s_notifyFails;
+  s.lastReason = s_lastReason;
+  s.lastDisconnectAgeS = s_everDisconnected ? (millis() - s_lastDisconnectAt) / 1000 : 0xFFFFFFFFUL;
+  return s;
 }
 
 uint8_t NusaBle::clientCount() {

@@ -29,6 +29,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
+import id.nusamesh.app.mesh.protocol.BleReasons
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,9 +146,9 @@ class AndroidBleLink(private val context: Context) : BleLink {
         runCatching { adapter?.bluetoothLeScanner?.stopScan(scanCallback) }
         runCatching { adapter?.bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
         clients.values.forEach { runCatching { it.gatt.disconnect(); it.gatt.close() } }
-        clients.keys.forEach { _events.tryEmit(LinkEvent.Disconnected(it)) }
+        clients.keys.forEach { _events.tryEmit(LinkEvent.Disconnected(it, "radio_stopped")) }
         clients.clear()
-        servers.keys.filter { servers[it]?.subscribed == true }.forEach { _events.tryEmit(LinkEvent.Disconnected(it)) }
+        servers.keys.filter { servers[it]?.subscribed == true }.forEach { _events.tryEmit(LinkEvent.Disconnected(it, "radio_stopped")) }
         servers.clear()
         runCatching { gattServer?.close() }
         gattServer = null
@@ -225,7 +226,9 @@ class AndroidBleLink(private val context: Context) : BleLink {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 val link = servers.remove(addr)
                 link?.pendingNotify?.complete(false)
-                if (link?.subscribed == true && !clients.containsKey(addr)) _events.tryEmit(LinkEvent.Disconnected(addr))
+                if (link?.subscribed == true && !clients.containsKey(addr)) {
+                    _events.tryEmit(LinkEvent.Disconnected(addr, "server status=$status ${BleReasons.android(status)}"))
+                }
             }
         }
 
@@ -303,7 +306,7 @@ class AndroidBleLink(private val context: Context) : BleLink {
         link?.pendingWrite?.complete(false)
         if (link?.ready == true) {
             // Masih tersambung sebagai server ke perangkat yang sama → koneksi logisnya belum putus.
-            if (servers[addr]?.subscribed != true) _events.tryEmit(LinkEvent.Disconnected(addr))
+            if (servers[addr]?.subscribed != true) _events.tryEmit(LinkEvent.Disconnected(addr, reason))
         } else if (link != null && reason != null) {
             _events.tryEmit(LinkEvent.ConnectFailed(addr, reason))
         }
@@ -314,7 +317,7 @@ class AndroidBleLink(private val context: Context) : BleLink {
             if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
                 if (!gatt.requestMtu(MeshGatt.REQUESTED_MTU)) gatt.discoverServices()
             } else {
-                closeClient(gatt, "GATT status $status")
+                closeClient(gatt, "GATT status $status ${BleReasons.android(status)}")
             }
         }
 
@@ -351,6 +354,9 @@ class AndroidBleLink(private val context: Context) : BleLink {
                 if (servers[gatt.device.address]?.subscribed != true) {
                     _events.tryEmit(LinkEvent.Connected(gatt.device.address, asCentral = true, mtu = link.mtu))
                 }
+                // PHY dan RSSI awal koneksi, untuk log kualitas BLE.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) gatt.readPhy()
+                gatt.readRemoteRssi()
             }
         }
 
@@ -371,6 +377,14 @@ class AndroidBleLink(private val context: Context) : BleLink {
             }
         }
 
+        override fun onPhyRead(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+            _events.tryEmit(LinkEvent.Info(gatt.device.address, "BLE_PHY", "tx_phy=${phyName(txPhy)}; rx_phy=${phyName(rxPhy)}; status=$status"))
+        }
+
+        override fun onPhyUpdate(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+            _events.tryEmit(LinkEvent.Info(gatt.device.address, "BLE_PHY_UPDATE", "tx_phy=${phyName(txPhy)}; rx_phy=${phyName(rxPhy)}; status=$status"))
+        }
+
         override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) _events.tryEmit(LinkEvent.RssiRead(gatt.device.address, rssi))
         }
@@ -379,6 +393,17 @@ class AndroidBleLink(private val context: Context) : BleLink {
     // ------------------------------------------------------------------------------------------
     //  Kirim
     // ------------------------------------------------------------------------------------------
+    override fun readRssi(deviceId: String) {
+        clients[deviceId]?.takeIf { it.ready }?.gatt?.readRemoteRssi()
+    }
+
+    private fun phyName(phy: Int) = when (phy) {
+        BluetoothDevice.PHY_LE_1M -> "1M"
+        BluetoothDevice.PHY_LE_2M -> "2M"
+        BluetoothDevice.PHY_LE_CODED -> "coded"
+        else -> "phy_$phy"
+    }
+
     override suspend fun send(deviceId: String, data: ByteArray): Boolean {
         val lock = locks.getOrPut(deviceId) { Mutex() }
         return lock.withLock {

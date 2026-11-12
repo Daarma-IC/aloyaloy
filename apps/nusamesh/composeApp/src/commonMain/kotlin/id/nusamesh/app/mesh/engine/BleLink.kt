@@ -21,13 +21,16 @@ sealed interface LinkEvent {
     data class Discovered(val deviceId: String, val name: String?, val rssi: Int, val peerId: String?) : LinkEvent
     /** Koneksi siap bertukar data (notify aktif / sudah subscribe). */
     data class Connected(val deviceId: String, val asCentral: Boolean, val mtu: Int) : LinkEvent
-    data class Disconnected(val deviceId: String) : LinkEvent
+    /** [reason] = alasan putus dari tumpukan BLE (mis. "status=8 connection_timeout"), null bila tidak diketahui. */
+    data class Disconnected(val deviceId: String, val reason: String? = null) : LinkEvent
     data class Received(val deviceId: String, val data: ByteArray) : LinkEvent
     data class MtuChanged(val deviceId: String, val mtu: Int) : LinkEvent
     data class RssiRead(val deviceId: String, val rssi: Int) : LinkEvent
     data class ConnectFailed(val deviceId: String, val reason: String) : LinkEvent
     /** Optional platform detail; send() still returns a single Boolean outcome for counters. */
     data class TransmissionError(val deviceId: String, val reason: String) : LinkEvent
+    /** Info tambahan dari platform untuk log (mis. PHY BLE). */
+    data class Info(val deviceId: String, val name: String, val detail: String) : LinkEvent
 }
 
 /**
@@ -47,4 +50,6 @@ interface BleLink {
     fun disconnect(deviceId: String)
     /** true bila paket diterima tumpukan BLE untuk dikirim. Menunggu giliran bila antrean GATT penuh. */
     suspend fun send(deviceId: String, data: ByteArray): Boolean
+    /** Minta RSSI koneksi aktif; hasilnya lewat [LinkEvent.RssiRead]. Platform tanpa dukungan: abaikan. */
+    fun readRssi(deviceId: String) {}
 }

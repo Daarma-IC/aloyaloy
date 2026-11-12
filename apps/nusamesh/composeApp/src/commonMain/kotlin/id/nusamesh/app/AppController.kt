@@ -4,6 +4,7 @@ import id.nusamesh.app.media.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import id.nusamesh.app.data.ChatHistory
+import id.nusamesh.app.data.DeviceClock
 import id.nusamesh.app.data.FileStore
 import id.nusamesh.app.data.LogRecording
 import id.nusamesh.app.data.TransmissionLogRecorder
@@ -45,6 +46,8 @@ import id.nusamesh.app.domain.QosSending
 import id.nusamesh.app.domain.RxMeasurement
 import id.nusamesh.app.domain.UnitStatus
 import id.nusamesh.app.location.DeviceLocation
+import id.nusamesh.app.mesh.core.nusaNodeNumber
+import id.nusamesh.app.mesh.engine.DiagnosticLayer
 import id.nusamesh.app.mesh.engine.EngineSnapshot
 import id.nusamesh.app.mesh.engine.IncomingFile
 import id.nusamesh.app.mesh.engine.IncomingMessage
@@ -119,9 +122,39 @@ class AppController(
     /** Rekaman log ke file di Documents; null = tidak merekam. */
     val logRecording: StateFlow<LogRecording?> = logRecorder.recording
 
-    /** Mulai atau hentikan rekaman log transmisi ke file [fileName]. */
-    fun toggleLogRecording(documents: DocumentActions, fileName: String) {
-        showNotice(logRecorder.stop() ?: logRecorder.start(documents, fileName, currentEpochMillis()))
+    /**
+     * Mulai atau hentikan rekaman log transmisi ke file [fileName]. [label] = keterangan sesi uji
+     * (mis. "500m LOS SF7"); uji lapangan 12 Nov tidak mencatat jarak/kondisi sehingga grafik
+     * RSSI/PDR vs jarak tidak bisa dibuat.
+     */
+    fun toggleLogRecording(documents: DocumentActions, fileName: String, label: String = "", pdrProbes: Boolean = false) {
+        if (logRecorder.recording.value != null) {
+            if (qosJob != null) stopQosTest()
+            repository.recordEvent(DiagnosticLayer.SYSTEM, "RECORDING_STOPPED", detail = sessionDetail(label))
+            // Beri waktu event penutup tertulis ke file sebelum file ditutup.
+            scope.launch { delay(500); logRecorder.stop()?.let(::showNotice) }
+            return
+        }
+        var message = logRecorder.start(documents, fileName, currentEpochMillis())
+        if (logRecorder.recording.value != null) {
+            // startQosTest diam-diam batal bila mesh belum aktif: catat status yang sebenarnya.
+            if (pdrProbes) startQosTest(QosProbe.MAX_TOTAL, PDR_PROBE_INTERVAL_S, label.ifBlank { "rekam" })
+            val probing = pdrProbes && qosJob != null
+            if (pdrProbes && !probing) message += ". Paket uji PDR tidak jalan: aktifkan mesh dulu"
+            repository.recordEvent(DiagnosticLayer.SYSTEM, "RECORDING_STARTED",
+                detail = sessionDetail(label) + "; pdr_probe=$probing; pdr_interval_s=$PDR_PROBE_INTERVAL_S")
+        }
+        showNotice(message)
+    }
+
+    /** Label sesi + pemetaan node -> MAC BLE saat ini, supaya file rekaman bisa dibaca mandiri. */
+    private fun sessionDetail(label: String): String {
+        val nodes = _state.value.mesh.engine.nodes.joinToString(",") { n ->
+            "${nusaNodeNumber(n.peerId)?.let { "NUSN-$it" } ?: n.peerId}:${n.name.replace(',', ' ')}@${n.deviceId ?: "?"}"
+        }
+        val clean = label.replace(';', ',').replace('=', ':').trim().take(80)
+        return "label=${clean.ifBlank { "-" }}; peer=${repository.myPeerId}; nodes=${nodes.ifBlank { "-" }}; " +
+            DeviceClock.detail(currentEpochMillis())
     }
 
     /** true bila pengguna terakhir kali menyalakan mesh: aplikasi menyalakannya lagi saat dibuka. */
@@ -131,6 +164,9 @@ class AppController(
     private var saveQosJob: Job? = null
 
     init {
+        ProcessingEvents.sink = ProcessingEvents.Sink { name, durationMs, bytes, detail ->
+            repository.recordEvent(DiagnosticLayer.MESSAGE, name, durationMs, bytes, detail)
+        }
         repository.loraOnly = _state.value.loraOnly
         restoreOperationKey()
         restoreMapData()
@@ -1601,7 +1637,9 @@ class AppController(
             for (seq in 1..count) {
                 val own = _state.value.trackedUsers.firstOrNull { it.own }
                 val sf = _state.value.mesh.engine.servingNode?.spreadingFactor
-                repository.sendTelemetry(QosProbe(runId, seq, count, sf, own?.let { GeoPoint(it.latitude, it.longitude) }, name).encode())
+                val messageId = repository.sendTelemetry(QosProbe(runId, seq, count, sf, own?.let { GeoPoint(it.latitude, it.longitude) }, name).encode())
+                repository.recordEvent(DiagnosticLayer.MESSAGE, "PDR_PROBE_TX", messageId = messageId, sf = sf,
+                    detail = "run=$runId; seq=$seq; planned=$count; interval_s=${intervalMs / 1000}; label=${name.replace(';', ',')}")
                 _state.update { it.copy(qosSending = it.qosSending?.copy(sent = seq)) }
                 if (seq < count) delay(intervalMs)
             }
@@ -1633,6 +1671,12 @@ class AppController(
     private fun receiveQos(incoming: IncomingMessage, probe: QosProbe) {
         val sender = incoming.message.sender.ifBlank { repository.nicknameOf(incoming.fromPeerId) ?: shortId(incoming.fromPeerId) }
         val rx = measure(incoming.fromPeerId, incoming.viaNode, incoming.loraRx, incoming.bleRssi, incoming.message.timestampMs, probe.senderPoint)
+        repository.recordEvent(DiagnosticLayer.MESSAGE, "PDR_PROBE_RX", messageId = incoming.message.id,
+            durationMs = rx.latencyMs, rssiDbm = rx.loraRssiDbm?.toDouble() ?: rx.bleRssiDbm?.toDouble(),
+            snrDb = rx.loraSnrDb?.toDouble(), sf = rx.spreadingFactor,
+            detail = "run=${probe.runId}; seq=${probe.seq}; planned=${probe.total}; sender=${incoming.fromPeerId}" +
+                "; via_node=${incoming.viaNode}; via_lora=${incoming.loraRx != null}; sent_at_ms=${incoming.message.timestampMs}" +
+                "; distance_m=${rx.distanceMeters?.let { kotlin.math.round(it).toLong() } ?: "null"}")
         _state.update { current ->
             val existing = current.qosRuns.firstOrNull { it.runId == probe.runId && it.senderPeerId == incoming.fromPeerId }
             if (existing?.samples?.any { it.seq == probe.seq } == true) return@update current // duplikat lewat jalur lain
@@ -1716,6 +1760,8 @@ class AppController(
         private const val KEY_ROLE = "field_role"
         private const val KEY_OP_CODE = "operation_key"
         private const val KEY_QOS = "qos_runs"
+        /** Jeda paket uji PDR saat rekam log: ±0,8% airtime SF7 per HP (paket ±140 B ≈ 230 ms). */
+        private const val PDR_PROBE_INTERVAL_S = 30
         private const val MAX_QOS_RUNS = 100
         private const val FORGED_NOTICE_INTERVAL_MS = 60_000L
         private const val KEY_TEAM = "field_team"

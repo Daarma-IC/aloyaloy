@@ -38,6 +38,8 @@ import id.nusamesh.app.media.IncomingVoiceChunk
 import id.nusamesh.app.media.DocumentActions
 import id.nusamesh.app.media.AppendableFile
 import id.nusamesh.app.media.DocumentsFolder
+import id.nusamesh.app.media.ProcessingEvents
+import id.nusamesh.app.data.DeviceClock
 import id.nusamesh.app.media.EnhancedImage
 import id.nusamesh.app.media.SrSpeed
 import id.nusamesh.app.media.SuperResolution
@@ -191,6 +193,14 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
         super.onCreate(savedInstanceState)
         process = NusaMeshProcess.get(this)
         OfflineTileStore.init(this)
+        // Sinkron jam ponsel untuk delay end-to-end: "Tanggal & waktu otomatis" harus aktif di semua ponsel uji.
+        // Pakai context aplikasi: objek global ini tidak boleh memegang Activity (bocor saat layar dibuat ulang).
+        val resolver = applicationContext.contentResolver
+        DeviceClock.describe = {
+            fun flag(name: String) = runCatching { Settings.Global.getInt(resolver, name, 0) == 1 }.getOrNull()
+            "auto_time=${flag(Settings.Global.AUTO_TIME)}; auto_time_zone=${flag(Settings.Global.AUTO_TIME_ZONE)}" +
+                "; time_zone=${java.util.TimeZone.getDefault().id}"
+        }
         process.location.onProviderChanged = ::refresh
         setContent {
             NusaMeshApp(
@@ -426,6 +436,11 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                 pcmBytes, encoded.size, trimMs, processMs, sha,
             )
             voiceLogFile.appendText(VoiceLog.csvLine(entry) + "\n")
+            ProcessingEvents.report(
+                if (event == "encode") ProcessingEvents.CODEC2_ENCODE else ProcessingEvents.CODEC2_DECODE,
+                processMs, encoded.size,
+                "recorded_ms=${recordedMs ?: "null"}; voiced_ms=${entry.voicedMs}; pcm_bytes=$pcmBytes; trim_ms=${trimMs ?: "null"}",
+            )
         }
     }
 
@@ -510,6 +525,8 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
                 val encoded = java.io.ByteArrayOutputStream().also {
                     out.compress(if (big) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG, if (big) 92 else 100, it)
                 }.toByteArray()
+                ProcessingEvents.report(ProcessingEvents.AI_UPSCALE, ms, encoded.size,
+                    "model=${model.label}; in=${source.width}x${source.height}; out=${out.width}x${out.height}")
                 out.recycle()
                 EnhancedImage(encoded, model.label, ms)
             }.onSuccess { runOnUiThread { onResult(it) } }
@@ -703,7 +720,10 @@ class MainActivity : ComponentActivity(), ChatMediaActions, BluetoothPermissionA
     private fun loadLoraImage(uri: Uri, quality: LoraImageQuality) {
         runCatching {
             val source = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Gambar tidak dapat dibaca")
+            val started = System.nanoTime()
             val bytes = LoraImageCodec.encode(source, quality) ?: error("Gambar tidak dapat diproses")
+            ProcessingEvents.report(ProcessingEvents.IMAGE_LORA_ENCODE, (System.nanoTime() - started) / 1_000_000,
+                bytes.size, "quality=${quality.name}; max_side=${quality.maxSide}; max_bytes=${quality.maxBytes}; source_bytes=${source.size}")
             ChatAttachment("${LoraImageCodec.FILE_PREFIX}${System.currentTimeMillis()}.webp", LoraImageCodec.MIME, bytes, ChatMessageKind.Image)
         }.onSuccess { imageResult?.invoke(it) }
             .onFailure { mediaError?.invoke(it.message ?: "Gagal memproses gambar") }

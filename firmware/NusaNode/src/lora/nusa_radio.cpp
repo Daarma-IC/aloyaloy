@@ -46,6 +46,9 @@ static uint32_t s_lastRefill  = 0;
 static uint32_t s_txDoneAt    = 0;      // untuk model dwell time
 static uint32_t s_holdUntil   = 0;      // backoff / diam wajib
 static float    s_pendingAir  = 0;      // airtime frame yang sedang dipancarkan
+// Airtime yang benar-benar dipancarkan (ms), untuk ukur duty cycle di app.
+static double   s_airtimeTotal = 0;
+static float    s_lastTxAir    = 0;
 
 static uint32_t s_txCount = 0, s_rxCount = 0, s_dropCount = 0;
 static uint32_t s_crcErrCount = 0, s_timeoutCount = 0;
@@ -245,6 +248,7 @@ static void channelBackoff() {
 }
 static void chargeAttempt() {
   const uint32_t served = (uint32_t)(s_pendingAir + 0.5f);
+  s_airtimeTotal += s_pendingAir; s_lastTxAir = s_pendingAir;
   s_budget -= s_pendingAir; s_txDoneAt = millis(); s_pendingAir = 0;
   if (s_activeVoice) { if (s_voiceRun < 3) ++s_voiceRun; }
   else s_voiceRun = 0;
@@ -402,6 +406,7 @@ bool NusaRadio::begin(NusaRxHandler handler) {
   s_holdActive = s_jitterActive = false;
   s_txDoneAt = millis(); s_remoteTx = s_nextRemote = false; s_remoteSlot = -1;
   s_txCount = s_rxCount = s_dropCount = s_crcErrCount = s_timeoutCount = 0;
+  s_airtimeTotal = 0; s_lastTxAir = 0;
   s_txErrors = s_mainTxCount = s_memberTxCount = s_rxDeliveredDuringTx = 0;
   s_cadBusy = s_cadErrors = s_ownerFallbacks = 0; s_voiceRun = 0;
   memset(s_flowServed, 0, sizeof(s_flowServed)); s_activeFlow = NODE_FLOW;
@@ -782,6 +787,12 @@ void NusaRadio::loop() {
 // ---------------------------------------------------------------------------
 uint16_t NusaRadio::queueDepth() { QueueGuard guard; return s_qCount; }
 float    NusaRadio::budgetMs()   { return s_budget; }
+uint32_t NusaRadio::airtimeTotalMs() { return (uint32_t)(s_airtimeTotal + 0.5); }
+float    NusaRadio::lastTxAirtimeMs() { return s_lastTxAir; }
+float    NusaRadio::budgetCapacityMs() {
+  float cap = NusaRadio::airtimeMs(NUSA_FRAME_MAX) * 1.1f;
+  return cap < DUTY_BUDGET_MAX_MS ? DUTY_BUDGET_MAX_MS : cap;
+}
 uint32_t NusaRadio::txCount()    { return s_txCount; }
 uint32_t NusaRadio::rxCount()    { return s_rxCount; }
 uint32_t NusaRadio::dropCount()  { return s_dropCount; }

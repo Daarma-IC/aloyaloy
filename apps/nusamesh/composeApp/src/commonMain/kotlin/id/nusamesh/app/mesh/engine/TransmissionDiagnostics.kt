@@ -70,6 +70,7 @@ class TransmissionDiagnostics(
 ) {
     companion object {
         const val MAX_EVENTS = 1000
+        const val MAX_DETAIL = 512
         const val MAX_SAMPLES = 256
         const val MAX_TRACKED = 2048
         private fun monotonicClock(): () -> Long {
@@ -97,7 +98,8 @@ class TransmissionDiagnostics(
         record(DiagnosticLayer.SYSTEM, "LOG_CLEARED", detail = "Session counters retained")
     }
 
-    fun messageSubmitted(id: String) {
+    /** [bytes] = ukuran isi pesan sebelum dipecah (TX_START selalu 256 byte frame BLE). */
+    fun messageSubmitted(id: String, bytes: Int? = null, detail: String = "") {
         val retry = id in attempts
         if (!retry) {
             if (attempts.size >= MAX_TRACKED) {
@@ -106,7 +108,8 @@ class TransmissionDiagnostics(
             }
             attempts[id] = Attempt(monotonicMs())
         }
-        record(DiagnosticLayer.MESSAGE, if (retry) "MESSAGE_RESUBMITTED" else "MESSAGE_SUBMITTED", messageId = id)
+        record(DiagnosticLayer.MESSAGE, if (retry) "MESSAGE_RESUBMITTED" else "MESSAGE_SUBMITTED",
+            messageId = id, bytes = bytes, detail = detail)
     }
 
     fun acknowledgement(id: String, sender: String) {
@@ -134,7 +137,7 @@ class TransmissionDiagnostics(
     ) {
         val event = DiagnosticEvent(++sequence, sessionId, now(), layer, name.take(64), level,
             deviceId?.take(128), messageId?.take(128), bytes, durationMs,
-            rssiDbm?.takeIf { it.isFinite() }, snrDb?.takeIf { it.isFinite() }, sf, detail.take(256))
+            rssiDbm?.takeIf { it.isFinite() }, snrDb?.takeIf { it.isFinite() }, sf, detail.take(MAX_DETAIL))
         val s = mutable.value
         var deviceStats = s.devices
         if (deviceId != null) {

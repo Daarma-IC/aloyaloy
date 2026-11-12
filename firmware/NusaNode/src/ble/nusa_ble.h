@@ -32,6 +32,17 @@ void broadcast(const uint8_t* pkt, size_t len, uint8_t exceptClient = 255);
 
 uint8_t clientCount();
 
+// Statistik koneksi HP sejak boot. lastReason = kode alasan putus NimBLE terakhir
+// (mis. 0x208 = supervision timeout, 0x213 = diputus HP, 0x216 = diputus lokal).
+struct LinkStats {
+  uint32_t connects;
+  uint32_t disconnects;
+  uint32_t notifyFails;
+  int lastReason;
+  uint32_t lastDisconnectAgeS;   // 0xFFFFFFFF = belum pernah putus
+};
+LinkStats linkStats();
+
 // Rate limit per user agar satu HP tak memonopoli backbone LoRa sedesa.
 bool rateAllows(uint8_t clientId);
 

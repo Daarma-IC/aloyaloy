@@ -42,6 +42,7 @@ import id.nusamesh.app.ui.AppBottomBar
 import id.nusamesh.app.ui.ChatScreen
 import id.nusamesh.app.ui.HomeScreen
 import id.nusamesh.app.data.GpxCodec
+import id.nusamesh.app.data.LocalTime
 import id.nusamesh.app.data.currentEpochMillis
 import id.nusamesh.app.media.DocumentActions
 import id.nusamesh.app.media.UnavailableDocumentActions
@@ -189,7 +190,7 @@ fun NusaMeshApp(
                         onExportSummary = { documentActions.saveDocument(csvName("transmission-metrics"), "text/csv", controller.transmissionSummaryCsv(), controller::showNotice) },
                         onClear = controller::clearTransmissionLog,
                         recording = logRecording,
-                        onToggleRecording = { controller.toggleLogRecording(documentActions, recordingName()) },
+                        onToggleRecording = { label, probes -> controller.toggleLogRecording(documentActions, recordingName(label), label, probes) },
                         onExportVoice = {
                             documentActions.saveDocument(csvName("suara-codec2"), "text/csv", mediaActions.voiceLogCsv(), controller::showNotice)
                         },
@@ -275,12 +276,16 @@ fun NusaMeshApp(
     }
 }
 
-/** Nama file rekaman log: NusaMesh-log-2026-11-11T15-30-05.csv */
-private fun recordingName() =
-    "NusaMesh-log-" + GpxCodec.isoTime(currentEpochMillis()).take(19).replace(':', '-') + ".csv"
+/** Nama file rekaman log (jam perangkat): NusaMesh-log-2026-11-12_13-12-26[-500m-LOS-SF7].csv */
+private fun recordingName(label: String = ""): String {
+    val slug = label.trim().replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').take(40)
+    return "NusaMesh-log-" + LocalTime.fileStamp(currentEpochMillis()) +
+        (if (slug.isNotEmpty()) "-$slug" else "") + ".csv"
+}
 
+/** Nama file ekspor memakai jam perangkat (bukan UTC), mis. nusamesh-qos-paket-2026-11-12_13-12-26.csv */
 private fun csvName(kind: String) =
-    "nusamesh-$kind-" + GpxCodec.isoTime(currentEpochMillis()).take(16).replace(':', '-') + ".csv"
+    "nusamesh-$kind-" + LocalTime.fileStamp(currentEpochMillis()) + ".csv"
 
 @Composable
 private fun LocationRequiredScreen(state: LocationAccessState, actions: LocationAccessActions) {

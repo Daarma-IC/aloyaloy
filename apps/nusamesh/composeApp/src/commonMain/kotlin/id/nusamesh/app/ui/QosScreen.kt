@@ -74,7 +74,21 @@ internal fun LiveNodePanel(live: NodeLiveStats?) {
         if (live.rxFrames > 0) {
             LiveRow("Sinyal terakhir", "RSSI ${formatOne(live.lastRssiDbm)} dBm · SNR ${formatOne(live.lastSnrDb)} dB")
         }
-        LiveRow("Antrean TX", "${live.queueDepth} frame · sisa airtime ${live.budgetMs} ms")
+        val capacity = live.radio?.budgetCapacityMs?.let { " dari $it" } ?: ""
+        LiveRow("Antrean TX", "${live.queueDepth} frame · sisa airtime ${live.budgetMs}$capacity ms")
+        live.airtimeTotalMs?.let { LiveRow("Airtime terpakai", "${it / 1000} dtk sejak node menyala") }
+        live.radio?.let { r ->
+            LiveRow("Radio", "${r.frequencyMhz} MHz · ${r.txPowerDbm} dBm · BW ${r.bandwidthKhz} · CR 4/${r.codingRate}")
+            LiveRow("Batas duty cycle", "${r.dutyLimitPercent}%")
+        }
+        live.ble?.let { b ->
+            LiveRow(
+                "Putus BLE (menurut node)",
+                "${b.disconnects}× · terakhir ${id.nusamesh.app.mesh.protocol.BleReasons.nimble(b.lastReason)}",
+                warn = b.disconnects > 0 && (b.lastDisconnectAgeSeconds ?: Int.MAX_VALUE) < 60,
+            )
+        }
+        live.batteryMv?.let { LiveRow("Baterai node","${it / 1000}.${(it % 1000 / 10).toString().padStart(2, '0')} V") }
         LiveRow(
             "Dibuang / CRC rusak", "${live.droppedFrames} / ${live.crcErrors}",
             warn = live.droppedFrames > 0 || live.crcErrors > 0,

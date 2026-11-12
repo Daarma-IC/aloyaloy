@@ -26,6 +26,7 @@ import id.nusamesh.app.mesh.protocol.NodeAdmissionReport
 import id.nusamesh.app.mesh.protocol.AdmissionState
 import id.nusamesh.app.mesh.protocol.FilePacket
 import id.nusamesh.app.mesh.protocol.LoraRxMeta
+import id.nusamesh.app.mesh.protocol.BleReasons
 import id.nusamesh.app.mesh.protocol.NodeLiveStats
 import id.nusamesh.app.mesh.protocol.MeshMessage
 import id.nusamesh.app.mesh.protocol.MessageType
@@ -71,6 +72,10 @@ class MeshEngine(
         const val PEER_STALE_MS = 180_000L
         const val MAX_PHONE_LINKS = 6
         const val CONNECT_RETRY_MS = 10_000L
+        /** Jeda reconnect berlipat setelah gagal beruntun (10, 20, 40, 80 dtk), supaya GATT 133 tidak berulang. */
+        const val CONNECT_BACKOFF_MAX_STEPS = 3
+        /** RSSI koneksi aktif dibaca berkala (uji 12 Nov: hanya RSSI scan yang tercatat). */
+        const val CONNECTED_RSSI_MS = 10_000L
         const val NODE_ELECTION_WINDOW_MS = 2_500L
         const val REGISTER_REFRESH_MS = 60_000L
         const val REGISTER_RETRY_MS = 5_000L
@@ -82,6 +87,8 @@ class MeshEngine(
         const val NODE_HEALTH_LOG_MS = 10_000L
         /** Batas isi media yang boleh difragmentasi dan dikirim lewat LoRa. */
         const val LORA_FILE_MAX_BYTES = 96 * 1024
+        /** Batas hop LoRa di firmware (LORA_HOP_LIMIT di firmware/NusaNode/config.h). */
+        const val LORA_HOP_LIMIT = 3
 
         /** TTL awal pesan: sama dengan PacketRelayManager.getRecommendedTTL Nusa Mesh. */
         fun recommendedTtl(networkSize: Int) = if (networkSize > 20) 15 else 7
@@ -100,6 +107,9 @@ class MeshEngine(
         var connecting = false
         var mtu = 185
         var lastAttempt = Long.MIN_VALUE / 2
+        /** Gagal connect beruntun; direset saat tersambung. */
+        var failures = 0
+        var connectedAt = 0L
         var queue: NodeQueue? = null
         var admission: NodeAdmissionClient? = null
         val isNode get() = peerId?.let { isNusaNodeId(it, name) } ?: (name?.startsWith("NusaNode-") == true)
@@ -115,8 +125,8 @@ class MeshEngine(
         var slots: Pair<Int, Int>? = null,
         var sf: Int? = null, var testMode: Boolean = false,
         var live: NodeLiveStats? = null,
-        /** Kapan NODE_HEALTH terakhir dicatat, dan isinya, supaya log tidak banjir tiap 2 detik. */
-        var loggedAt: Long = 0L, var loggedKey: String = "",
+        /** Kapan NODE_HEALTH terakhir dicatat (jeda tetap, supaya log tidak banjir tiap 2 detik). */
+        var loggedAt: Long = 0L,
     )
 
     /** RX_META terakhir dari tiap node (per deviceId), menunggu paket yang dijelaskannya. */
@@ -186,6 +196,7 @@ class MeshEngine(
         jobs += periodic(GOSSIP_PERIOD_MS) { broadcastGossip() }
         jobs += periodic(MAINTENANCE_PERIOD_MS) { maintenance() }
         jobs += periodic(500L) { diagnostics.tick(); if (dirty) publish() }
+        jobs += periodic(CONNECTED_RSSI_MS) { devices.values.filter { it.connected }.forEach { link.readRssi(it.id) } }
         jobs += scope.launch {
             while (isActive) {
                 delay(mobilityConfig.checkIntervalMs)
@@ -222,10 +233,11 @@ class MeshEngine(
     /** Kirim pesan publik ke seluruh mesh (dan LoRa bila ada jalur). */
     /** Completion confirms local queues/BLE acceptance, not actual LoRa transmission or delivery. */
     fun sendPublic(message: MeshMessage, onComplete: (Boolean) -> Unit = {}) = scope.launch {
-        diagnostics.messageSubmitted(message.id)
+        val encoded = message.encode()
+        diagnostics.messageSubmitted(message.id, bytes = encoded.size, detail = MessageKinds.detail(message))
         val packet = WirePacket(
             type = MessageType.MESSAGE.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
-            timestamp = now(), payload = message.encode(), ttl = recommendedTtl(peers.size),
+            timestamp = now(), payload = encoded, ttl = recommendedTtl(peers.size),
         )
         broadcast(packet, except = null, onComplete = { success ->
             diagnostics.record(DiagnosticLayer.MESSAGE, if (success) "MESSAGE_LOCAL_ACCEPTED" else "MESSAGE_LOCAL_FAILED",
@@ -246,8 +258,9 @@ class MeshEngine(
     ) = scope.launch {
         val timestamp = timestampMs ?: now()
         val transferId = fileTransferId(myPeerId, timestamp)
-        if(file.mimeType.startsWith("audio/")) diagnostics.messageSubmitted(transferId)
-        diagnostics.record(DiagnosticLayer.MESSAGE, "FILE_SUBMITTED", messageId = transferId, bytes = file.content.size)
+        if(file.mimeType.startsWith("audio/")) diagnostics.messageSubmitted(transferId, bytes = file.content.size, detail = MessageKinds.fileDetail(file))
+        diagnostics.record(DiagnosticLayer.MESSAGE, "FILE_SUBMITTED", messageId = transferId, bytes = file.content.size,
+            detail = MessageKinds.fileDetail(file) + "; lora_allowed=${loraAllowed && file.content.size <= LORA_FILE_MAX_BYTES}")
         val packet = WirePacket(
             type = MessageType.FILE_TRANSFER.value, senderId = myIdBytes, recipientId = SpecialRecipients.BROADCAST,
             timestamp = timestamp, payload = file.encode(), ttl = recommendedTtl(peers.size),
@@ -295,7 +308,7 @@ class MeshEngine(
     /** Kunci node secara manual (null = kembali otomatis). */
     fun lockNode(peerId: String?) = scope.launch {
         lockedNode = peerId
-        mobilityLog.log(if (peerId != null) "MANUAL_SELECT" else "MANUAL_RELEASE", null, peerId, null, null, null, "")
+        logMobility(if (peerId != null) "MANUAL_SELECT" else "MANUAL_RELEASE", null, peerId, null, null, null, "")
         if (peerId != null && peerId != servingNode) switchServing(peerId, reason = "manual")
         publish()
     }
@@ -307,22 +320,30 @@ class MeshEngine(
         when (e) {
             is LinkEvent.Discovered -> onDiscovered(e)
             is LinkEvent.Connected -> onConnected(e)
-            is LinkEvent.Disconnected -> onDisconnected(e.deviceId)
+            is LinkEvent.Disconnected -> onDisconnected(e.deviceId, e.reason)
             is LinkEvent.ConnectFailed -> {
-                diagnostics.record(DiagnosticLayer.BLE, "CONNECT_FAILED", DiagnosticLevel.ERROR, e.deviceId, detail = e.reason)
-                devices[e.deviceId]?.let { it.connecting = false }
+                val d = devices[e.deviceId]
+                d?.let { it.connecting = false; it.failures++ }
+                diagnostics.record(DiagnosticLayer.BLE, "CONNECT_FAILED", DiagnosticLevel.ERROR, e.deviceId,
+                    rssiDbm = d?.scanRssi?.toDouble(),
+                    detail = "${e.reason}; failures=${d?.failures ?: 0}; next_retry_ms=${d?.let(::connectDelay) ?: CONNECT_RETRY_MS}")
             }
             is LinkEvent.MtuChanged -> {
                 diagnostics.record(DiagnosticLayer.BLE, "MTU_CHANGED", deviceId = e.deviceId, detail = "mtu=${e.mtu}")
                 devices[e.deviceId]?.let { it.mtu = e.mtu; updateMtus() }
             }
             is LinkEvent.RssiRead -> {
-                diagnostics.record(DiagnosticLayer.BLE, "RSSI_READ", deviceId = e.deviceId, rssiDbm = e.rssi.toDouble())
+                diagnostics.record(DiagnosticLayer.BLE, "RSSI_READ", deviceId = e.deviceId, rssiDbm = e.rssi.toDouble(),
+                    detail = "source=connection")
                 devices[e.deviceId]?.let { it.scanRssi = e.rssi }
             }
             is LinkEvent.Received -> onReceived(e.deviceId, e.data)
-            is LinkEvent.TransmissionError -> diagnostics.record(DiagnosticLayer.BLE, "GATT_ERROR", DiagnosticLevel.ERROR,
-                e.deviceId, detail = e.reason)
+            is LinkEvent.TransmissionError -> {
+                val d = devices[e.deviceId]
+                diagnostics.record(DiagnosticLayer.BLE, "GATT_ERROR", DiagnosticLevel.ERROR, e.deviceId, rssiDbm = d?.scanRssi?.toDouble(),
+                    detail = "${e.reason}; node_queue=${d?.queue?.size ?: "null"}; connected=${d?.connected}")
+            }
+            is LinkEvent.Info -> diagnostics.record(DiagnosticLayer.BLE, e.name, deviceId = e.deviceId, detail = e.detail)
         }
         // Scan bisa puluhan event per detik: cukup tandai, penerbit berkala yang menghitung ulang.
         if (e is LinkEvent.Discovered) dirty = true else publish()
@@ -383,23 +404,27 @@ class MeshEngine(
             ?: candidates.maxByOrNull { it.scanRssi ?: -999 }
             ?: return
         servingNode = winner.peerId
-        mobilityLog.log("ELECTED", null, winner.peerId, null, winner.scanRssi, null, "kandidat=${candidates.size}")
+        logMobility("ELECTED", null, winner.peerId, null, winner.scanRssi, null, "kandidat=${candidates.size}")
         tryConnect(winner)
         publish()
     }
 
     private fun tryConnect(d: Device) {
         val t = now()
-        if (t - d.lastAttempt < CONNECT_RETRY_MS) return
+        if (t - d.lastAttempt < connectDelay(d)) return
         d.lastAttempt = t
         d.connecting = true
-        diagnostics.record(DiagnosticLayer.BLE, "CONNECT_ATTEMPT", deviceId = d.id, rssiDbm = d.scanRssi?.toDouble())
+        diagnostics.record(DiagnosticLayer.BLE, "CONNECT_ATTEMPT", deviceId = d.id, rssiDbm = d.scanRssi?.toDouble(),
+            detail = "previous_failures=${d.failures}")
         link.connect(d.id)
     }
 
     private suspend fun onConnected(e: LinkEvent.Connected) {
-        diagnostics.record(DiagnosticLayer.BLE, "CONNECTED", deviceId = e.deviceId, detail = "mtu=${e.mtu}; central=${e.asCentral}")
         val d = device(e.deviceId)
+        diagnostics.record(DiagnosticLayer.BLE, "CONNECTED", deviceId = e.deviceId, rssiDbm = d.scanRssi?.toDouble(),
+            detail = "mtu=${e.mtu}; central=${e.asCentral}; previous_failures=${d.failures}")
+        d.failures = 0
+        d.connectedAt = now()
         d.connected = true
         d.connecting = false
         d.mtu = e.mtu
@@ -420,7 +445,7 @@ class MeshEngine(
             })
             d.queue = NodeQueue(myIdBytes, now) { d.peerId?.let { nodeHealth[it]?.sf } ?: NodeQueue.DEFAULT_SF }.also { it.start(scope) }
             if (pid != null && pid == pendingHandoverTo) {
-                mobilityLog.log("BLE_CONNECTED", null, pid, null, null, now() - pendingHandoverAt, "since_attempt")
+                logMobility("BLE_CONNECTED", null, pid, null, null, now() - pendingHandoverAt, "since_attempt")
             }
             pid?.let { registerWithNode(it, force = true) }
         }
@@ -428,9 +453,13 @@ class MeshEngine(
         d.peerId?.let { markDirect(it) }
     }
 
-    private fun onDisconnected(deviceId: String) {
-        diagnostics.record(DiagnosticLayer.BLE, "DISCONNECTED", DiagnosticLevel.WARN, deviceId)
+    private fun onDisconnected(deviceId: String, reason: String? = null) {
+        val known = devices[deviceId]
+        diagnostics.record(DiagnosticLayer.BLE, "DISCONNECTED", DiagnosticLevel.WARN, deviceId, rssiDbm = known?.scanRssi?.toDouble(),
+            durationMs = known?.takeIf { it.connectedAt > 0 }?.let { now() - it.connectedAt },
+            detail = "reason=${reason ?: "unknown"}; node=${known?.isNode}")
         val d = devices[deviceId] ?: return
+        d.connectedAt = 0
         d.connected = false
         d.connecting = false
         d.admission?.close(); d.admission=null
@@ -440,7 +469,7 @@ class MeshEngine(
         val pid = d.peerId
         if (pid != null && pid == servingNode && pendingHandoverTo == null) {
             servingNode = null
-            mobilityLog.log("SERVING_LOST", null, pid, null, null, null, "")
+            logMobility("SERVING_LOST", null, pid, null, null, null, "")
         }
         if (pid != null && !d.isNode) topology.removePeer(pid)
     }
@@ -491,7 +520,10 @@ class MeshEngine(
         if(packet.type==MessageType.NODE_LORA_HEALTH.value && d.isNode && packet.senderHex==d.peerId &&
             packet.ttl==1 && packet.payload.size>=8 && packet.payload[7]==1.toByte()) d.admission?.enable()
         diagnostics.record(DiagnosticLayer.MESH, "RX_PACKET", deviceId = deviceId, bytes = data.size,
-            detail = "type=${packet.type}; sender=${packet.senderHex}; ttl=${packet.ttl}")
+            detail = "type=${packet.type}; sender=${packet.senderHex}; ttl=${packet.ttl}" +
+                "; type_name=${MessageType.fromValue(packet.type)?.name ?: "UNKNOWN"}" +
+                "; via_peer=${d.peerId ?: "null"}; via_node=${d.isNode}; via_lora=${rx != null}" +
+                (rx?.hopLeft?.let { "; lora_hop_left=$it; lora_hops=${LORA_HOP_LIMIT - it + 1}" } ?: ""))
         processPacket(packet, d, rx)
     }
 
@@ -549,7 +581,8 @@ class MeshEngine(
             MessageType.LEAVE -> { peers.remove(sender); topology.removePeer(sender) }
             MessageType.MESSAGE -> if (forMe || broadcast) {
                 MeshMessage.decode(p.payload)?.let { m ->
-                    diagnostics.record(DiagnosticLayer.MESSAGE, "MESSAGE_RECEIVED", deviceId = from.id, messageId = m.id, bytes = p.payload.size)
+                    diagnostics.record(DiagnosticLayer.MESSAGE, "MESSAGE_RECEIVED", deviceId = from.id, messageId = m.id, bytes = p.payload.size,
+                        detail = MessageKinds.detail(m) + "; sent_at_ms=${m.timestampMs}; via_node=${from.isNode}")
                     _messages.tryEmit(IncomingMessage(m, sender, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
                 }
             }
@@ -565,7 +598,7 @@ class MeshEngine(
                     topology.updateRemoteClaims(sender, peers[sender]?.nickname, neighbors.associate { it.peerId to it.quality }, p.timestamp)
                 }
             }
-            MessageType.NODE_LORA_HEALTH -> onNodeHealth(sender, p.payload)
+            MessageType.NODE_LORA_HEALTH -> onNodeHealth(sender, p.payload, from.id)
             MessageType.NODE_REGISTER_ACK -> if (forMe) onRegisterAck(sender, p.payload)
             MessageType.FILE_TRANSFER -> if (forMe || broadcast) emitFile(p, from, forMe, rx)
             MessageType.DELIVERY_ACK -> if (forMe) {
@@ -590,7 +623,8 @@ class MeshEngine(
         val forMe = inner.recipientHex == myPeerId
         when (inner.messageType) {
             MessageType.MESSAGE -> MeshMessage.decode(inner.payload)?.let { m ->
-                diagnostics.record(DiagnosticLayer.MESSAGE, "MESSAGE_RECEIVED", deviceId = from.id, messageId = m.id, bytes = inner.payload.size)
+                diagnostics.record(DiagnosticLayer.MESSAGE, "MESSAGE_RECEIVED", deviceId = from.id, messageId = m.id, bytes = inner.payload.size,
+                    detail = MessageKinds.detail(m) + "; sent_at_ms=${m.timestampMs}; via_node=${from.isNode}")
                 _messages.tryEmit(IncomingMessage(m, inner.senderHex, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
             }
             MessageType.FILE_TRANSFER -> if (forMe || SpecialRecipients.isBroadcast(inner.recipientId)) emitFile(inner, from, forMe, rx)
@@ -610,7 +644,8 @@ class MeshEngine(
 
     private fun emitFile(p: WirePacket, from: Device, forMe: Boolean, rx: LoraRxMeta? = null) {
         FilePacket.decode(p.payload)?.let {
-            diagnostics.record(DiagnosticLayer.MESSAGE, "FILE_RECEIVED", deviceId = from.id, bytes = it.content.size)
+            diagnostics.record(DiagnosticLayer.MESSAGE, "FILE_RECEIVED", deviceId = from.id, bytes = it.content.size,
+                detail = MessageKinds.fileDetail(it) + "; sent_at_ms=${p.timestamp}; via_node=${from.isNode}")
             _files.tryEmit(IncomingFile(it, p.senderHex, p.timestamp, from.isNode, forMe, loraRx = rx, bleRssi = from.scanRssi))
         }
     }
@@ -640,7 +675,7 @@ class MeshEngine(
     // ----------------------------------------------------------------------------------------------
     //  Nusa Node: kesehatan, registrasi, handover
     // ----------------------------------------------------------------------------------------------
-    private fun onNodeHealth(nodeId: String, payload: ByteArray) {
+    private fun onNodeHealth(nodeId: String, payload: ByteArray, bleMac: String) {
         if (payload.isEmpty()) return
         val h = nodeHealth.getOrPut(nodeId) { NodeHealth() }
         h.neighbors = payload[0].toInt() and 0xFF
@@ -659,19 +694,15 @@ class MeshEngine(
         h.live = NodeLiveStats.decode(payload)
         h.live?.let { recordLiveChanges(nodeId, previous, it) }
 
-        // Firmware baru mengirim status tiap 2 detik: catat hanya bila berubah atau tiap 10 detik.
-        val key = "${h.neighbors}|${h.sf}|${h.testMode}|${h.live?.radioReady}|${h.bestRssi}"
+        // Firmware mengirim status tiap 2 detik. Dicatat dengan jeda tetap (uji lapangan 12 Nov: jeda
+        // tidak seragam menyulitkan analisis); perubahan penting punya event sendiri (recordLiveChanges).
         val t = now()
-        if (key != h.loggedKey || t - h.loggedAt >= NODE_HEALTH_LOG_MS) {
-            h.loggedKey = key
+        if (t - h.loggedAt >= NODE_HEALTH_LOG_MS) {
             h.loggedAt = t
-            val live = h.live?.let {
-                "; radio_ready=${it.radioReady}; dual_radio=${it.dualRadio}; tx=${it.txFrames}; rx=${it.rxFrames}" +
-                    "; queue=${it.queueDepth}; budget_ms=${it.budgetMs}; dropped=${it.droppedFrames}; crc=${it.crcErrors}"
-            } ?: ""
             diagnostics.record(DiagnosticLayer.LORA, "NODE_HEALTH", deviceId = nodeId, rssiDbm = h.bestRssi?.toDouble(),
                 snrDb = h.bestSnr?.toDouble(), sf = h.sf,
-                detail = "neighbors=${h.neighbors}; source=strongest_neighbor; test_mode=${h.testMode}$live")
+                detail = "neighbors=${h.neighbors}; source=strongest_neighbor; test_mode=${h.testMode}; ble_mac=$bleMac" +
+                    (h.live?.let(::liveDetail) ?: ""))
         }
         dirty = true
         // Registrasi berkala / ulang bila ACK belum datang.
@@ -680,6 +711,12 @@ class MeshEngine(
 
     /** Aktivitas radio node sejak status sebelumnya: frame dipancarkan, diterima, dibuang. */
     private fun recordLiveChanges(nodeId: String, before: NodeLiveStats?, current: NodeLiveStats) {
+        val radio = current.radio
+        if (radio != null && radio != before?.radio) {
+            diagnostics.record(DiagnosticLayer.LORA, "NODE_RADIO_CONFIG", deviceId = nodeId,
+                detail = "freq_mhz=${radio.frequencyMhz}; tx_power_dbm=${radio.txPowerDbm}; bw_khz=${radio.bandwidthKhz}" +
+                    "; cr=4/${radio.codingRate}; duty_limit_pct=${radio.dutyLimitPercent}; budget_capacity_ms=${radio.budgetCapacityMs}")
+        }
         if (before == null || before.radioReady != current.radioReady) {
             diagnostics.record(DiagnosticLayer.LORA, if (current.radioReady) "NODE_RADIO_READY" else "NODE_RADIO_NOT_READY",
                 if (current.radioReady) DiagnosticLevel.INFO else DiagnosticLevel.WARN, nodeId,
@@ -688,12 +725,26 @@ class MeshEngine(
         // Counter turun = node reboot: mulai lagi dari nilai baru tanpa mencatat selisih.
         if (before == null || current.txFrames < before.txFrames || current.rxFrames < before.rxFrames) return
         val sent = current.txFrames - before.txFrames
+        val airtime = current.airtimeTotalMs?.let { total -> before.airtimeTotalMs?.let { total - it } }
         if (sent > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_TX_FRAMES", deviceId = nodeId,
-            detail = "frames=$sent; total=${current.txFrames}; queue=${current.queueDepth}; budget_ms=${current.budgetMs}")
+            durationMs = airtime?.takeIf { it >= 0 },
+            detail = "frames=$sent; total=${current.txFrames}; queue=${current.queueDepth}; budget_ms=${current.budgetMs}" +
+                (airtime?.let { "; airtime_ms=$it; airtime_total_ms=${current.airtimeTotalMs}" } ?: ""))
         val received = current.rxFrames - before.rxFrames
         if (received > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_RX_FRAMES", deviceId = nodeId,
             rssiDbm = current.lastRssiDbm.toDouble(), snrDb = current.lastSnrDb.toDouble(),
             detail = "frames=$received; total=${current.rxFrames}; last_frame_signal")
+        val bleNow = current.ble
+        val bleBefore = before.ble
+        if (bleNow != null && bleBefore != null && bleNow.disconnects > bleBefore.disconnects) {
+            diagnostics.record(DiagnosticLayer.BLE, "NODE_BLE_DISCONNECT", DiagnosticLevel.WARN, nodeId,
+                detail = "count=${bleNow.disconnects - bleBefore.disconnects}; total=${bleNow.disconnects}" +
+                    "; last_reason=${BleReasons.nimble(bleNow.lastReason)}; seconds_ago=${bleNow.lastDisconnectAgeSeconds}")
+        }
+        if (bleNow != null && bleBefore != null && bleNow.notifyFails > bleBefore.notifyFails) {
+            diagnostics.record(DiagnosticLayer.BLE, "NODE_BLE_NOTIFY_FAIL", DiagnosticLevel.WARN, nodeId,
+                detail = "count=${bleNow.notifyFails - bleBefore.notifyFails}; total=${bleNow.notifyFails}")
+        }
         val dropped = current.droppedFrames - before.droppedFrames
         if (dropped > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_TX_DROPPED", DiagnosticLevel.WARN, nodeId,
             detail = "frames=$dropped; total=${current.droppedFrames}; queue_full")
@@ -701,6 +752,27 @@ class MeshEngine(
         if (corrupted > 0) diagnostics.record(DiagnosticLayer.LORA, "NODE_RX_CRC_ERROR", DiagnosticLevel.WARN, nodeId,
             detail = "frames=$corrupted; total=${current.crcErrors}")
     }
+
+    /** Catat event mobilitas; RSSI BLE node asal/tujuan diisi dari hasil scan bila tidak diberikan. */
+    private fun logMobility(
+        event: String, from: String?, to: String?, servingRssi: Int?, targetRssi: Int?, valueMs: Long?, detail: String,
+    ) {
+        val serving = servingRssi ?: nodeScanRssi(from ?: servingNode?.takeIf { it != to })
+        mobilityLog.log(event, from, to, serving, targetRssi ?: nodeScanRssi(to), valueMs, detail)
+    }
+
+    private fun nodeScanRssi(peerId: String?): Int? =
+        peerId?.let { id -> devices.values.filter { it.peerId == id }.mapNotNull { it.scanRssi }.maxOrNull() }
+
+    private fun connectDelay(d: Device): Long = CONNECT_RETRY_MS shl minOf(d.failures, CONNECT_BACKOFF_MAX_STEPS)
+
+    private fun liveDetail(it: NodeLiveStats): String =
+        "; radio_ready=${it.radioReady}; dual_radio=${it.dualRadio}; tx=${it.txFrames}; rx=${it.rxFrames}" +
+            "; queue=${it.queueDepth}; budget_ms=${it.budgetMs}; dropped=${it.droppedFrames}; crc=${it.crcErrors}" +
+            (it.airtimeTotalMs?.let { a -> "; airtime_total_ms=$a" } ?: "") +
+            (it.batteryMv?.let { b -> "; battery_mv=$b" } ?: "") +
+            (it.ble?.let { b -> "; ble_connects=${b.connects}; ble_disconnects=${b.disconnects}; ble_notify_fails=${b.notifyFails}" } ?: "") +
+            (it.radio?.let { r -> "; budget_capacity_ms=${r.budgetCapacityMs}; duty_limit_pct=${r.dutyLimitPercent}" } ?: "")
 
     private fun registerWithNode(nodeId: String, force: Boolean) {
         val d = deviceOfPeer(nodeId) ?: return
@@ -724,13 +796,13 @@ class MeshEngine(
             send = { bytes -> link.send(d.id, bytes) },
         )
         else scope.launch { sendToDevice(d, packet) }
-        mobilityLog.log("REGISTER_SENT", prev, nodeId, null, null, null, "")
+        logMobility("REGISTER_SENT", prev, nodeId, null, null, null, "")
     }
 
     private fun onRegisterAck(nodeId: String, payload: ByteArray) {
         if (payload.size < 4) return
         if (payload[1].toInt() != 0) {
-            mobilityLog.log("FAILED", null, nodeId, null, null, null, "register_rejected_${payload[1]}")
+            logMobility("FAILED", null, nodeId, null, null, null, "register_rejected_${payload[1]}")
             return
         }
         registerAcked = nodeId
@@ -740,16 +812,16 @@ class MeshEngine(
         if (pending == nodeId) {
             val t = now()
             val from = lastServingBeforeHandover ?: ""
-            mobilityLog.log("SUCCESS", from, nodeId, null, null, t - pendingHandoverAt, "users=$direct/$total")
+            logMobility("SUCCESS", from, nodeId, null, null, t - pendingHandoverAt, "users=$direct/$total")
             lastSuccessHandover?.let { (pf, pt, at) ->
                 if (pf == nodeId && pt == from && t - at <= mobilityConfig.pingPongWindowMs) {
-                    mobilityLog.log("PING_PONG", from, nodeId, null, null, t - at, "A-B-A dalam jendela")
+                    logMobility("PING_PONG", from, nodeId, null, null, t - at, "A-B-A dalam jendela")
                 }
             }
             lastSuccessHandover = Triple(from, nodeId, t)
             pendingHandoverTo = null
         } else {
-            mobilityLog.log("REGISTERED", null, nodeId, null, null, null, "users=$direct/$total")
+            logMobility("REGISTERED", null, nodeId, null, null, null, "users=$direct/$total")
         }
     }
 
@@ -759,7 +831,7 @@ class MeshEngine(
         pendingHandoverTo?.let { target ->
             val connected = deviceOfPeer(target) != null
             if (!connected && t - pendingHandoverAt > cfg.connectTimeoutMs) {
-                mobilityLog.log("FAILED", lastServingBeforeHandover, target, null, null, t - pendingHandoverAt, "connect_timeout")
+                logMobility("FAILED", lastServingBeforeHandover, target, null, null, t - pendingHandoverAt, "connect_timeout")
                 handover.ban(target, cfg)
                 pendingHandoverTo = null
                 if (servingNode == target) servingNode = null
@@ -774,10 +846,10 @@ class MeshEngine(
             .filter { it.isNode && it.peerId != null && it.peerId != serving && it.scanAt >= fresh && it.scanRssi != null }
             .map { RssiSample(it.peerId!!, it.scanRssi!!, it.scanAt) }
         when (val ev = handover.evaluate(servingSample, neighbors, cfg, manualLock = lockedNode != null)) {
-            is HandoverEvent.ConditionMet -> mobilityLog.log("CONDITION_MET", ev.from, ev.to, ev.servingRssi, ev.targetRssi, null, "")
-            is HandoverEvent.ConditionReset -> mobilityLog.log("CONDITION_RESET", null, ev.target, null, null, ev.heldMs, ev.reason)
+            is HandoverEvent.ConditionMet -> logMobility("CONDITION_MET", ev.from, ev.to, ev.servingRssi, ev.targetRssi, null, "")
+            is HandoverEvent.ConditionReset -> logMobility("CONDITION_RESET", null, ev.target, null, null, ev.heldMs, ev.reason)
             is HandoverEvent.Attempt -> {
-                mobilityLog.log("ATTEMPT", ev.from, ev.to, ev.servingRssi, ev.targetRssi, ev.sinceConditionMs, "since_condition")
+                logMobility("ATTEMPT", ev.from, ev.to, ev.servingRssi, ev.targetRssi, ev.sinceConditionMs, "since_condition")
                 switchServing(ev.to, reason = "handover")
             }
             null -> {}
@@ -1020,6 +1092,9 @@ class MeshEngine(
         val directNodes = devices.values.filter { it.connected && it.isNode }.mapNotNull { it.peerId }
         val nebeng = Hcma.findNebengRoute(myPeerId, directNodes, connectedPeers, topology.snapshot.value) { peers[it]?.nickname }
         val directSet = connectedPeers.toSet()
+        // Peta MAC BLE / peerID -> nomor & nama node, untuk kolom node_id/node_name di log CSV.
+        NodeDirectory.update(devices.values.filter { it.isNode && it.peerId != null }.groupBy { it.peerId!! }
+            .map { (pid, list) -> Triple(pid, list.firstNotNullOfOrNull { it.name } ?: peers[pid]?.nickname, list.map { it.id }) })
         _snapshot.value = EngineSnapshot(
             running = running,
             linkState = link.state.value,

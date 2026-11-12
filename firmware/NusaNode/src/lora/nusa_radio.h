@@ -66,6 +66,9 @@ bool requestSpreadingFactor(uint8_t sf);
 uint16_t queueDepth();
 float queueAirtimeMs();
 float    budgetMs();        // sisa anggaran airtime
+uint32_t airtimeTotalMs();  // total airtime dipancarkan sejak boot (ms)
+float    lastTxAirtimeMs(); // airtime frame terakhir (ms)
+float    budgetCapacityMs(); // batas tabungan anggaran airtime (ms)
 uint32_t txCount();
 uint32_t rxCount();
 uint32_t dropCount();       // frame dibuang karena antrean penuh

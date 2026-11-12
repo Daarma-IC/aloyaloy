@@ -112,6 +112,17 @@ class MeshRepository(
         diagnostics.record(DiagnosticLayer.MESSAGE,event,detail=detail)
     } }
 
+    /** Catat event dari thread mana pun (diantrekan ke thread engine supaya urutan log aman). */
+    fun recordEvent(
+        layer: DiagnosticLayer, name: String, durationMs: Long? = null, bytes: Int? = null, detail: String = "",
+        messageId: String? = null, deviceId: String? = null, rssiDbm: Double? = null, snrDb: Double? = null, sf: Int? = null,
+    ) {
+        engineScope.launch {
+            diagnostics.record(layer, name, deviceId = deviceId, messageId = messageId, durationMs = durationMs, bytes = bytes,
+                rssiDbm = rssiDbm, snrDb = snrDb, sf = sf, detail = detail)
+        }
+    }
+
     fun sendRadioConfig(nodePeerId: String, spreadingFactor: Int) { engine.sendRadioConfig(nodePeerId, spreadingFactor) }
 
     /** Mode uji: kiriman sendiri hanya lewat Nusa Node (lihat [MeshEngine.loraOnly]). */
