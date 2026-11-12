@@ -67,4 +67,14 @@ class NodeAdmissionTest {
         assertNull(NodeAdmission.receipt(status(7).also{it[38]=99}))
         assertFalse(NodeAdmissionReport(AdmissionState.ACCEPTED,1,3).details().last().contains("sudah diterima tujuan"))
     }
+    @Test fun failedBatchSaysNotSentAndThatTheQueueWasCleared() {
+        val unknown=NodeAdmissionReport(AdmissionState.UNKNOWN,17,20).failedLabel(image=true)
+        assertTrue(unknown.startsWith("Tidak terkirim"))
+        assertTrue(unknown.contains("tidak mengonfirmasi 3 dari 20 potongan"))
+        assertTrue(unknown.contains("dihapus dari antrean HP"))
+        assertTrue(unknown.contains("kualitas Cepat"))
+        assertTrue(NodeAdmissionReport(AdmissionState.BUSY,0,1).failedLabel().contains("sibuk untuk 1 dari 1"))
+        assertFalse(NodeAdmissionReport(AdmissionState.UNKNOWN,1,1).failedLabel().contains("kualitas Cepat"))
+        assertTrue(NodeAdmissionReport(AdmissionState.UNKNOWN,1,1).failedLabel().contains("1 dari 1"))
+    }
 }

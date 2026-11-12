@@ -76,7 +76,38 @@ class NodeQueueTimingTest {
         q.start(backgroundScope)
         advanceTimeBy(120_000);runCurrent()
         assertEquals(listOf(false),completed)
-        assertEquals(NodeQueue.MAX_RETRIES+1,attempts)
+        // Unanswered fragments are retried independently, so both may be tried before one runs out.
+        assertTrue(attempts in NodeQueue.MAX_RETRIES+1..2*NodeQueue.MAX_RETRIES+1, "attempts=$attempts")
+        assertEquals(0,q.size)
+    }
+
+    @Test fun unansweredFragmentIsParkedWhileTheRestAndNewChatContinue() = runTest {
+        val q=NodeQueue(me,{testScheduler.currentTime})
+        val order=mutableListOf<Int>()
+        val completed=mutableListOf<Boolean>()
+        var unanswered=0
+        q.offerBatchWithRetry(List(3){packet(size=30+it)}, { bytes ->
+            if(bytes.size==30 && unanswered<2) { unanswered++; SendOutcome.Retry(0) }
+            else { order+=bytes.size; SendOutcome.Sent }
+        }, onComplete={completed+=it})
+        q.start(backgroundScope);runCurrent()
+        q.offer(packet(type=0x04,size=40)){ order+=40; true }
+        advanceTimeBy(60_000);runCurrent()
+        assertEquals(listOf(true),completed,"one slow fragment must not fail the whole image")
+        assertEquals(4,order.size)
+        assertTrue(order.indexOf(31)<order.indexOf(30),"the rest of the image must not wait behind it: $order")
+        assertTrue(order.indexOf(40)<order.indexOf(30),"a new chat must not wait behind it: $order")
+    }
+
+    @Test fun batchRetryBudgetBoundsALargeMessageThatKeepsFailing() = runTest {
+        val q=NodeQueue(me,{testScheduler.currentTime})
+        val completed=mutableListOf<Boolean>()
+        var attempts=0
+        q.offerBatchWithRetry(List(4){packet()}, { attempts++; SendOutcome.Retry(0) }, onComplete={completed+=it})
+        q.start(backgroundScope)
+        advanceTimeBy(600_000);runCurrent()
+        assertEquals(listOf(false),completed)
+        assertTrue(attempts<=NodeQueue.MAX_BATCH_RETRIES+1,"attempts=$attempts")
         assertEquals(0,q.size)
     }
 

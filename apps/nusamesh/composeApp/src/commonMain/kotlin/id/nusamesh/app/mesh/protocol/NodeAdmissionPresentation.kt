@@ -8,6 +8,20 @@ fun NodeAdmissionReport.label():String=when(state){
     AdmissionState.UNKNOWN->"Antrean node belum terkonfirmasi"
     AdmissionState.LEGACY->"Ke transport BLE; antrean node belum terkonfirmasi"
 }
+/**
+ * Pesan gagal lewat node: NodeQueue sudah membuang sisa potongannya dari antrean HP (failBatch),
+ * jadi tampilkan sebagai akhir pengiriman, bukan status antrean yang masih menunggu.
+ */
+fun NodeAdmissionReport.failedLabel(image:Boolean=false):String {
+    val missing=(total-confirmed).coerceAtLeast(1)
+    val why=when(state){
+        AdmissionState.BUSY->"node terus sibuk untuk"
+        AdmissionState.REJECTED->"node menolak"
+        else->"node tidak mengonfirmasi"
+    }
+    val hint=if(image) "kirim ulang dengan kualitas Cepat" else "kirim ulang"
+    return "Tidak terkirim: $why $missing dari $total potongan. Sisa potongan sudah dihapus dari antrean HP; $hint."
+}
 fun NodeAdmissionReport.details():List<String> = buildList {
     add(label())
     if(state==AdmissionState.UNKNOWN && detail.isNotBlank())add(detail)

@@ -57,6 +57,10 @@ class NodeQueue(
         private const val RECHECK_MS = 500L
         // Total jeda ±75 detik: melewati TTL 60 detik cache admission pada firmware lama.
         const val MAX_RETRIES = 8
+        /** Batas percobaan ulang satu pesan (semua fragmennya), supaya gambar besar tidak mengulang tanpa akhir. */
+        const val MAX_BATCH_RETRIES = 3 * MAX_RETRIES
+        /** Setelah sekian kali tak dijawab berturut-turut, fragmen dipindah ke belakang sisa fragmen pesannya. */
+        const val PARK_AFTER = 2
         private const val RETRY_BASE_MS = 1_000L
         private const val RETRY_MAX_MS = 15_000L
 
@@ -112,6 +116,9 @@ class NodeQueue(
         internal val batch: Batch?,
     ) {
         internal var retries = 0
+        /** Fragmen yang tidak dijawab node ditunda sendiri; pesan lain tetap jalan. */
+        internal var notBefore = Long.MIN_VALUE
+        internal var unansweredStreak = 0
         val priority = priorityOf(bytes)
         /** NODE_REGISTER tak pernah dipancarkan ke LoRa: tak perlu jeda airtime. */
         val localOnly = bytes.getOrNull(1)?.toInt()?.and(0xFF) == TYPE_NODE_REGISTER
@@ -128,6 +135,8 @@ class NodeQueue(
             private set
         var finished = false
             private set
+        /** Total percobaan ulang semua fragmen; membatasi lama satu pesan besar yang terus bermasalah. */
+        internal var retries = 0
 
         fun sentOne() {
             if (finished) return
@@ -238,9 +247,16 @@ class NodeQueue(
 
     private fun holdRemaining(t: Long) = if (holdUntil > t) holdUntil - t else 0L
 
+    /** Item siap kirim terbaik; fragmen yang sedang ditunda sendiri dilewati. */
     private fun peekNext(): Item? {
         val t = now()
-        return pending.minByOrNull { it.rank(t) }
+        return pending.filter { it.notBefore <= t }.minByOrNull { it.rank(t) }
+    }
+
+    /** Sisa waktu sampai fragmen tertunda pertama siap lagi; null bila antrean kosong. */
+    private fun readyInMs(): Long? {
+        val t = now()
+        return pending.minOfOrNull { it.notBefore }?.let { (it - t).coerceAtLeast(1) }
     }
 
     /** Simulate the current scheduler without consuming credit or changing packet order.
@@ -287,7 +303,12 @@ class NodeQueue(
                     updateEstimates()
                     // Pilih ulang tiap putaran: teks yang masuk saat menunggu jatah airtime tetap
                     // mendahului fragmen voice/gambar yang sudah lama antre.
-                    val next = peekNext() ?: break
+                    val next = peekNext()
+                    if (next == null) {
+                        // Hanya fragmen tertunda yang tersisa: tunggu, tapi tetap periksa pesan baru.
+                        val ready = readyInMs() ?: break
+                        delay(minOf(ready, RECHECK_MS)); continue
+                    }
                     if (!next.localOnly) {
                         val wait = waitMs()
                         if (wait > 0) { delay(minOf(wait, RECHECK_MS)); continue }
@@ -321,14 +342,30 @@ class NodeQueue(
     }
 
     private fun scheduleRetry(item: Item, afterMs: Long) {
-        if (closed || item.retries >= MAX_RETRIES) {
+        val batch = item.batch
+        if (closed || item.retries >= MAX_RETRIES || (batch != null && batch.retries >= MAX_BATCH_RETRIES)) {
             failBatch(item)
             return
         }
         item.retries += 1
+        batch?.let { it.retries += 1 }
         val backoff = minOf(RETRY_MAX_MS, RETRY_BASE_MS shl (item.retries - 1))
-        holdUntil = now() + maxOf(afterMs, backoff)
-        pending.add(0, item) // Tetap di depan supaya urutan fragmen sekelas tidak berubah.
+        if (afterMs > 0) {
+            // Node minta jeda (batas laju/antrean per HP): paket lain dari HP ini juga akan ditolak.
+            holdUntil = now() + maxOf(afterMs, backoff)
+            pending.add(0, item) // Tetap di depan supaya urutan fragmen sekelas tidak berubah.
+            return
+        }
+        // Node tidak menjawab: tunda fragmen ini saja. Pesan lain dan sisa fragmen pesannya jalan terus,
+        // dan node menjawab dari cache bila fragmen ini ternyata sudah diterima, jadi tidak terpancar dua kali.
+        item.notBefore = now() + backoff
+        item.unansweredStreak += 1
+        if (batch != null && item.unansweredStreak >= PARK_AFTER) {
+            item.unansweredStreak = 0
+            pending.add(pending.indexOfLast { it.batch === batch } + 1, item)
+        } else {
+            pending.add(0, item)
+        }
     }
 
     fun close() {

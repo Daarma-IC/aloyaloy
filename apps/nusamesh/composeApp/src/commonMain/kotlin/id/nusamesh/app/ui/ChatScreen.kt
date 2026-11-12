@@ -86,6 +86,7 @@ import id.nusamesh.app.domain.FieldChannels
 import id.nusamesh.app.mesh.protocol.AdmissionState
 import id.nusamesh.app.mesh.protocol.label
 import id.nusamesh.app.mesh.protocol.details
+import id.nusamesh.app.mesh.protocol.failedLabel
 import id.nusamesh.app.mesh.protocol.ImportantMessage
 import id.nusamesh.app.mesh.protocol.QuickStatus
 import id.nusamesh.app.media.ChatMediaActions
@@ -626,7 +627,13 @@ private fun Bubble(
                 }
                 if(message.outgoing && message.kind==ChatMessageKind.Voice) VoiceTransferCard(message)
                 if(message.outgoing) message.nodeAdmission?.let { report ->
-                    Text(report.label(),color=Color.White.copy(alpha=.9f),fontSize=9.sp,lineHeight=13.sp)
+                    val failed = message.delivery == DeliveryState.Failed
+                    Text(
+                        if (failed) report.failedLabel(message.kind == ChatMessageKind.Image) else report.label(),
+                        color = if (failed) Color(0xFFFECACA) else Color.White.copy(alpha = .9f),
+                        fontSize = 9.sp, lineHeight = 13.sp,
+                        fontWeight = if (failed) FontWeight.SemiBold else null,
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PathTag(message)
@@ -667,7 +674,10 @@ private fun RxPanel(message: ChatMessage) {
             add("Pesan Anda — data ukur (RSSI/SNR/jarak) tercatat di HP penerima.")
             add("Jalur: ${pathLabel(message.path)}" + (message.viaName?.takeIf { it != AppController.SYSTEM }?.let { " · via $it" } ?: ""))
             if (message.ackedBy.isNotEmpty()) add(ackLabel(message.ackedBy))
-            message.nodeAdmission?.let { addAll(it.details()) }
+            message.nodeAdmission?.let {
+                if (message.delivery == DeliveryState.Failed) add(it.failedLabel(message.kind == ChatMessageKind.Image))
+                addAll(it.details())
+            }
         } else if (rx == null) {
             add("Tidak ada data ukur untuk pesan ini.")
         } else {
@@ -721,6 +731,8 @@ private fun DeliveryStatus(message: ChatMessage) {
     val viaLora = message.path != DeliveryPath.Ble
     val (icon, label, color) = when {
         message.ackedBy.isNotEmpty() -> Triple(IconKind.DoubleCheck, ackLabel(message.ackedBy), Color.White)
+        // Gagal adalah akhir pengiriman; jangan tertutup status antrean node yang terakhir terlihat.
+        message.delivery == DeliveryState.Failed -> Triple(IconKind.Alert, "Tidak terkirim", Color(0xFFFECACA))
         message.nodeAdmission?.state==AdmissionState.BUSY -> Triple(IconKind.Clock,"Node sibuk",Color.White)
         message.nodeAdmission?.state==AdmissionState.REJECTED -> Triple(IconKind.Alert,"Ditolak node",Color(0xFFFECACA))
         message.nodeAdmission?.state==AdmissionState.UNKNOWN -> Triple(IconKind.Alert,"Belum terkonfirmasi",Color(0xFFFECACA))
