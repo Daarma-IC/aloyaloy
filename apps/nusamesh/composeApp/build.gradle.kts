@@ -130,6 +130,17 @@ android {
             keyPassword = releaseKeyPassword
         }
     }
+    // APK uji (debug) memakai satu kunci bersama di repo, bukan kunci debug acak per laptop. Dengan
+    // begitu APK baru selalu bisa dipasang sebagai update di atas versi lama (data chat tetap ada).
+    val sharedDebugKeystore = rootProject.file("signing/nusamesh-debug.keystore")
+    if (sharedDebugKeystore.exists()) {
+        signingConfigs.getByName("debug") {
+            storeFile = sharedDebugKeystore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     buildTypes.getByName("release") {
         isDebuggable = false
         if (releaseStore != null) signingConfig = signingConfigs.getByName("distribution")

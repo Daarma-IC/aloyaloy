@@ -8,6 +8,9 @@ iosApp/DerivedData/
 *.xcuserstate
 *.jks
 *.keystore
+# Kunci debug bersama (bukan kunci release): supaya APK uji dari laptop mana pun bisa dipasang
+# menimpa versi sebelumnya tanpa uninstall. Kunci release tetap tidak boleh masuk git.
+!signing/nusamesh-debug.keystore
 *.p12
 *.mobileprovision
 *.credentials.clixml
