@@ -53,6 +53,11 @@ uint8_t enqueuePacketWithId(const uint8_t* packet, size_t len, uint8_t hop,
 // Airtime (ms) sebuah paket sepanjang len byte pada setelan radio saat ini.
 float airtimeMs(size_t len);
 
+// Jumlah frame ber-msgId ini yang masih di antrean TX (termasuk yang sedang
+// dipegang radio anggota). 0 = semua frame-nya sudah/ sedang dipancarkan.
+// Dipakai Link-ACK untuk memulai timer ACK pada saat yang tepat.
+uint8_t queuedFramesFor(uint64_t msgId);
+
 // Spreading factor aktif. Default LORA_SF; bisa diganti saat berjalan untuk uji
 // QoS (PSP/RSSI vs jarak per SF) dan tersimpan di NVS sampai diganti lagi.
 // INGAT: node dengan SF berbeda tidak saling mendengar — ganti di SEMUA node.

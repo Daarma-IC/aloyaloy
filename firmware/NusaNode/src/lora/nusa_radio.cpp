@@ -781,6 +781,17 @@ void NusaRadio::loop() {
 //  Telemetri
 // ---------------------------------------------------------------------------
 uint16_t NusaRadio::queueDepth() { QueueGuard guard; return s_qCount; }
+uint8_t NusaRadio::queuedFramesFor(uint64_t msgId) {
+  QueueGuard guard;
+  uint8_t n = 0;
+  for (int i = 0; i < TXQ_SLOTS; i++) {
+    if (!s_q[i].used || s_q[i].len < NUSA_FRAME_HDR) continue;
+    uint64_t id = 0;
+    for (int b = 0; b < 8; b++) id = (id << 8) | s_q[i].data[2 + b];
+    if (id == msgId) ++n;
+  }
+  return n;
+}
 float    NusaRadio::budgetMs()   { return s_budget; }
 uint32_t NusaRadio::txCount()    { return s_txCount; }
 uint32_t NusaRadio::rxCount()    { return s_rxCount; }

@@ -173,11 +173,25 @@
 #define NEIGHBOR_STALE_MS    180000UL   // >3x periode tak terdengar → tandai BASI
 
 #define TXQ_SLOTS            24         // antrean frame keluar
-#define REASM_SLOTS          3          // perakitan ulang paralel
+#define REASM_SLOTS          6          // perakitan ulang paralel (dulu 3: penjadwal adil
+                                        // antar-HP membuat frame beberapa paket tiba
+                                        // berselang-seling; 3 slot cepat penuh dan paket
+                                        // setengah jadi tergusur). ±2,6 KB RAM per slot.
 #define REASM_MAX_BYTES      2560       // paket app terbesar yang diterima
 #define REASM_TIMEOUT_MS     300000UL
 
-#define CAD_ENABLED          1          // Root cause dugaan lama (scanChannel()
+// --- Link-ACK per hop (src/lora/nusa_linkack.*) ---
+//  Hanya paket TERARAH (mobility, next hop jelas). Broadcast/flood tak di-ACK.
+//  Flash SEMUA node dengan firmware ini: node lama tak mengirim ACK, sehingga
+//  pengirim baru akan mengirim ulang sia-sia (aman karena dedup, tapi boros airtime).
+#ifndef LINKACK_ENABLED
+#define LINKACK_ENABLED      1
+#endif
+#define LINKACK_SLOTS        4          // paket terarah yang dipantau bersamaan (±2,6 KB/slot)
+#define LINKACK_MAX_RETRIES  2          // kirim ulang per hop sebelum menyerah ke NACK end-to-end
+#define LINKACK_WAIT_MS      4000UL     // dasar tunggu ACK; ditambah 3x airtime frame penuh SF aktif
+
+#define CAD_ENABLED          1         // Root cause dugaan lama (scanChannel()
                                         // "melepas" hook DIO0) ternyata salah.
                                         // Yang sebenarnya: scanChannel() remap
                                         // DIO0 ke CAD_DONE lalu polling pin yg
