@@ -19,6 +19,7 @@
 #include "nusa_appproto.h"
 #include "nusa_radio.h"
 #include "nusa_fragment.h"
+#include "nusa_linkack.h"
 #include "nusa_mobility.h"
 #include "nusa_ui.h"
 
@@ -87,7 +88,10 @@ static bool mobSendCtrl(const uint8_t* payload, size_t len) {
 }
 
 static bool mobSendDirected(const uint8_t* buf, size_t len, uint8_t hop, uint64_t msgId) {
-  return NusaRadio::enqueuePacketWithId(buf, len, hop, PRIO_RELAY, msgId) > 0;
+  if (NusaRadio::enqueuePacketWithId(buf, len, hop, PRIO_RELAY, msgId) == 0) return false;
+  // Paket terarah punya next hop yang jelas → pantau ACK-nya per hop.
+  NusaLinkAck::track(buf, len, hop, msgId);
+  return true;
 }
 
 static bool mobSendFlood(const uint8_t* pkt, size_t len, uint8_t hop, uint64_t msgId) {
@@ -479,6 +483,10 @@ static void onPacketFromUser(const uint8_t* pkt, size_t len, uint8_t clientId) {
 // ---------------------------------------------------------------------------
 static void onPacketComplete(uint64_t msgId, uint8_t hop,
                              const uint8_t* pkt, size_t len) {
+  // Link-ACK SEBELUM dedup: kiriman ulang dari hop sebelumnya (karena ACK kita
+  // hilang) tetap harus dijawab walau isinya sudah pernah kita terima.
+  NusaLinkAck::onDirectedComplete(pkt, len, msgId);
+
   if (!s_dedup.admit(msgId)) return;
 
   // Paket terarah mobility layer: hanya next hop yang meneruskan, hanya node
@@ -554,9 +562,11 @@ static void onLoraFrame(const NusaFrame& f, float rssi, float snr) {
   }
 
   if (f.flags & NUSA_FLAG_ACK) {
-    // Link-ACK: dirancang di blueprint, belum diimplementasikan.
-    // Broadcast memang tidak akan pernah di-ACK — ACK serentak dari banyak
-    // node justru menciptakan badai tabrakan.
+    // Link-ACK per hop untuk paket terarah (nusa_linkack.*). Broadcast tidak
+    // pernah di-ACK — ACK serentak dari banyak node = badai tabrakan.
+    // ACK juga bukti node pengirimnya terdengar langsung.
+    uint8_t from = NusaLinkAck::onAckFrame(f);
+    if (from) recordNeighbor(from, rssi, snr);
     return;
   }
 
@@ -646,7 +656,9 @@ void setup() {
   Serial.println("[SETUP] 4: radio OK"); Serial.flush();
 
   NusaFrag::begin(onPacketComplete);
-  Serial.println("[SETUP] 5: frag OK"); Serial.flush();
+  NusaLinkAck::begin(NODE_ID);
+  Serial.printf("[SETUP] 5: frag OK, link-ACK %s\n", LINKACK_ENABLED ? "AKTIF" : "mati");
+  Serial.flush();
 
   s_mobMutex = xSemaphoreCreateRecursiveMutex();
   NusaMob::Hooks mobHooks = {mobSendCtrl, mobSendDirected, mobSendFlood,
@@ -682,6 +694,7 @@ void loop() {
   serviceLed();
   UserLink::loop();
   NusaFrag::loop();
+  NusaLinkAck::loop();
   serviceButton();
 
   uint32_t now = millis();
@@ -764,6 +777,15 @@ void loop() {
                   LORA_SEPARATE_RX ? 1 : 0,
                   NusaRadio::lastRssi(), NusaRadio::lastSnr(),
                   (unsigned long)NusaRadio::airtimeTotalMs());
+    {
+      const NusaLinkAck::Stats& la = NusaLinkAck::stats();
+      Serial.printf("[LINKACK] pantau=%lu ack=%lu ulang=%lu menyerah=%lu gusur=%lu "
+                    "ackKirim=%lu aktif=%u | rakit gagal=%lu\n",
+                    (unsigned long)la.tracked, (unsigned long)la.acked,
+                    (unsigned long)la.retransmits, (unsigned long)la.gaveUp,
+                    (unsigned long)la.evicted, (unsigned long)la.acksSent,
+                    NusaLinkAck::pending(), (unsigned long)NusaFrag::droppedIncomplete());
+    }
     {
       MobLock lock;
       const NusaMob::Stats& ms = NusaMob::stats();
